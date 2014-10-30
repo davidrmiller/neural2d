@@ -1,37 +1,27 @@
 /*
 neural2d.h
 David R. Miller, 2014
+https://github.com/davidrmiller/neural2d
+
 For more information, see the tutorial video.
 */
 
 /*
- * To do:
- * *
- *
  * Notes:
- *
- * Timing test #1:
- *     -O0 without OpenMP:          18.2
- *     -O0 with OpenMP 2 threads:   15.5, 14.3, 16.5, 15.7
- *     -O0 with OpenMP N threads:   12.9, 12.9, 12.8
- *     -O1 without OpenMP:          5.6, 5.5, 5.6
- *     -O1 with OpenMP N threads:   4.8, 4.8
- *
- * Timing test #2:
- *     -O1 with eta=0.001, dynamicEta=false, lambda=0.0:   10.4, 10.5, 10.6, 10.6
- *     -O1 with eta=0.1,   dynamicEta=false, lambda=0.0:   5.4, 5.5
- *     -O1 with eta=0.1,   dynamicEta=false, lambda=10.0:  6.8, 6.8
  *
  * This is a backpropagation neural net simulator with these features:
  *
- *     1. Tuned for 2D image data -- input data is read from .bmp image files
- *     2. Layers can be abstracted as 1D or 2D arrangements of neurons
- *     3. Network topology is defined in a text file
- *     4. Selectable transfer function per-layer
- *     5. Neurons in layers can be fully or sparsely connected
- *     6. Adjustable or automatic training rate (eta)
- *     7. Optional momentum (alpha) and regularization (lambda)
- *     8. Optional program control by a separate program or GUI
+ *    1. Optimized for 2D image data -- input data is read from .bmp image files
+ *    2. Neuron layers can be abstracted as 1D or 2D arrangements of neurons
+ *    3. Network topology is defined in a text file
+ *    4. Neurons in layers can be fully or sparsely connected
+ *    5. Selectable transfer function per layer
+ *    6. Adjustable or automatic training rate (eta)
+ *    7. Optional momentum (alpha) and regularization (lambda)
+ *    8. Standalone console program
+ *    9. Heavily-commented code, < 2000 lines, suitable for prototyping, learning, and experimentation
+ *   10. Optional GUI controller
+ *   11. Tutorial video coming soon!
  *
  * This program is written in the C++-11 dialect. It uses mostly ISO-standard C++
  * features and a few POSIX features that should be widely available on any
@@ -189,7 +179,6 @@ struct Layer
 //
 struct Connection
 {
-    int canary; // !!!
     Connection(Neuron &from, Neuron &to);
     Neuron &fromNeuron;
     Neuron &toNeuron;
@@ -203,7 +192,6 @@ struct Connection
 class Neuron
 {
 public:
-    int canary; // !!!
     Neuron();
     Neuron(vector<Connection> *pConnectionsData, const string &transferFunctionName);
     double output;

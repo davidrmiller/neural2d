@@ -1,7 +1,9 @@
 /*
 neural-net.cpp
 David R. Miller, 2014
-See neural-net.h for more information.
+https://github.com/davidrmiller/neural2d
+
+See neural2d.h for more information.
 
 Also see the tutorial video explaining the theory of operation and the
 construction of the program.
@@ -60,7 +62,7 @@ double absd(double a) { return a < 0.0 ? -a : a; }
 
 
 // Extracts the X and Y components from the string of the form "XxY".
-// E.g., "8x2" will return the pair (8, 2).
+// E.g., "8x2" will return the pair (8, 2). "8" returns the pair (8, 1).
 //
 pair<uint32_t, uint32_t> extractTwoNums(const string &s)
 {
@@ -181,7 +183,6 @@ void ReadBMPNew(const string &filename, vector<double> &dataContainer)
 
             // Convert the 8-bit value to a double while caching it:
             dataContainer.push_back(val / 256.0);
-            //cout << "pixel at " << x << "," << y << " = " << dataContainer[y * width + x] << endl;
         }
     }
 
@@ -253,6 +254,8 @@ SampleSet::SampleSet(const string &inputFilename)
 }
 
 
+// Randomize the order of the samples container.
+//
 void SampleSet::shuffle(void)
 {
     random_shuffle(samples.begin(), samples.end());
@@ -261,10 +264,10 @@ void SampleSet::shuffle(void)
 
 // ***********************************  struct Connection  ***********************************
 
+
 Connection::Connection(Neuron &from, Neuron &to)
      : fromNeuron(from), toNeuron(to)
 {
-    canary = 0xabcd; // !!!
 }
 
 
@@ -314,7 +317,6 @@ double transferFunctionDerivativeGaussian(double x) { return -2.0 * x * exp(pow(
 //
 Neuron::Neuron()
 {
-    canary = 0x1234; // !!!
     output = 1.0;
     gradient = 0.0;
     backConnectionsIndices.clear();
@@ -329,7 +331,6 @@ Neuron::Neuron()
 //
 Neuron::Neuron(vector<Connection> *pConnectionsData, const string &transferFunctionName)
 {
-    canary = 0x1234; // !!!
     output = randomFloat() - 0.5;
     gradient = 0.0;
     pConnections = pConnectionsData; // Remember where the connections array is
@@ -392,9 +393,6 @@ double Neuron::sumDOW_nextLayer(void) const
 
     for (auto idx : forwardConnectionsIndices) {
         const Connection &conn = (*pConnections)[idx];
-        assert(conn.canary == 0xabcd); // !!!
-        assert(conn.fromNeuron.canary == 0x1234); // !!!
-        assert(conn.toNeuron.canary == 0x1234); // !!!
 
         //sum += conn.weight * (conn.pToNeuron)->gradient;
         sum += conn.weight * conn.toNeuron.gradient;
@@ -413,10 +411,7 @@ void Neuron::updateInputWeights(double eta, double alpha)
         Connection &conn = (*pConnections)[idx];
         //const Neuron &neuron = *(conn.pFromNeuron);
 
-        assert(conn.canary == 0xabcd);
-
         const Neuron &fromNeuron = conn.fromNeuron;
-        assert(fromNeuron.canary == 0x1234); // !!!
         double oldDeltaWeight = conn.deltaWeight;
 
         double newDeltaWeight =
@@ -444,8 +439,6 @@ void Neuron::feedForward(void)
     // Sum the neuron's inputs:
     for (auto idx : this->backConnectionsIndices) {
         const Connection &conn = (*pConnections)[idx];
-        assert(conn.canary == 0xabcd); // !!!
-        assert(conn.fromNeuron.canary == 0x1234); // !!!
 
         sum += conn.fromNeuron.output * conn.weight;
     }
@@ -532,7 +525,7 @@ bool Net::loadWeights(const string &filename)
         throw "Invalid weights file";
     }
 
-//    for (auto &c : connections) {   // !!!!!!!!!!!!!!!!!!!!!
+//    for (auto &c : connections) {   // !!! fix
 //        file >> c.weight;
 //    }
 
@@ -553,7 +546,7 @@ bool Net::saveWeights(const string &filename) const
         throw "Error opening weights file";
     }
 
-//    for (auto &c : connections) {   // !!!!!!!!!!!!!!!!!!!!!
+//    for (auto &c : connections) {   // !!! fix
 //        file << c.weight << endl;
 //    }
 
@@ -577,7 +570,6 @@ void Net::reportResultsNew(const Sample &sample) const
 
     cout << "\n" << sample.imageFilename << "\nOutputs: ";
     for (auto &n : layers.back().neurons) { // For all neurons in output layer
-        assert(n.canary == 0x1234); // !!!
         cout << n.output << " ";
     }
     cout << endl;
@@ -647,7 +639,6 @@ bool Net::addToLayer(Layer &layerTo, Layer &layerFrom,
 
         for (uint32_t nx = 0; nx < layerTo.sizeX; ++nx) {
             //cout << "connect to neuron " << nx << "," << ny << endl;
-            assert(layerTo.neurons[flattenXY(nx, ny, layerTo.sizeX)].canary == 0x1234);
             connectNeuron(layerTo, layerFrom, layerTo.neurons[flattenXY(nx, ny, layerTo.sizeX)],
                           nx, ny, radiusX, radiusY);
             // n.b. Bias connections were already made when the neurons were first created.
@@ -691,7 +682,6 @@ void Net::debugShowNet(bool details)
         cout << "Layer '" << l.name << "' has " << l.neurons.size()
              << " neurons arranged in " << l.sizeX << "x" << l.sizeY << endl;
         for (auto const &n : l.neurons) {
-            assert(n.canary == 0x1234); // !!!
             numFwdConnections += n.forwardConnectionsIndices.size();
             numBackConnections += n.backConnectionsIndices.size(); // Includes the bias connection
             if (l.name != "input") {
@@ -703,7 +693,6 @@ void Net::debugShowNet(bool details)
                     cout << "    Back connections (incl. bias):" << endl;
                     for (auto idx : n.backConnectionsIndices) {
                         Connection const &c = connections[idx];
-                        assert(c.canary == 0xabcd); // !!!
                         cout << "      conn(" << &c << ") pFrom=" << &c.fromNeuron
                              << ", pto=" << &c.toNeuron << endl;
                         assert(&c.toNeuron == &n);
@@ -714,7 +703,6 @@ void Net::debugShowNet(bool details)
                     cout << "    Fwd connections:" << endl;
                     for (auto idx : n.forwardConnectionsIndices) {
                         Connection const &pc = connections[idx];
-                        assert(pc.canary == 0xabcd); // !!!
                         cout << "      conn->pFrom=" << &pc.fromNeuron
                              << ", ->pTo=" << &pc.toNeuron << endl;
                     }
@@ -740,7 +728,6 @@ void Net::backProp(const Sample &sample)
 
     Layer &outputLayer = layers.back();
     for (uint32_t n = 0; n < outputLayer.neurons.size(); ++n) {
-        assert(outputLayer.neurons[n].canary == 0x1234); // !!!
         outputLayer.neurons[n].calcOutputGradients(sample.targetVals[n]);
     }
 
@@ -750,7 +737,6 @@ void Net::backProp(const Sample &sample)
         Layer &hiddenLayer = layers[layerNum]; // Make a convenient name
 
         for (auto &n : hiddenLayer.neurons) {
-            assert(n.canary == 0x1234); // !!!
             n.calcHiddenGradients();
         }
     }
@@ -768,7 +754,6 @@ void Net::backProp(const Sample &sample)
         Layer &layer = layers[layerNum];
 
         for (auto &neuron : layer.neurons) {
-            assert(neuron.canary == 0x1234); // !!!
             neuron.updateInputWeights(eta, alpha);
         }
     }
@@ -820,7 +805,6 @@ void Net::feedForwardNew(Sample &sample)
 #pragma omp parallel for
 
         for (uint32_t i = 0; i < layer.neurons.size(); ++i) {
-            assert(layer.neurons[i].canary == 0x1234); // !!!
             layer.neurons[i].feedForward();
         }
     }
@@ -859,7 +843,6 @@ void Net::calculateOverallNetError(const Sample &sample)
     }
 
     for (uint32_t n = 0; n < outputLayer.neurons.size(); ++n) {
-        assert(outputLayer.neurons[n].canary == 0x1234); // !!!
         double delta = sample.targetVals[n] - outputLayer.neurons[n].output;
         error += delta * delta;
     }
@@ -887,7 +870,6 @@ void Net::calculateOverallNetError(const Sample &sample)
 
         double sumWeights = (sumWeightsSquared * lambda)
                           / (2.0 * (totalNumberConnections - totalNumberNeurons));
-        //cout << "sumWeights=" << sumWeights << endl; // !!!
         error += sumWeights;
     }
 
@@ -919,10 +901,7 @@ void Net::calculateOverallNetError(const Sample &sample)
 void Net::connectNeuron(Layer &layerTo, Layer &fromLayer, Neuron &neuron,
         uint32_t nx, uint32_t ny, uint32_t radiusX, uint32_t radiusY)
 {
-    assert(neuron.canary == 0x1234); // !!!
     bool projectRectangular = false;  // If false, do an elliptical pattern
-
-    //cout << "    connectNeuron from layer " << &fromLayer << " to neuron " << &neuron << endl; // !!!
 
     uint32_t sizeX = layerTo.sizeX;
     uint32_t sizeY = layerTo.sizeY;
@@ -937,7 +916,8 @@ void Net::connectNeuron(Layer &layerTo, Layer &fromLayer, Neuron &neuron,
     uint32_t lfromX = uint32_t(normalizedX * fromLayer.sizeX); // should we round off instead of round down?
     uint32_t lfromY = uint32_t(normalizedY * fromLayer.sizeY);
 
-    //cout << "our neuron at " << nx << "," << ny << " covers neuron at " << lfromX << "," << lfromY << endl;
+    //cout << "our neuron at " << nx << "," << ny << " covers neuron at " 
+    //     << lfromX << "," << lfromY << endl;
 
     // Calculate the rectangular window into the "from" layer:
 
@@ -965,8 +945,7 @@ void Net::connectNeuron(Layer &layerTo, Layer &fromLayer, Neuron &neuron,
             if (!projectRectangular && elliptDist(xcenter - x, ycenter - y, radiusX, radiusY) > 1.0) {
                 continue; // Skip this location, it's outside the ellipse
             }
-            Neuron &fromNeuron = fromLayer.neurons[flattenXY(x, y, fromLayer.sizeX)]; // neurons[x * fromLayer.sizeY + y];
-            assert(fromNeuron.canary == 0x1234); // !!!
+            Neuron &fromNeuron = fromLayer.neurons[flattenXY(x, y, fromLayer.sizeX)];
 
             bool duplicate = false;
             if (neuron.sourceNeurons.find(&fromNeuron) != neuron.sourceNeurons.end()) {
@@ -998,7 +977,6 @@ void Net::connectNeuron(Layer &layerTo, Layer &fromLayer, Neuron &neuron,
 
                 // Record the Connection index at the source neuron:
                 uint32_t flatIdxFrom = flattenXY(x, y, fromLayer.sizeX); // x * fromLayer.sizeY + y;
-                assert(fromLayer.neurons[flatIdxFrom].canary == 0x1234); // !!!
                 fromLayer.neurons[flatIdxFrom].forwardConnectionsIndices.push_back(
                            connectionIdx);
 
@@ -1015,8 +993,6 @@ void Net::connectNeuron(Layer &layerTo, Layer &fromLayer, Neuron &neuron,
 //
 void Net::connectBias(Neuron &neuron)
 {
-    assert(neuron.canary == 0x1234); // !!!
-
     // Create a new Connection record and get its index:
     connections.push_back(Connection(bias, neuron));
     uint32_t connectionIdx = connections.size() - 1;
@@ -1165,7 +1141,6 @@ void Net::parseConfigFile(const string &configFilename)
 
     while (getline(cfg, line)) {
         ++lineNum;
-        cout << "line " << lineNum << "=" << line << endl; // !!!
         istringstream ss(line);
 
         // Here are the parameters that we will try to extract from each config line:
@@ -1205,7 +1180,6 @@ void Net::parseConfigFile(const string &configFilename)
                     twoNums = extractTwoNums(tempString);
                     sizeX = twoNums.first;
                     sizeY = twoNums.second;
-                    cout << "size param = " << sizeX << ", " << sizeY << endl; // !!!
                 } else if (token == "radius") {
                     ss >> radiusX >> delim >> radiusY;
                 } else if (token == "tf") {
@@ -1248,7 +1222,7 @@ void Net::parseConfigFile(const string &configFilename)
             previouslyDefinedLayerNumSameName = getLayerNumberFromName(layerName);
             if (previouslyDefinedLayerNumSameName == -1) {
 
-                // Add check of sizeX, sizeY, radiusX, radiusY params !!!
+                // To do: Add range check for sizeX, sizeY, radiusX, radiusY params !!!
 
                 // Create a new layer of this name.
                 // "input" layer will always take this path.

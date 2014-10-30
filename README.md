@@ -117,7 +117,7 @@ in a later section. A typical topology config file looks something like this:
 
     input size 32x32  
     layer1 size 32x32 from input radius 8x8  
-    layer2 size 16x16from layer1  
+    layer2 size 16x16 from layer1  
     output size 1x10 from layer2  
 
 Then run neuron2d-gui and experiment with the parameters until the net is adequately trained, then save
@@ -206,7 +206,7 @@ with the same size:
      layerVertical size 32x32 from input radius 1x8  
      layerHorizontal size 16x16 from input radius 8x1  
      **layerCombined** size **8x8** from layerVertical   
-     **layerCombined**  size **8x8**from layerHorizontal  
+     **layerCombined**  size **8x8** from layerHorizontal  
      output size 1 from layerCombined  
 
 1. The *size-spec* can specify two dimensions, or one. Spaces are not allowed in the size spec. 
@@ -222,4 +222,6 @@ Licenses
 --------
 
 The neural2d program and its documentation are copyrighted under the terms of the MIT license.
+
+The set of digits images in the images/digits/ subdirectory are released to the public domain.
 

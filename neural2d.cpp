@@ -57,23 +57,6 @@ int main(int argc, char **argv)
         }
     }
 
-    // To do: add adjust eta to end of backprop !!!
-
-
-    //myNet.process(inputDataFilename, NNet::TRAINING);
-    //sleep(10000.0);
-    //myNet.saveWeights(weightsFilename);
-
-    // Here is an example of VALIDATE mode -------------:
-
-//    myNet.loadWeights(weightsFilename);
-//    myNet.process(inputDataFilename, Net::VALIDATE);
-
-    // Here is an example of TRAINED mode -------------:
-
-//    myNet.loadWeights(weightsFilename);
-//    myNet.process(inputDataFilename, Net::TRAINED);
-
     cout << "Done." << endl;
     return 0;
 }
