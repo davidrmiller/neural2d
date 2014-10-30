@@ -54,6 +54,8 @@ Quick demo
 
 Place all the files, maintaining the relative directory structure, into a convenient directory.
 
+In the images/digits/ subdirectory, extract the image files from the archive into the same directory.
+
 To compile neural2d, cd to the directory containing the Makefile and execute:
 
     make
@@ -113,10 +115,10 @@ lines that specify the number of layers, the number and arrangement of neurons i
 and the way the neurons are connected. A complete description of the format can be found
 in a later section. A typical topology config file looks something like this:
 
-    input size 32x32
-    layer1 from input size 32x32 radius 8x8
-    layer2 from layer1 size 16x16
-    output from layer2 size 1x10
+    input size 32x32  
+    layer1 size 32x32 from input radius 8x8  
+    layer2 size 16x16from layer1  
+    output size 1x10 from layer2  
 
 Then run neuron2d-gui and experiment with the parameters until the net is adequately trained, then save
 the weights in a file for later use.
@@ -152,15 +154,17 @@ The pattern that is projected onto the source layer can be elliptical. Here are 
 connection patterns for various radii. This shows how a single destination neuron connects
 to neurons in the preceding layer:
 
-radius 0x0 | ![radius-0x0](images/radius-0x0.png) 
+radius 0x0   
+![radius-0x0](images/radius-0x0.png)
 
-radius 0x0 | ![radius-0x0](images/radius-0x0.png)
+radius 1x1   
+![radius-1x1](images/radius-1x1.png)
 
-radius 1x1 | ![radius-1x1](images/radius-1x1.png)
+radius 2x2   
+![radius-2x2](images/radius-2x2.png)
 
-radius 2x2 | ![radius-2x2](images/radius-2x2.png)
-
-radius 3x1 | ![radius-3x1](images/radius-3x1.png)
+radius 3x1   
+![radius-3x1](images/radius-3x1.png)
 
 
 
@@ -169,7 +173,7 @@ Topology config file format
 
 The topology config file contains lines of the following format:
 
-> *layer-definition-line* := *layer-name* [from *layer-name*] size *size-spec* [radius *size-spec*] [tf *transfer-function*]
+> *layer-definition-line* := *layer-name* size *size-spec* [from *layer-name*] [radius *size-spec*] [tf *transfer-function*]
 
 where
 
@@ -191,19 +195,21 @@ Rules:
 
 1. The argument for "from" must be a layer already defined.
 
-1. The same layer name can appear on multiple lines with different "from" parameters. 
+1. The same layer name can be defined multiple times with different "from" parameters.
 This allows source neurons from more than one layer to be combined in one 
-destination layer. When a layer name appears more than once, every one must have 
-an identical size parameter. For example:
+destination layer. The source layers can be any size.
+When a destination layer is defined more than once, each line must have 
+an identical size parameter. In the following example, layerCombined appears twice
+with the same size:
 
-     input size 128x128
-     layerVertical from input size 32x32 radius 1x8
-     layerHorizontal from input size 32x32 radius 8x1
-     layerCombined from layerVertical size 8x8
-     layerCombined from layerHorizontal size 8x8
-     output from layerCombined
+     input size 128x128  
+     layerVertical size 32x32 from input radius 1x8  
+     layerHorizontal size 16x16 from input radius 8x1  
+     **layerCombined** size **8x8** from layerVertical   
+     **layerCombined**  size **8x8**from layerHorizontal  
+     output size 1 from layerCombined  
 
-1. The *size-spec* can be two dimensions, or one. Spaces are not allowed in the size spec. 
+1. The *size-spec* can specify two dimensions, or one. Spaces are not allowed in the size spec. 
 If only one dimension is given, the other is assumed to be 1. For example:
 
  * "8x8" means 64 neurons in an 8 x 8 arrangement.  
