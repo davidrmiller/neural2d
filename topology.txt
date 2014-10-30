@@ -1,0 +1,5 @@
+input size 32x32
+layer1 from input size 32 radius 8x8
+layer2 from layer1 size 16x16
+output from layer2 size 10
+

@@ -1,0 +1,840 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
+ <class>neuralNetController</class>
+ <widget class="QMainWindow" name="neuralNetController">
+  <property name="geometry">
+   <rect>
+    <x>0</x>
+    <y>0</y>
+    <width>620</width>
+    <height>574</height>
+   </rect>
+  </property>
+  <property name="sizePolicy">
+   <sizepolicy hsizetype="Preferred" vsizetype="MinimumExpanding">
+    <horstretch>0</horstretch>
+    <verstretch>0</verstretch>
+   </sizepolicy>
+  </property>
+  <property name="windowTitle">
+   <string>neural2d control</string>
+  </property>
+  <widget class="QWidget" name="centralwidget">
+   <property name="sizePolicy">
+    <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
+     <horstretch>0</horstretch>
+     <verstretch>0</verstretch>
+    </sizepolicy>
+   </property>
+   <layout class="QVBoxLayout" name="verticalLayout">
+    <item>
+     <widget class="QFrame" name="frame_main">
+      <property name="sizePolicy">
+       <sizepolicy hsizetype="Preferred" vsizetype="Minimum">
+        <horstretch>0</horstretch>
+        <verstretch>3</verstretch>
+       </sizepolicy>
+      </property>
+      <property name="frameShape">
+       <enum>QFrame::StyledPanel</enum>
+      </property>
+      <property name="frameShadow">
+       <enum>QFrame::Raised</enum>
+      </property>
+      <layout class="QVBoxLayout" name="verticalLayout_4">
+       <item>
+        <widget class="QFrame" name="frame_inputFiles">
+         <property name="frameShape">
+          <enum>QFrame::StyledPanel</enum>
+         </property>
+         <property name="frameShadow">
+          <enum>QFrame::Raised</enum>
+         </property>
+         <layout class="QVBoxLayout" name="verticalLayout_3">
+          <item>
+           <widget class="QFrame" name="horizontalFrame_quickSetup">
+            <property name="frameShape">
+             <enum>QFrame::StyledPanel</enum>
+            </property>
+            <property name="frameShadow">
+             <enum>QFrame::Sunken</enum>
+            </property>
+            <layout class="QHBoxLayout" name="horizontalLayout_2">
+             <item>
+              <widget class="QPushButton" name="btn_startNet">
+               <property name="sizePolicy">
+                <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
+                 <horstretch>0</horstretch>
+                 <verstretch>0</verstretch>
+                </sizepolicy>
+               </property>
+               <property name="minimumSize">
+                <size>
+                 <width>120</width>
+                 <height>0</height>
+                </size>
+               </property>
+               <property name="toolTip">
+                <string>Launch the neural2d executable. The method is OS-specific.</string>
+               </property>
+               <property name="text">
+                <string>Start Net</string>
+               </property>
+              </widget>
+             </item>
+             <item>
+              <spacer name="horizontalSpacer">
+               <property name="orientation">
+                <enum>Qt::Horizontal</enum>
+               </property>
+               <property name="sizeHint" stdset="0">
+                <size>
+                 <width>40</width>
+                 <height>20</height>
+                </size>
+               </property>
+              </spacer>
+             </item>
+             <item>
+              <widget class="QLabel" name="lbl_quickSetup">
+               <property name="text">
+                <string>Quick setup:</string>
+               </property>
+              </widget>
+             </item>
+             <item>
+              <widget class="QPushButton" name="btn_training">
+               <property name="toolTip">
+                <string>Enable backprop weight updating. The input data file must contain target values.</string>
+               </property>
+               <property name="text">
+                <string>TRAINING</string>
+               </property>
+              </widget>
+             </item>
+             <item>
+              <widget class="QPushButton" name="btn_validate">
+               <property name="toolTip">
+                <string>Don't update weights, just report the output values and network accuracy. The input data config file must contain target output values.</string>
+               </property>
+               <property name="text">
+                <string>VALIDATE</string>
+               </property>
+              </widget>
+             </item>
+             <item>
+              <widget class="QPushButton" name="btn_trained">
+               <property name="toolTip">
+                <string>Don't update weights, just report the network output values. Any target output values in the input data file are optional.</string>
+               </property>
+               <property name="text">
+                <string>TRAINED</string>
+               </property>
+              </widget>
+             </item>
+            </layout>
+           </widget>
+          </item>
+          <item>
+           <layout class="QHBoxLayout" name="horizontalLayout_topology">
+            <item>
+             <widget class="QLabel" name="lbl_topology">
+              <property name="text">
+               <string>Topology config</string>
+              </property>
+             </widget>
+            </item>
+            <item>
+             <widget class="QLineEdit" name="txt_topologyFilename">
+              <property name="toolTip">
+               <string>This is a text file that contains the neural network layer configurations.</string>
+              </property>
+              <property name="statusTip">
+               <string/>
+              </property>
+              <property name="text">
+               <string>topology.txt</string>
+              </property>
+             </widget>
+            </item>
+            <item>
+             <widget class="QPushButton" name="btn_selectTopologyFile">
+              <property name="sizePolicy">
+               <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
+                <horstretch>0</horstretch>
+                <verstretch>0</verstretch>
+               </sizepolicy>
+              </property>
+              <property name="maximumSize">
+               <size>
+                <width>28</width>
+                <height>16777215</height>
+               </size>
+              </property>
+              <property name="toolTip">
+               <string>Choose a topology config file.</string>
+              </property>
+              <property name="text">
+               <string>...</string>
+              </property>
+             </widget>
+            </item>
+           </layout>
+          </item>
+          <item>
+           <layout class="QHBoxLayout" name="horizontalLayout_trainData">
+            <item>
+             <widget class="QLabel" name="lbl_samplesFile">
+              <property name="text">
+               <string>Input data config</string>
+              </property>
+             </widget>
+            </item>
+            <item>
+             <widget class="QLineEdit" name="txt_trainDataFilename">
+              <property name="toolTip">
+               <string>A text file that contains a list of input image filenames, and optionally, the target output values.</string>
+              </property>
+              <property name="text">
+               <string>inputData.txt</string>
+              </property>
+             </widget>
+            </item>
+            <item>
+             <widget class="QPushButton" name="btn_selectTrainDataFile">
+              <property name="sizePolicy">
+               <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
+                <horstretch>0</horstretch>
+                <verstretch>0</verstretch>
+               </sizepolicy>
+              </property>
+              <property name="maximumSize">
+               <size>
+                <width>28</width>
+                <height>16777215</height>
+               </size>
+              </property>
+              <property name="toolTip">
+               <string>Choose an input data config file.</string>
+              </property>
+              <property name="text">
+               <string>...</string>
+              </property>
+             </widget>
+            </item>
+           </layout>
+          </item>
+          <item>
+           <layout class="QHBoxLayout" name="horizontalLayout_weightsFile">
+            <item>
+             <widget class="QLabel" name="label_weightsFile">
+              <property name="text">
+               <string>Weights file</string>
+              </property>
+             </widget>
+            </item>
+            <item>
+             <widget class="QLineEdit" name="txt_weightsFilename">
+              <property name="toolTip">
+               <string>Filename of a file containing all the connection weights. One floating point number per line. If it does not exist, it will be created when weights are saved.</string>
+              </property>
+              <property name="text">
+               <string>weights.txt</string>
+              </property>
+             </widget>
+            </item>
+            <item>
+             <widget class="QPushButton" name="btn_selectWeightsFile">
+              <property name="sizePolicy">
+               <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
+                <horstretch>0</horstretch>
+                <verstretch>0</verstretch>
+               </sizepolicy>
+              </property>
+              <property name="maximumSize">
+               <size>
+                <width>28</width>
+                <height>16777215</height>
+               </size>
+              </property>
+              <property name="toolTip">
+               <string>Choose a weights filename. If it doesn't exist, it will be created when you save weights.</string>
+              </property>
+              <property name="text">
+               <string>...</string>
+              </property>
+             </widget>
+            </item>
+           </layout>
+          </item>
+         </layout>
+        </widget>
+       </item>
+       <item>
+        <widget class="QFrame" name="frame_sampleLoadRepeats">
+         <property name="frameShape">
+          <enum>QFrame::StyledPanel</enum>
+         </property>
+         <property name="frameShadow">
+          <enum>QFrame::Raised</enum>
+         </property>
+         <layout class="QHBoxLayout" name="horizontalLayout">
+          <item>
+           <layout class="QVBoxLayout" name="verticalLayout_shuffleRepeat">
+            <item>
+             <widget class="QRadioButton" name="btn_runOnce">
+              <property name="toolTip">
+               <string>Select if the input samples will be run once or repeatedly.</string>
+              </property>
+              <property name="text">
+               <string>Run input samples once then pause</string>
+              </property>
+             </widget>
+            </item>
+            <item>
+             <widget class="QRadioButton" name="btn_repeat">
+              <property name="toolTip">
+               <string>Select if the input samples will be run once or repeatedly.</string>
+              </property>
+              <property name="text">
+               <string>Run input samples; repeat</string>
+              </property>
+             </widget>
+            </item>
+            <item>
+             <widget class="QRadioButton" name="btn_shuffleRepeat">
+              <property name="toolTip">
+               <string>Select if the input samples will be run once or repeatedly.</string>
+              </property>
+              <property name="text">
+               <string>Run input samples; shuffle; repeat</string>
+              </property>
+              <property name="checked">
+               <bool>true</bool>
+              </property>
+             </widget>
+            </item>
+           </layout>
+          </item>
+          <item>
+           <widget class="QPushButton" name="btn_reloadData">
+            <property name="sizePolicy">
+             <sizepolicy hsizetype="Maximum" vsizetype="Fixed">
+              <horstretch>0</horstretch>
+              <verstretch>0</verstretch>
+             </sizepolicy>
+            </property>
+            <property name="toolTip">
+             <string>This will delete the cache of input samples and replace them with new samples specified in the input data config file above.</string>
+            </property>
+            <property name="text">
+             <string>Reload (replace) input samples</string>
+            </property>
+           </widget>
+          </item>
+         </layout>
+        </widget>
+       </item>
+       <item>
+        <widget class="QSplitter" name="splitter_netParams">
+         <property name="orientation">
+          <enum>Qt::Horizontal</enum>
+         </property>
+         <widget class="QSplitter" name="splitter_everyNth_reportInterval">
+          <property name="orientation">
+           <enum>Qt::Vertical</enum>
+          </property>
+          <widget class="QWidget" name="horizontalLayoutWidget_2">
+           <layout class="QHBoxLayout" name="horizontalLayout_reportInterval">
+            <item>
+             <widget class="QLabel" name="lbl_everyNth">
+              <property name="sizePolicy">
+               <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
+                <horstretch>0</horstretch>
+                <verstretch>0</verstretch>
+               </sizepolicy>
+              </property>
+              <property name="text">
+               <string>Report interval</string>
+              </property>
+             </widget>
+            </item>
+            <item>
+             <widget class="QLineEdit" name="txt_everyNth">
+              <property name="toolTip">
+               <string>Useful in TRAINING mode to reduce screen clutter. Or set to 1 to see a report of every input sample result.</string>
+              </property>
+              <property name="text">
+               <string>100</string>
+              </property>
+             </widget>
+            </item>
+            <item>
+             <widget class="QLabel" name="lbl_samples_2">
+              <property name="text">
+               <string>samples  </string>
+              </property>
+             </widget>
+            </item>
+           </layout>
+          </widget>
+          <widget class="QWidget" name="horizontalLayoutWidget_3">
+           <layout class="QHBoxLayout" name="horizontalLayout_everyNth">
+            <item>
+             <widget class="QLabel" name="lbl_errAvg">
+              <property name="text">
+               <string>Error average over</string>
+              </property>
+             </widget>
+            </item>
+            <item>
+             <widget class="QLineEdit" name="txt_errorAverageWindow">
+              <property name="toolTip">
+               <string>For purposes of dynamic eta updating and stopping criterion, the overall network error is averaged over this many input data samples.</string>
+              </property>
+              <property name="text">
+               <string>20</string>
+              </property>
+             </widget>
+            </item>
+            <item>
+             <widget class="QLabel" name="lbl_samples">
+              <property name="text">
+               <string>samples  </string>
+              </property>
+             </widget>
+            </item>
+           </layout>
+          </widget>
+         </widget>
+         <widget class="QSplitter" name="splitter_etaControl">
+          <property name="orientation">
+           <enum>Qt::Vertical</enum>
+          </property>
+          <widget class="QWidget" name="horizontalLayoutWidget_4">
+           <layout class="QHBoxLayout" name="horizontalLayout_eta">
+            <item>
+             <widget class="QLabel" name="lbl_eta">
+              <property name="text">
+               <string>eta</string>
+              </property>
+             </widget>
+            </item>
+            <item>
+             <widget class="QLineEdit" name="txt_eta">
+              <property name="toolTip">
+               <string>Training rate. Hint: start at 0.1 and reduce by a factor of 10 as needed.</string>
+              </property>
+              <property name="text">
+               <string>0.001</string>
+              </property>
+             </widget>
+            </item>
+           </layout>
+          </widget>
+          <widget class="QCheckBox" name="checkBox_train">
+           <property name="toolTip">
+            <string>Enables backprop weight updating.</string>
+           </property>
+           <property name="text">
+            <string>Train</string>
+           </property>
+           <property name="checked">
+            <bool>true</bool>
+           </property>
+          </widget>
+          <widget class="QCheckBox" name="checkBox_dynamicEta">
+           <property name="toolTip">
+            <string>When enabled, the eta learning rate parameter will automatically be adjusted for best network learning. Sometimes it works well, sometimes not.</string>
+           </property>
+           <property name="text">
+            <string>Dynamic eta</string>
+           </property>
+           <property name="checked">
+            <bool>true</bool>
+           </property>
+          </widget>
+         </widget>
+         <widget class="QSplitter" name="splitter_alphaLambda">
+          <property name="orientation">
+           <enum>Qt::Vertical</enum>
+          </property>
+          <widget class="QWidget" name="horizontalLayoutWidget_6">
+           <layout class="QHBoxLayout" name="horizontalLayout_alpha">
+            <item>
+             <widget class="QLabel" name="lbl_alpha">
+              <property name="text">
+               <string>alpha</string>
+              </property>
+             </widget>
+            </item>
+            <item>
+             <widget class="QLineEdit" name="txt_alpha">
+              <property name="toolTip">
+               <string>Momentum factor. Hint: Start at 0.5 and reduce as needed.</string>
+              </property>
+              <property name="text">
+               <string>0.0</string>
+              </property>
+             </widget>
+            </item>
+           </layout>
+          </widget>
+          <widget class="QWidget" name="horizontalLayoutWidget_5">
+           <layout class="QHBoxLayout" name="horizontalLayout_lambda">
+            <item>
+             <widget class="QLabel" name="lbl_lambda">
+              <property name="text">
+               <string>lambda</string>
+              </property>
+             </widget>
+            </item>
+            <item>
+             <widget class="QLineEdit" name="txt_lambda">
+              <property name="toolTip">
+               <string>The regularization parameter. Hint: start at 1, and increase by a factor of 10 as needed. Or set to 0 to disable regularization.</string>
+              </property>
+              <property name="text">
+               <string>0.0</string>
+              </property>
+             </widget>
+            </item>
+           </layout>
+          </widget>
+         </widget>
+        </widget>
+       </item>
+       <item>
+        <widget class="QFrame" name="frame_doneWeights">
+         <property name="frameShape">
+          <enum>QFrame::StyledPanel</enum>
+         </property>
+         <property name="frameShadow">
+          <enum>QFrame::Raised</enum>
+         </property>
+         <property name="lineWidth">
+          <number>2</number>
+         </property>
+         <layout class="QHBoxLayout" name="horizontalLayout_doneWeights">
+          <item>
+           <widget class="QLabel" name="lbl_doneThreshold">
+            <property name="text">
+             <string>Pause when average error &lt;=</string>
+            </property>
+           </widget>
+          </item>
+          <item>
+           <widget class="QLineEdit" name="txt_doneThreshold">
+            <property name="toolTip">
+             <string>The neural net processing will pause when the recent average network error falls below this threshold.</string>
+            </property>
+            <property name="text">
+             <string>0.01</string>
+            </property>
+           </widget>
+          </item>
+          <item>
+           <layout class="QHBoxLayout" name="horizontalLayout_saveLoadWeights">
+            <item>
+             <widget class="QPushButton" name="btn_saveWeights">
+              <property name="toolTip">
+               <string>Save all the network connection weights to the weights file specified above.</string>
+              </property>
+              <property name="text">
+               <string>Save weights</string>
+              </property>
+             </widget>
+            </item>
+            <item>
+             <widget class="QPushButton" name="btn_loadWeights">
+              <property name="toolTip">
+               <string>Restore all the network connection weights from the weights file specified above.</string>
+              </property>
+              <property name="text">
+               <string>Load weights</string>
+              </property>
+             </widget>
+            </item>
+           </layout>
+          </item>
+         </layout>
+        </widget>
+       </item>
+       <item>
+        <widget class="QFrame" name="frame_runControls">
+         <property name="frameShape">
+          <enum>QFrame::StyledPanel</enum>
+         </property>
+         <property name="frameShadow">
+          <enum>QFrame::Raised</enum>
+         </property>
+         <layout class="QHBoxLayout" name="horizontalLayout_runControls">
+          <item>
+           <widget class="QPushButton" name="btn_pause">
+            <property name="palette">
+             <palette>
+              <active>
+               <colorrole role="Button">
+                <brush brushstyle="SolidPattern">
+                 <color alpha="255">
+                  <red>234</red>
+                  <green>158</green>
+                  <blue>158</blue>
+                 </color>
+                </brush>
+               </colorrole>
+               <colorrole role="Base">
+                <brush brushstyle="SolidPattern">
+                 <color alpha="255">
+                  <red>252</red>
+                  <green>252</green>
+                  <blue>252</blue>
+                 </color>
+                </brush>
+               </colorrole>
+               <colorrole role="Window">
+                <brush brushstyle="SolidPattern">
+                 <color alpha="255">
+                  <red>233</red>
+                  <green>133</green>
+                  <blue>133</blue>
+                 </color>
+                </brush>
+               </colorrole>
+              </active>
+              <inactive>
+               <colorrole role="Button">
+                <brush brushstyle="SolidPattern">
+                 <color alpha="255">
+                  <red>234</red>
+                  <green>158</green>
+                  <blue>158</blue>
+                 </color>
+                </brush>
+               </colorrole>
+               <colorrole role="Base">
+                <brush brushstyle="SolidPattern">
+                 <color alpha="255">
+                  <red>252</red>
+                  <green>252</green>
+                  <blue>252</blue>
+                 </color>
+                </brush>
+               </colorrole>
+               <colorrole role="Window">
+                <brush brushstyle="SolidPattern">
+                 <color alpha="255">
+                  <red>233</red>
+                  <green>133</green>
+                  <blue>133</blue>
+                 </color>
+                </brush>
+               </colorrole>
+              </inactive>
+              <disabled>
+               <colorrole role="Button">
+                <brush brushstyle="SolidPattern">
+                 <color alpha="255">
+                  <red>234</red>
+                  <green>158</green>
+                  <blue>158</blue>
+                 </color>
+                </brush>
+               </colorrole>
+               <colorrole role="Base">
+                <brush brushstyle="SolidPattern">
+                 <color alpha="255">
+                  <red>233</red>
+                  <green>133</green>
+                  <blue>133</blue>
+                 </color>
+                </brush>
+               </colorrole>
+               <colorrole role="Window">
+                <brush brushstyle="SolidPattern">
+                 <color alpha="255">
+                  <red>233</red>
+                  <green>133</green>
+                  <blue>133</blue>
+                 </color>
+                </brush>
+               </colorrole>
+              </disabled>
+             </palette>
+            </property>
+            <property name="toolTip">
+             <string>Pause network operation.</string>
+            </property>
+            <property name="text">
+             <string>Pause ||</string>
+            </property>
+           </widget>
+          </item>
+          <item>
+           <widget class="QPushButton" name="btn_resume">
+            <property name="palette">
+             <palette>
+              <active>
+               <colorrole role="Button">
+                <brush brushstyle="SolidPattern">
+                 <color alpha="255">
+                  <red>152</red>
+                  <green>226</green>
+                  <blue>162</blue>
+                 </color>
+                </brush>
+               </colorrole>
+               <colorrole role="Base">
+                <brush brushstyle="SolidPattern">
+                 <color alpha="255">
+                  <red>252</red>
+                  <green>252</green>
+                  <blue>252</blue>
+                 </color>
+                </brush>
+               </colorrole>
+               <colorrole role="Window">
+                <brush brushstyle="SolidPattern">
+                 <color alpha="255">
+                  <red>144</red>
+                  <green>197</green>
+                  <blue>145</blue>
+                 </color>
+                </brush>
+               </colorrole>
+              </active>
+              <inactive>
+               <colorrole role="Button">
+                <brush brushstyle="SolidPattern">
+                 <color alpha="255">
+                  <red>152</red>
+                  <green>226</green>
+                  <blue>162</blue>
+                 </color>
+                </brush>
+               </colorrole>
+               <colorrole role="Base">
+                <brush brushstyle="SolidPattern">
+                 <color alpha="255">
+                  <red>252</red>
+                  <green>252</green>
+                  <blue>252</blue>
+                 </color>
+                </brush>
+               </colorrole>
+               <colorrole role="Window">
+                <brush brushstyle="SolidPattern">
+                 <color alpha="255">
+                  <red>144</red>
+                  <green>197</green>
+                  <blue>145</blue>
+                 </color>
+                </brush>
+               </colorrole>
+              </inactive>
+              <disabled>
+               <colorrole role="Button">
+                <brush brushstyle="SolidPattern">
+                 <color alpha="255">
+                  <red>152</red>
+                  <green>226</green>
+                  <blue>162</blue>
+                 </color>
+                </brush>
+               </colorrole>
+               <colorrole role="Base">
+                <brush brushstyle="SolidPattern">
+                 <color alpha="255">
+                  <red>144</red>
+                  <green>197</green>
+                  <blue>145</blue>
+                 </color>
+                </brush>
+               </colorrole>
+               <colorrole role="Window">
+                <brush brushstyle="SolidPattern">
+                 <color alpha="255">
+                  <red>144</red>
+                  <green>197</green>
+                  <blue>145</blue>
+                 </color>
+                </brush>
+               </colorrole>
+              </disabled>
+             </palette>
+            </property>
+            <property name="toolTip">
+             <string>Start or resume a paused network.</string>
+            </property>
+            <property name="text">
+             <string> Resume &gt;&gt;</string>
+            </property>
+           </widget>
+          </item>
+         </layout>
+        </widget>
+       </item>
+      </layout>
+      <zorder>frame_inputFiles</zorder>
+      <zorder>frame_runControls</zorder>
+      <zorder>splitter_netParams</zorder>
+      <zorder>frame_sampleLoadRepeats</zorder>
+     </widget>
+    </item>
+   </layout>
+  </widget>
+  <widget class="QMenuBar" name="menubar">
+   <property name="geometry">
+    <rect>
+     <x>0</x>
+     <y>0</y>
+     <width>620</width>
+     <height>27</height>
+    </rect>
+   </property>
+   <property name="sizePolicy">
+    <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
+     <horstretch>0</horstretch>
+     <verstretch>0</verstretch>
+    </sizepolicy>
+   </property>
+   <widget class="QMenu" name="menuFile">
+    <property name="title">
+     <string>File</string>
+    </property>
+    <addaction name="actionQuit"/>
+   </widget>
+   <widget class="QMenu" name="menuHelp">
+    <property name="title">
+     <string>Help</string>
+    </property>
+    <addaction name="actionAbout"/>
+   </widget>
+   <addaction name="menuFile"/>
+   <addaction name="menuHelp"/>
+  </widget>
+  <widget class="QStatusBar" name="statusbar"/>
+  <action name="actionLoad">
+   <property name="text">
+    <string>Load settings</string>
+   </property>
+  </action>
+  <action name="actionSave">
+   <property name="text">
+    <string>Save settings</string>
+   </property>
+  </action>
+  <action name="actionQuit">
+   <property name="text">
+    <string>Quit</string>
+   </property>
+  </action>
+  <action name="actionAbout">
+   <property name="text">
+    <string>About</string>
+   </property>
+  </action>
+ </widget>
+ <resources/>
+ <connections/>
+</ui>
