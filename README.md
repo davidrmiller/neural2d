@@ -1,5 +1,8 @@
-Neural2d -- Neural Net Simulator User Manual
-============================================
+Neural2d -- Neural Net Simulator
+================================
+
+User Manual
+===========
 
 Ver. 1.0
 
@@ -72,11 +75,11 @@ or:
 
 A GUI interface will appear that looks like:
 
-![neuron2d-gui](gui1.png)
+![neuron2d-gui](images/gui1.png)
 
 Press Start Net to launch the neural2d program. You'll see a separate window appear that looks something like this:
 
-![console-window](console1.png)
+![console-window](https://raw.github.com/davidrmiller/neural2d/master/images/console1.png)
 
 The neural net is initialized at this point, and paused waiting for your command to resume.
 
@@ -130,32 +133,32 @@ The 2D in neural2d
 
 In a simple neural net model, the neurons are arranged in a column in each layer:
 
-![net-5-4-2](net-542-sm.png)
+![net-5-4-2](images/net-542-sm.png)
 
 In neural2d, you can specify a rectangular arrangement of neurons in each layer, such as:
 
-![net-2D](net-5x5-4x4-2-sm.png)
+![net-2D](images/net-5x5-4x4-2-sm.png)
 
 The neurons can be sparsely connected to mimic how retinal neurons are connected in biological brains.
 For example, if the radius is "1x1", each neuron on the right (destination) layer will connect to a circular patch
 of neurons in the left 9source) layer as shown here (only a single neuron on the right side is shown connected
 in this picture so you can see what's going on, but imagine all of them connected in the same pattern):
 
-![radius-1x1](proj-1x1-sm.png)
+![radius-1x1](images/proj-1x1-sm.png)
 
 The pattern that is projected onto the source layer can be elliptical. Here are some projected
 connection patterns for various radii. This shows how a single destination neuron connects
 to neurons in the preceding layer:
 
-radius 0x0 | ![radius-0x0](radius-0x0.png) 
+radius 0x0 | ![radius-0x0](images/radius-0x0.png) 
 
-radius 0x0 | ![radius-0x0](radius-0x0.png)
+radius 0x0 | ![radius-0x0](images/radius-0x0.png)
 
-radius 1x1 | ![radius-1x1](radius-1x1.png)
+radius 1x1 | ![radius-1x1](images/radius-1x1.png)
 
-radius 2x2 | ![radius-2x2](radius-2x2.png)
+radius 2x2 | ![radius-2x2](images/radius-2x2.png)
 
-radius 3x1 | ![radius-3x1](radius-3x1.png)
+radius 3x1 | ![radius-3x1](images/radius-3x1.png)
 
 
 
