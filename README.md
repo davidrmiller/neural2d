@@ -1,4 +1,4 @@
-Neural2d -- Neural Net Simulator
+Neural2d - Neural Net Simulator
 ================================
 
 User Manual
@@ -141,7 +141,7 @@ In neural2d, you can specify a rectangular arrangement of neurons in each layer,
 
 The neurons can be sparsely connected to mimic how retinal neurons are connected in biological brains.
 For example, if the radius is "1x1", each neuron on the right (destination) layer will connect to a circular patch
-of neurons in the left 9source) layer as shown here (only a single neuron on the right side is shown connected
+of neurons in the left (source) layer as shown here (only a single neuron on the right side is shown connected
 in this picture so you can see what's going on, but imagine all of them connected in the same pattern):
 
 ![radius-1x1](images/proj-1x1-sm.png)
