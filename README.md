@@ -85,9 +85,13 @@ Press Start Net to launch the neural2d program. You'll see a separate window app
 
 The neural net is initialized at this point, and paused waiting for your command to resume.
 
-At this point, the default input data, or "training set", consists of a few thousand images of numeric digits.
+At this point, the default input data, or "training set", consists of a few thousand images of numeric digits, like these:
+
+![console-window](https://raw.github.com/davidrmiller/neural2d/master/images/digits-illus.png)
+
 The images are 32x32 pixels each, stored in .bmp format. The neural net is configured
-to have 32x32 input neurons, and 10 output neurons. The net is trained to classify the
+(by the default topology.txt file) to have 32x32 input neurons, and 10 output neurons. 
+The net will be trained to classify the
 digits in the images and to indicate the answer by driving the corresponding output neuron to
 a high level.
 
@@ -149,8 +153,7 @@ in this picture so you can see what's going on, but imagine all of them connecte
 ![radius-1x1](images/proj-1x1-sm.png)
 
 The pattern that is projected onto the source layer can be elliptical. Here are some projected
-connection patterns for various radii. This shows how a single destination neuron connects
-to neurons in the preceding layer:
+connection patterns for various radii:
 
 radius 0x0   
 ![radius-0x0](images/radius-0x0.png)
@@ -244,11 +247,15 @@ Here are a few complete topology config files and the nets they specify.
 
 ![console-window](https://raw.github.com/davidrmiller/neural2d/master/images/net-16x16-4x4r1x1-7-sm.png)
 
-input size 6x6
-layerHorizontal size 2x2 from input radius 2x0
-layerVertical size 2x2 from input radius 0x2
-output size 1 from layerHorizontal
-output size 1 from layerVertical
+    # In the picture that follows, layerVertical is the set of 4 neurons
+    # in the upper part of the picture, and layerHorizontal is the lower
+    # set of 4 neurons.
+    
+    input size 6x6
+    layerHorizontal size 2x2 from input radius 2x0
+    layerVertical size 2x2 from input radius 0x2
+    output size 1 from layerHorizontal
+    output size 1 from layerVertical
 
 ![console-window](https://raw.github.com/davidrmiller/neural2d/master/images/net-6x6-2x2r2x0-2x2r0x2-1-sm.png)
 
