@@ -25,26 +25,28 @@ Features
 Document Contents
 -----------------
 
-Requirements
-
-Quick demo
-
-How to use your own data
-
-The 2D in neural2d
-
-Topology config file format
-
-Licenses
+Requirements  
+Quick demo  
+GUI interface  
+How to use your own data  
+The 2D in neural2d  
+Topology config file format  
+Topology config file examples  
+Licenses  
 
 
 Requirements
 ------------
 
-* C++-11 compiler  
-* g++
+For the neural2d standalone console program:
 
-* The optional GUI requires Python 3.x, and QT4 (Linux) or pyQt4 (Windows).
+* C++-11 compiler  
+* Runs on Linux, Windows, and probably Mac
+
+For the neural2d-gui GUI:
+
+* Requires Python 3.x, and PyQt4  
+* Runs on Linux and probably Mac and Windows
 
 
 Quick demo
@@ -60,6 +62,30 @@ To compile neural2d, cd to the directory containing the Makefile and execute:
 
 This will use g++ to compile neural2d.cpp and neural2d-core.cpp and result in an executable
 named neural2d.
+
+To run the demo, execute:
+
+    make test
+
+In this demo, we train the neural net to recognize digits.
+The input data, or "training set", consists of a few thousand images of numeric digits. The
+first 50 look like this:
+
+![console-window](https://raw.github.com/davidrmiller/neural2d/master/images/digits-illus.png)
+
+The images are 32x32 pixels each, stored in .bmp format.
+In this demo, the neural net is configured to have 32x32 input neurons, and 10 output neurons. 
+The net is trained to classify the
+digits in the images and to indicate the answer by driving the corresponding output neuron to
+a high level.
+
+Once the net is sufficiently trained, all the connection weights are saved in a file
+named "weights.txt".
+
+GUI interface
+-------------
+
+The GUI is written in Python 3.x, and requires PyQt4.
 
 To run the GUI controller, execute:
 
@@ -85,27 +111,25 @@ Press Start Net to launch the neural2d program. You'll see a separate window app
 
 The neural net is initialized at this point, and paused waiting for your command to resume.
 
-At this point, the default input data, or "training set", consists of a few thousand images of numeric digits, like these:
-
-![console-window](https://raw.github.com/davidrmiller/neural2d/master/images/digits-illus.png)
-
-The images are 32x32 pixels each, stored in .bmp format. The neural net is configured
-(by the default topology.txt file) to have 32x32 input neurons, and 10 output neurons. 
-The net will be trained to classify the
-digits in the images and to indicate the answer by driving the corresponding output neuron to
-a high level.
-
 Press Resume to start the neural net training. It will automatically pause when the
 average error rate falls below a certain threshold. You now have a trained net.
 
 How to use your own data
 ------------------------
 
+You'll need to prepare a set of image files and two configuration files.
+One config file (named inputData.txt by default) is a list of images to use
+as inputs to the neural net. The other config file (named topology.txt by default) 
+contains a specification of the neural
+net topology (the number and arrangement of neurons and connections).
+
 First, prepare your set of input images. They need to be in .bmp format, and all must have
-the same dimensions. Then prepare an input data config file, by default named "inputData.txt".
-It contains a list of the
+the same dimensions. Put those in a convenient directory.
+
+Next, prepare the input data config file, by default named "inputData.txt" but
+can be named anything. It contains a list of the
 input image filenames and the expected output values of the neural net's output neurons.
-A typical file contains lines like these:
+A typical file contains lines formatted like this:
 
     images/thumbnails/test-918.bmp -1 1 -1 -1 -1 -1 -1 -1 -1 -1
     images/thumbnails/test-919.bmp -1 -1 -1 -1 -1 -1 -1 -1 1 -1
@@ -129,15 +153,19 @@ Or execute the console program directly, specifying the topology, input data, an
 
     neuron2d topology.txt inputData.txt weights.txt
 
-If you run the GUI program, you can change the network parameters from the GUI. If you run the
+The weights file will be written with the network connection weights after the net has
+been successfully trained.
+
+If you run the GUI program, you can change the network parameters from the GUI while the
+neural2d program is running. If you run the
 neural2d console program directly, there is no way to interact with it while running.
 Instead, you'll need to examine and modify the parameters in the code at the top of
-the files neural-net.cpp and neural-net-test.cpp.
+the files neural2d.cpp and neural2d-core.cpp.
 
 The 2D in neural2d
 ------------------
 
-In a simple neural net model, the neurons are arranged in a column in each layer:
+In a simple traditional neural net model, the neurons are arranged in a column in each layer:
 
 ![net-5-4-2](images/net-542-sm.png)
 
@@ -146,13 +174,14 @@ In neural2d, you can specify a rectangular arrangement of neurons in each layer,
 ![net-2D](images/net-5x5-4x4-2-sm.png)
 
 The neurons can be sparsely connected to mimic how retinal neurons are connected in biological brains.
-For example, if the radius is "1x1", each neuron on the right (destination) layer will connect to a circular patch
+For example, if a radius of "1x1" is specified in the topology config file,
+each neuron on the right (destination) layer will connect to a circular patch
 of neurons in the left (source) layer as shown here (only a single neuron on the right side is shown connected
 in this picture so you can see what's going on, but imagine all of them connected in the same pattern):
 
 ![radius-1x1](images/proj-1x1-sm.png)
 
-The pattern that is projected onto the source layer can be elliptical. Here are some projected
+The pattern that is projected onto the source layer is elliptical. Here are some projected
 connection patterns for various radii:
 
 radius 0x0   
@@ -218,7 +247,8 @@ If only one dimension is given, the other is assumed to be 1. For example:
  * "1x8" means a column of 8 neurons.  
  * "8" means the same as "8x1"  
 
-Topology Config File Examples
+Topology config file examples
+-----------------------------
 
 Here are a few complete topology config files and the nets they specify.
 
