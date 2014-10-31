@@ -1,8 +1,6 @@
 Neural2d - Neural Net Simulator
 ================================
 
-Coming Soon!
-
 User Manual
 ===========
 
@@ -217,11 +215,48 @@ If only one dimension is given, the other is assumed to be 1. For example:
  * "1x8" means a column of 8 neurons.  
  * "8" means the same as "8x1"  
 
+Topology Config File Examples
+
+Here are a few complete topology config files and the nets they specify.
+
+    input size 4x4
+    layer1 size 3x3 from input
+    layer2 size 2x2 from layer1
+    output size 1 from layer2
+
+![console-window](https://raw.github.com/davidrmiller/neural2d/master/images/net-4x4-3x3-2x2-1-sm.png)
+
+    input size 4x4
+    layer1 size 1x4 from input
+    layer2 size 3x1 from layer1
+    output size 1 from layer2
+
+![console-window](https://raw.github.com/davidrmiller/neural2d/master/images/net-4x4-1x4-3x1-1-sm.png)
+
+    input size 4x4
+    output size 4x1 from input radius 0x2
+
+![console-window](https://raw.github.com/davidrmiller/neural2d/master/images/net-4x4-4x1r0x2-sm.png)
+
+    input size 16x16
+    layer1 size 4x4 from input radius 1x1
+    output size 7x1 from layer1
+
+![console-window](https://raw.github.com/davidrmiller/neural2d/master/images/net-16x16-4x4r1x1-7-sm.png)
+
+input size 6x6
+layerHorizontal size 2x2 from input radius 2x0
+layerVertical size 2x2 from input radius 0x2
+output size 1 from layerHorizontal
+output size 1 from layerVertical
+
+![console-window](https://raw.github.com/davidrmiller/neural2d/master/images/net-6x6-2x2r2x0-2x2r0x2-1-sm.png)
+
 
 Licenses
 --------
 
-The neural2d program and its documentation are copyrighted under the terms of the MIT license.
+The neural2d program and its documentation are copyrighted and licensed under the terms of the MIT license.
 
 The set of digits images in the images/digits/ subdirectory are released to the public domain.
 
