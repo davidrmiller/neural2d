@@ -32,6 +32,7 @@ How to use your own data
 The 2D in neural2d  
 Topology config file format  
 Topology config file examples  
+How-do-I *X*?  
 Licenses  
 
 
@@ -288,6 +289,120 @@ Here are a few complete topology config files and the nets they specify.
     output size 1 from layerVertical
 
 ![console-window](https://raw.github.com/davidrmiller/neural2d/master/images/net-6x6-2x2r2x0-2x2r0x2-1-sm.png)
+
+
+How-do-I X?
+-------------
+
+**How do I get, build, and install the command-line neural2d program?**
+
+Get the files from:
+
+    https://github.com/davidrmiller/neural2d
+
+Put those into a directory. Expand the images files in the images/digits/ subdirectory. In the top level
+directory (where the Makefile lives), build the program with:
+
+     make
+
+That will produce an executable named neuron2d in the same directory.
+
+To test the installation, run:
+
+     make test
+
+If it succeeds, it will create a weights.txt file of non-zero size.
+
+**How do I run the command-line program?**
+
+     ./neural2d topology.txt inputData.txt weights.txt
+
+**How do I run the GUI interface?**
+
+If you have Python 3.x and PyQt4 installed, then one of the following should work:
+
+     ./neural2d-gui.py
+     python neural2d-gui.py
+     python3 neural2d-gui.py
+
+**How do I use my own data instead of the digits images?**
+
+Create your own directory of BMP images, and a config file that follows the same format as
+shown in the provided default inputData.txt. Then define a topology config file with the
+appropriate number of network inputs and outputs, then run the neural2d program.
+
+**How do I use a trained net on new data?**
+
+It's all about the weights file. After the net has been successfully trained, save 
+the internal connection weights in a weights file.
+That's typically done in neural2d.cpp by calling the member function saveWeights(filename).
+
+The weights you saved can be loaded back into a neural net of the same topology using
+the member function loadWeights(filename). Once the net has been loaded with weights,
+it can be used applied to new data by calling feedForward(). Prior to calling
+feedForward(), you'll want to set a couple of parameters:
+
+     repeatInputSamples = false;
+     reportEveryNth = 1;
+
+This is normally done in neural2d.cpp.
+
+You'll need to prepare a new input data config file (default name inputData.txt)
+that contains a list of only those new input data images that you want the net to
+process.
+
+**How do I change the learning rate parameter?**
+
+In the command-line program, you can set the eta parameter or change it by directly
+setting the eta member of the Net object, like this:
+
+     eta = 0.1;
+
+When using neuron2d-gui, you can change the eta parameter (and other parameters)
+in the GUI at any time, even while the network is busy processing input data.
+
+**Are the output neurons binary or floating point?**
+
+They are whatever you train them to be, but you can only train the outputs to take
+values in the range that the transfer function is capable of producing.
+
+If you're training a net to output binary values,
+it's best if you use the maxima of the transfer function to represent the two binary values.
+For example, when using the default tanh() transfer function, train the outputs to
+be -1 and +1 for false and true. When using the logistic transfer function, train the
+outputs to be 0 and 1.
+
+**How do I use a different transfer function?**
+
+You can add a "tf" parameter to any layer definition line in the topology config file.
+The argument to tf can be "tanh", "logistic", "linear", "ramp", or "gaussian". 
+The transfer function you specify will be used by all the neurons in that layer.
+See neural2d-core.cpp for more information.
+
+In the topology config file, the tf parameter
+is specified as in this example:
+
+     layerHidden1 size 64x64 from input radius 3x3 tf linear
+
+You can add new transfer functions by following the examples in neural2d-core.cpp.
+There are two places to change: first find where transferFunctionTanh() is defined
+and add your new transfer function and its derivative there. Next, locate the constructor
+for class Neuron and add a new else-if clause there, following the examples.
+
+**How do I map RGB pixels from an image to the input neurons?**
+
+That's in the ReadBMP() function in neural2d-core.cpp. The default version of ReadBMP()
+converts each RBG pixel to a single monochrome floating point value in the range 0.0 to 1.0.
+Alternatively, you can extract just a single color channel, or apply any conversion you
+want, as long as the result is a vector<> container with enough floating point values in the range
+0.0..1.0 for the input neurons. See the comments in ReadBMP() for alternate ways to
+convert the pixel data to floats.
+
+**Why does the net error rate stay high? Why doesn't my net learn?**
+
+Neural nets are finicky. Try different network topologies. Try starting with a larger
+eta values and reduce it incrementally. It could also be due to redundancy in the input data, 
+or mislabeled target output values. Or you may need more training samples.
 
 
 Licenses
