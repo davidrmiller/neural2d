@@ -49,9 +49,9 @@ int main(int argc, char **argv)
             myNet.backProp(sample);
             myNet.reportResultsNew(sample);
             if (myNet.recentAverageError < doneErrorThreshold) {
-                cout << "Solved!" << endl;
-                // Save weights here
-                sleep(1000); // Do whatever needs to be done here
+                cout << "Solved!   -- Saving weights..." << endl;
+                myNet.saveWeights(weightsFilename);
+                sleep(5); // Do whatever else needs to be done here
                 exit(0);
             }
         }

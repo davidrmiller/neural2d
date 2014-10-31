@@ -525,9 +525,14 @@ bool Net::loadWeights(const string &filename)
         throw "Invalid weights file";
     }
 
-//    for (auto &c : connections) {   // !!! fix
-//        file >> c.weight;
-//    }
+    for (auto const &layer : layers) {
+        for (auto const &neuron : layer.neurons) {
+            for (auto idx : neuron.backConnectionsIndices) {
+                Connection &conn = connections[idx];
+                file >> conn.weight;
+            }
+        }
+    }
 
     // ToDo!!! check that the number of weights in the file == size of connections
     file.close();
@@ -546,9 +551,14 @@ bool Net::saveWeights(const string &filename) const
         throw "Error opening weights file";
     }
 
-//    for (auto &c : connections) {   // !!! fix
-//        file << c.weight << endl;
-//    }
+    for (auto const &layer : layers) {
+        for (auto const &neuron : layer.neurons) {
+            for (auto idx : neuron.backConnectionsIndices) {
+                const Connection &conn = connections[idx];
+                file << conn.weight << endl;
+            }
+        }
+    }
 
     file.close();
     return true;
