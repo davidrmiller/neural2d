@@ -304,7 +304,7 @@ public:
     // and maybe backprop depending on the mode:
 
     void feedForward(void);                       // Propagate inputs to outputs
-    void feedForwardNew(Sample &sample);
+    void feedForward(Sample &sample);
     void backProp(const Sample &sample);          // Backprop and update all weights
 
     // The connection weights can be saved or restored at any time. Note that the network
@@ -322,7 +322,7 @@ public:
 
     // Functions for displaying the results when processing input samples:
 
-    void reportResultsNew(const Sample &sample) const;
+    void reportResults(const Sample &sample) const;
     //void showResults(void) const;                 // Report actual net outputs (unknown expected values)
     //void showResultsAccuracy(const Sample &sample) const; // Display outputs and expected values
     void debugShowNet(bool details = false);      // Display details of net topology

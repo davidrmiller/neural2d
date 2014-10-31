@@ -91,7 +91,7 @@ pair<uint32_t, uint32_t> extractTwoNums(const string &s)
 // Given an image filename and a data container, fill the container with
 // data extracted from the image.
 //
-void ReadBMPNew(const string &filename, vector<double> &dataContainer)
+void ReadBMP(const string &filename, vector<double> &dataContainer)
 {
     //assert(expectedNumElements > 0);
 
@@ -197,7 +197,7 @@ void ReadBMPNew(const string &filename, vector<double> &dataContainer)
 vector<double> &Sample::getData(void)
 {
    if (data.size() == 0) {
-       ReadBMPNew(imageFilename, data);
+       ReadBMP(imageFilename, data);
    }
 
    // If we get here, we can assume there is something in the .data member
@@ -568,7 +568,7 @@ bool Net::saveWeights(const string &filename) const
 // Assumes the net's output neuron errors and overall net error have already been
 // computed and saved in the case where the target output values are known.
 //
-void Net::reportResultsNew(const Sample &sample) const
+void Net::reportResults(const Sample &sample) const
 {
     // We actually report only every Nth input sample:
 
@@ -779,7 +779,7 @@ void Net::backProp(const Sample &sample)
 // This takes the values at the input layer and feeds them through the
 // neural net to produce new values at the output layer.
 //
-void Net::feedForwardNew(Sample &sample)
+void Net::feedForward(Sample &sample)
 {
     ++inputSampleNumber;
 

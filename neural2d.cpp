@@ -45,9 +45,9 @@ int main(int argc, char **argv)
         }
         for (uint32_t sampleIdx = 0; sampleIdx < mySamples.samples.size(); ++sampleIdx) {
             NNet::Sample &sample = mySamples.samples[sampleIdx];
-            myNet.feedForwardNew(sample);
+            myNet.feedForward(sample);
             myNet.backProp(sample);
-            myNet.reportResultsNew(sample);
+            myNet.reportResults(sample);
             if (myNet.recentAverageError < doneErrorThreshold) {
                 cout << "Solved!   -- Saving weights..." << endl;
                 myNet.saveWeights(weightsFilename);
