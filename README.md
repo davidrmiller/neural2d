@@ -35,6 +35,7 @@ Document Contents
 [How-do-I *X*?](#HowDoI)  
 [Licenses](#Licenses)  
 
+Also see the [wiki](https://github.com/davidrmiller/neural2d/wiki) for more information.
 
 Requirements<a name="Requirements"></a>
 ------------
@@ -61,6 +62,10 @@ In the images/digits/ subdirectory, extract the image files from the archive int
 To compile neural2d, cd to the directory containing the Makefile and execute:
 
     make
+
+If using MinGW on Windows, depending on how it's installed, you may need to use:
+
+    mingw32-make
 
 This will use g++ to compile neural2d.cpp and neural2d-core.cpp and result in an executable
 named neural2d.
