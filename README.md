@@ -25,7 +25,7 @@ Features
 Document Contents
 -----------------
 
-Requirements  
+[Requirements](#Requirements)  
 Quick demo  
 GUI interface  
 How to use your own data  
@@ -36,18 +36,19 @@ How-do-I *X*?
 Licenses  
 
 
-Requirements
+<a name="Requirements">Requirements</a>
 ------------
 
 For the neural2d standalone console program:
 
-* C++-11 compiler  
+* C++-11 compiler (e.g., g++ on Linux)
 * Runs on Linux, Windows, and probably Mac
 
-For the neural2d-gui GUI:
+For neural2d-gui:
 
 * Requires Python 3.x, and PyQt4  
-* Runs on Linux and probably Mac and Windows
+* Requires xterm (Linux only)  
+* Runs on Linux (Windows and Mac untested)
 
 
 Quick demo
