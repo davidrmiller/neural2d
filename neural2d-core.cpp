@@ -288,7 +288,7 @@ double transferFunctionDerivativeLogistic(double x) { return x * (1.0 - x); }
 
 // linear is a constant slope; ranges from -inf to +inf:
 double transferFunctionLinear(double x) { return x; }
-double transferFunctionDerivativeLinear(double x) { return 1.0; }
+double transferFunctionDerivativeLinear(double x) { return (void)x, 1.0; }
 
 // ramp is a constant slope between -1 <= x <= 1, zero slope elsewhere; output ranges from -1 to +1:
 double transferFunctionRamp(double x)
@@ -473,11 +473,11 @@ Net::Net(const string &topologyFilename)
     // value to show that it is not yet open. The function doCommand() will
     // open the file when it is needed.
 
-#ifndef WIN32
+#ifndef _WIN32
     cmdFd = -1;
 #endif
     if (enableRemoteInterface) {
-#ifdef WIN32
+#ifdef _WIN32
         cmdFilename = "neural2d-command";
 #else
         cmdFilename = "neural2d-command-" + to_string((unsigned)getppid());
@@ -1352,7 +1352,7 @@ void Net::doCommand()
     // open if cmdFd is nonnegative. We must open it in non-blocking mode so that we
     // don't hang in read() if no commands have arrived.
 
-#ifdef WIN32
+#ifdef _WIN32
     if (!cmdStream.is_open() && isFileExists(cmdFilename)) {
         cout << "opening command interface file \'" << cmdFilename << "\'" << endl;
         cmdStream.open(cmdFilename);
@@ -1386,7 +1386,7 @@ void Net::doCommand()
         // return immediately.
 
         int numRead = 0;
-    #ifdef WIN32
+    #ifdef _WIN32
         if (cmdStream.is_open() && cmdStream.good()) {
             cmdStream.read(buf, sizeof buf - 1);
             numRead = cmdStream.gcount();

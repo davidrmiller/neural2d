@@ -100,9 +100,10 @@ using namespace std;
 #include <fcntl.h>     // For O_RDONLY, O_NONBLOCK, for the optional remote control channel
 #include <unistd.h>    // For getppid() and read(), for the optional remote control channel
 
-#ifdef WIN32
+#ifdef _WIN32
 // Windows headers:
 #include <windows.h>
+#define sleep(secs) Sleep(secs * 1000)
 #endif
 
 
@@ -362,7 +363,7 @@ private:
 
     // Stuff for the optional command and control interface; unused if
     // enableRemoteInterface is false:
-#ifdef WIN32
+#ifdef _WIN32
     ifstream cmdStream;
 #else
     int cmdFd;
