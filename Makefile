@@ -11,12 +11,14 @@
 #    make clean  # removes the neural2d objects, but leaves qtui.py.
 #    make test   # execute neural2d on a test set of data
 
+
+# Specify a compiler here that understands C++-11:
+COMPILER=g++ -std=c++11 -fopenmp
+
 # Warning: -O2 and -fopenmp do not work well together.
 # It's ok to use -O1 and -fopenmp at the same time.
-MYCFLAGS=-g -O1
+EXTRACFLAGS=-g -O1 -fopenmp -Wall -Wextra
 
-# Remove -fopenmp from the CFLAGS if your system does not support it:
-CFLAGS=$(MYCFLAGS) -std=c++11 -Wall -fopenmp
 
 all: neural2d qtui.py
 
@@ -31,13 +33,13 @@ qtui.py: qtui-neural-net2.ui
 # a GUI, or spawned and managed by the GUI.
 
 neural2d: neural2d.o neural2d-core.o Makefile
-	g++ $(CFLAGS) neural2d.o neural2d-core.o -o neural2d
+	$(COMPILER) $(EXTRACFLAGS) neural2d.o neural2d-core.o -o neural2d
 
 neural2d.o: neural2d.cpp neural2d.h Makefile
-	g++ $(CFLAGS) -c neural2d.cpp -o neural2d.o
+	$(COMPILER) $(EXTRACFLAGS) -c neural2d.cpp -o neural2d.o
 
 neural2d-core.o: neural2d-core.cpp neural2d.h Makefile
-	g++ $(CFLAGS) -c neural2d-core.cpp -o neural2d-core.o
+	$(COMPILER) $(EXTRACFLAGS) -c neural2d-core.cpp -o neural2d-core.o
 
 clean:
 	rm neural2d neural2d.o neural2d-core.o
