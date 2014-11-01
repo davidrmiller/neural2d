@@ -26,17 +26,17 @@ Document Contents
 -----------------
 
 [Requirements](#Requirements)  
-Quick demo  
-GUI interface  
-How to use your own data  
-The 2D in neural2d  
-Topology config file format  
-Topology config file examples  
-How-do-I *X*?  
-Licenses  
+[How to run the demo](#Demo)  
+[GUI interface](#GUI)  
+[How to use your own data](#YourOwnData)  
+[The 2D in neural2d](#2D)  
+[Topology config file format](#TopologyConfig)  
+[Topology config file examples](#TopologyExamples)  
+[How-do-I *X*?](#HowDoI)  
+[Licenses](#Licenses)  
 
 
-<a name="Requirements">Requirements</a>
+Requirements<a name="Requirements"></a>
 ------------
 
 For the neural2d standalone console program:
@@ -51,7 +51,7 @@ For neural2d-gui:
 * Runs on Linux (Windows and Mac untested)
 
 
-Quick demo
+How to run the demo<a name="Demo"></a>
 -----------
 
 Place all the files, maintaining the relative directory structure, into a convenient directory.
@@ -84,7 +84,7 @@ a high level.
 Once the net is sufficiently trained, all the connection weights are saved in a file
 named "weights.txt".
 
-GUI interface
+GUI interface<a name="GUI"></a>
 -------------
 
 The GUI is written in Python 3.x, and requires PyQt4.
@@ -116,7 +116,7 @@ The neural net is initialized at this point, and paused waiting for your command
 Press Resume to start the neural net training. It will automatically pause when the
 average error rate falls below a certain threshold. You now have a trained net.
 
-How to use your own data
+How to use your own data<a name="YourOwnData"></a>
 ------------------------
 
 You'll need to prepare a set of image files and two configuration files.
@@ -164,7 +164,7 @@ neural2d console program directly, there is no way to interact with it while run
 Instead, you'll need to examine and modify the parameters in the code at the top of
 the files neural2d.cpp and neural2d-core.cpp.
 
-The 2D in neural2d
+The 2D in neural2d<a name="2D"></a>
 ------------------
 
 In a simple traditional neural net model, the neurons are arranged in a column in each layer:
@@ -200,7 +200,7 @@ radius 3x1
 
 
 
-Topology config file format
+Topology config file format<a name="TopologyConfig"></a>
 ---------------------------
 
 The topology config file contains lines of the following format:
@@ -249,7 +249,7 @@ If only one dimension is given, the other is assumed to be 1. For example:
  * "1x8" means a column of 8 neurons.  
  * "8" means the same as "8x1"  
 
-Topology config file examples
+Topology config file examples<a name="TopologyExamples"></a>
 -----------------------------
 
 Here are a few complete topology config files and the nets they specify.
@@ -292,7 +292,7 @@ Here are a few complete topology config files and the nets they specify.
 ![console-window](https://raw.github.com/davidrmiller/neural2d/master/images/net-6x6-2x2r2x0-2x2r0x2-1-sm.png)
 
 
-How-do-I X?
+How-do-I X?<a name="HowDoI"></a>
 -------------
 
 **How do I get, build, and install the command-line neural2d program?**
@@ -406,7 +406,7 @@ eta values and reduce it incrementally. It could also be due to redundancy in th
 or mislabeled target output values. Or you may need more training samples.
 
 
-Licenses
+Licenses<a name="Licenses"></a>
 --------
 
 The neural2d program and its documentation are copyrighted and licensed under the terms of the MIT license.
