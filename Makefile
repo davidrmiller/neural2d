@@ -50,4 +50,3 @@ test:
 	./neural2d topology.txt inputData.txt weights.txt
 
 .PHONY: all clean test
-
