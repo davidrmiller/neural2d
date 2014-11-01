@@ -46,7 +46,11 @@ clean:
 
 # Run neural2d on a test set of images:
 
-test:
+images/digits/test-1.bmp:
+	@echo "Before running the test, you must extract the archive of images in images/digits/"
+	@false
+
+test: images/digits/test-1.bmp
 	./neural2d topology.txt inputData.txt weights.txt
 
 .PHONY: all clean test
