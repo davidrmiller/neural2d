@@ -464,7 +464,6 @@ Net::Net(const string &topologyFilename)
     totalNumberConnections = 0;
     totalNumberNeurons = 0;
     sumWeights = 0.0;
-    doneErrorThreshold = 0.0; // Stop TRAINING mode when net error falls below this
     repeatInputSamples = true;
     inputSampleNumber = 0;    // Increments each time feedForward() is called
 
@@ -1489,10 +1488,6 @@ void Net::doCommand()
                 ss >> token;
                 shuffleInputSamples = (token == "True");
                 cout << "shuffleInputSamples=" << shuffleInputSamples << endl;
-            }
-            else if (token == "doneErrorThreshold") {
-                ss >> doneErrorThreshold;
-                cout << "Set doneErrorThreshold=" << doneErrorThreshold << endl;
             }
         }
     } while (!isRunning);

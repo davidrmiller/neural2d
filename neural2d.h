@@ -262,11 +262,6 @@ public:
 
     uint32_t reportEveryNth;
 
-    // When in TRAINING mode, if doneErrorThreshold is > 0.0, the training will stop when
-    // the recent average overall network error falls below this threshold:
-
-    double doneErrorThreshold;
-
     // If repeatInputSamples is false, the program will pause after running all the
     // input samples once. If set to true, the input samples will automatically repeat.
     // If shuffleInputSamplies is true, then the input samples will be randomly

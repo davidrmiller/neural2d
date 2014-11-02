@@ -30,13 +30,16 @@ int main(int argc, char **argv)
     NNet::SampleSet mySamples(inputDataFilename);
 
     // Here is an example of TRAINING mode -------------:
+    // See the GitHub wiki for example code for VALIDATE and TRAINED modes:
+    // https://github.com/davidrmiller/neural2d/wiki
 
     myNet.eta = 0.1;
     myNet.dynamicEtaAdjust = false;
     myNet.alpha = 0.001;
     myNet.lambda = 0.0;
-    myNet.doneErrorThreshold = 0.5;
     myNet.reportEveryNth = 25;
+    myNet.repeatInputSamples = true;
+
     double doneErrorThreshold = 0.005;
 
     while (myNet.repeatInputSamples) {
