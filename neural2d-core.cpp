@@ -453,17 +453,18 @@ Net::Net(const string &topologyFilename)
 {
     // See nnet.h for descriptions of these variables:
 
-    eta = 0.01;               // Initial overall net learning rate, [0.0..1.0]
-    dynamicEtaAdjust = true;  // true enables automatic eta adjustment during training
-    alpha = 0.1;              // Momentum factor, multiplier of last deltaWeight, [0.0..1.0]
-    lambda = 0.0;             // Regularization parameter; disabled if 0.0
+    eta = 0.01;                    // Initial overall net learning rate, [0.0..1.0]
+    dynamicEtaAdjust = true;       // true enables automatic eta adjustment during training
+    alpha = 0.1;                   // Momentum factor, multiplier of last deltaWeight, [0.0..1.0]
+    lambda = 0.0;                  // Regularization parameter; disabled if 0.0
+    projectRectangular = false;    // Use elliptical areas for sparse connections
     enableRemoteInterface = true;  // if true, causes the net to respond to remote commands
     isRunning = !enableRemoteInterface;
     totalNumberConnections = 0;
     totalNumberNeurons = 0;
     sumWeights = 0.0;
     repeatInputSamples = true;
-    inputSampleNumber = 0;    // Increments each time feedForward() is called
+    inputSampleNumber = 0;         // Increments each time feedForward() is called
 
     // Init the optional remote command interface: For now, we'll establish the
     // filename for the command file, but set the file descriptor to an invalid
@@ -910,8 +911,6 @@ void Net::calculateOverallNetError(const Sample &sample)
 void Net::connectNeuron(Layer &layerTo, Layer &fromLayer, Neuron &neuron,
         uint32_t nx, uint32_t ny, uint32_t radiusX, uint32_t radiusY)
 {
-    bool projectRectangular = false;  // If false, do an elliptical pattern
-
     uint32_t sizeX = layerTo.sizeX;
     uint32_t sizeY = layerTo.sizeY;
     assert(sizeX > 0 && sizeY > 0);

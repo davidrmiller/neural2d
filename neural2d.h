@@ -245,7 +245,14 @@ public:
 
     // Regularization parameter. If zero, regularization is disabled:
 
-    double lambda = 1.0;
+    double lambda;
+
+    // When a net topology specifies sparse connections (i.e., when there is a radius
+    // parameter specified in the topology config file), then the shape of the area
+    // that is back-projected onto the source layer of neurons can be elliptical or
+    // rectangular. The default is elliptical (false).
+
+    bool projectRectangular;
 
     // If enableRemoteInterface is true, we'll monitor the remote command file and act on any
     // commands received. If false, we'll start running the network immediately and not wait
