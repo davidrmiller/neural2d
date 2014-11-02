@@ -588,44 +588,42 @@ void Net::reportResults(const Sample &sample) const
         for (double targetVal : sample.targetVals) {
             cout << targetVal << " ";
         }
-    }
 
-    // Optional: Enable the following block if you would like to report the net's
-    // outputs and the expected values as Booleans, where any value <= 0 is considered
-    // false, and > 0 is considered true. This can be used, e.g., for pattern
-    // recognition where each output neuron corresponds to one pattern class,
-    // and the output neurons are trained to be positive or negative to indicate
-    // true or false.
+        // Optional: Enable the following block if you would like to report the net's
+        // outputs and the expected values as Booleans, where any value <= 0 is considered
+        // false, and > 0 is considered true. This can be used, e.g., for pattern
+        // recognition where each output neuron corresponds to one pattern class,
+        // and the output neurons are trained to be positive or negative to indicate
+        // true or false.
 
-    if (true) {
-        //double maxOutput = (numeric_limits<double>::min)();
-        double maxOutput = -1.e8;
-        size_t maxIdx = 0;
+        if (true) {
+            //double maxOutput = (numeric_limits<double>::min)();
+            double maxOutput = -1.e8;
+            size_t maxIdx = 0;
 
-        for (size_t i = 0; i < layers.back().neurons.size(); ++i) {
-            Neuron const &n = layers.back().neurons[i];
-            if (n.output > maxOutput) {
-                maxOutput = n.output;
-                maxIdx = i;
+            for (size_t i = 0; i < layers.back().neurons.size(); ++i) {
+                Neuron const &n = layers.back().neurons[i];
+                if (n.output > maxOutput) {
+                    maxOutput = n.output;
+                    maxIdx = i;
+                }
             }
+
+            if (sample.targetVals[maxIdx] > 0.0) {
+                cout << " " << string("Correct");
+            } else {
+                cout << " " << string("Wrong");
+            }
+            cout << endl;
         }
 
-        if (sample.targetVals[maxIdx] > 0.0) {
-            cout << " " << string("Correct");
-        } else {
-            cout << " " << string("Wrong");
-        }
-        cout << endl;
+        // Optionally enable the following line to display the current eta value
+        // (in case we're dynamically adjusting it):
+        cout << "  eta=" << eta;
+
+        // Show overall net error for this sample and for the last few samples averaged:
+        cout << "Net error = " << error << ", running average = " << recentAverageError << endl;
     }
-
-    // Optionally enable the following line to display the current eta value
-    // (in case we're dynamically adjusting it):
-    cout << "  eta=" << eta;
-
-    // Show overall net error for this sample and for the last few samples averaged:
-    cout << "Net error = " << error << ", running average = " << recentAverageError << endl;
-
-
 }
 
 
