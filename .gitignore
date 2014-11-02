@@ -22,7 +22,12 @@
 *.a
 *.lib
 
-# Executables
+# Executables and binary stuff:
 *.exe
 *.out
 *.app
+*.project
+images/digits/*.bmp
+weights.txt
+images/digits/LICENSE
+
