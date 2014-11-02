@@ -89,9 +89,10 @@ pair<uint32_t, uint32_t> extractTwoNums(const string &s)
 // ***********************************  Input samples  ***********************************
 
 // Given an image filename and a data container, fill the container with
-// data extracted from the image.
+// data extracted from the image, using the conversion function specified
+// in colorChannel:
 //
-void ReadBMP(const string &filename, vector<double> &dataContainer)
+void ReadBMP(const string &filename, vector<double> &dataContainer, ColorChannel_t colorChannel)
 {
     //assert(expectedNumElements > 0);
 
@@ -165,23 +166,27 @@ void ReadBMP(const string &filename, vector<double> &dataContainer)
             throw("Error reading image file");
         }
 
-        // Bytes are arranged in the order (B, G, R). Enable one of the conversions
-        // below to convert the RGB pixel to a single unsigned char:
+        // BMP pixels are arranged in memory in the order (B, G, R). We'll convert
+        // the pixel to a double using one of the conversions below:
+
+        double val = 0.0;
 
         for (uint32_t x = 0; x < width; ++x) {
-            //pPixelsBW[x * width + y] = imageData[x * 3 + 0];  // use the blue pixel value
-            //pPixelsBW[x * width + y] = imageData[x * 3 + 1];  // use the green pixel value
-            //pPixelsBW[x * height + y] = imageData[x * 3 + 2]; // use the red pixel value
-//            pPixelsBW[x * height + y] =  // convert RBG to BW
-//                                         0.3 * imageData[x*3 + 2] +   // red
-//                                         0.6 * imageData[x*3 + 1] +   // green
-//                                         0.1 * imageData[x*3 + 0];    // blue
-            unsigned char val =
-                                 0.3 * imageData[x*3 + 2] +   // red
-                                 0.6 * imageData[x*3 + 1] +   // green
-                                 0.1 * imageData[x*3 + 0];    // blue
+            if (colorChannel == NNet::R) {
+                val = imageData[x * 3 + 2]; // Red
+            } else if (colorChannel == NNet::G) {
+                val = imageData[x * 3 + 1]; // Green
+            } else if (colorChannel == NNet::B) {
+                val = imageData[x * 3 + 0]; // Blue
+            } else if (colorChannel == NNet::BW) {
+                val =  0.3 * imageData[x*3 + 2] +   // Red
+                       0.6 * imageData[x*3 + 1] +   // Green
+                       0.1 * imageData[x*3 + 0];    // Blue
+            } else {
+                throw("Error: unknown pixel conversion");
+            }
 
-            // Convert the 8-bit value to a double while caching it:
+            // Convert it to the range 0.0..1.0: this value will be the input to an input neuron:
             dataContainer.push_back(val / 256.0);
         }
     }
@@ -194,10 +199,10 @@ void ReadBMP(const string &filename, vector<double> &dataContainer)
 // cache the pixel data in memory.
 // Returns a reference to the container of input data.
 //
-vector<double> &Sample::getData(void)
+vector<double> &Sample::getData(ColorChannel_t colorChannel)
 {
    if (data.size() == 0) {
-       ReadBMP(imageFilename, data);
+       ReadBMP(imageFilename, data, colorChannel);
    }
 
    // If we get here, we can assume there is something in the .data member
@@ -453,6 +458,7 @@ Net::Net(const string &topologyFilename)
 {
     // See nnet.h for descriptions of these variables:
 
+    colorChannel = NNet::BW;       // Convert input pixels to monochrome
     eta = 0.01;                    // Initial overall net learning rate, [0.0..1.0]
     dynamicEtaAdjust = true;       // true enables automatic eta adjustment during training
     alpha = 0.1;                   // Momentum factor, multiplier of last deltaWeight, [0.0..1.0]
@@ -785,7 +791,7 @@ void Net::feedForward(Sample &sample)
     // check that the number of components of the input sample equals
     // the number of input neurons:
 
-    const vector<double> &data = sample.getData();
+    const vector<double> &data = sample.getData(colorChannel);
     Layer &inputLayer = layers[0];
 
     if (inputLayer.neurons.size() != data.size()) {
@@ -1115,6 +1121,8 @@ void Net::parseConfigFile(const string &configFilename)
         string fromLayerName = "";         // Can be any existing layer name
         uint32_t sizeX = 0;                // Format: size XxY
         uint32_t sizeY = 0;
+        ColorChannel_t channel = NNet::BW; // Applies only to the input layer
+        bool colorChannelSpecified = false;
         uint32_t radiusX = 1e9;            // Format: radius XxY
         uint32_t radiusY = 1e9;
         string transferFunctionName = "";  // Format: tf name
@@ -1145,6 +1153,16 @@ void Net::parseConfigFile(const string &configFilename)
                     twoNums = extractTwoNums(tempString);
                     sizeX = twoNums.first;
                     sizeY = twoNums.second;
+                } else if (token == "channel") {
+                    ss >> tempString;  // Expecting R, G, B, or BW
+                    if      (tempString == "R")  channel = NNet::R;
+                    else if (tempString == "G")  channel = NNet::G;
+                    else if (tempString == "B")  channel = NNet::B;
+                    else if (tempString == "BW") channel = NNet::BW;
+                    else {
+                        throw("Unknown color channel");
+                    }
+                    colorChannelSpecified = true;
                 } else if (token == "radius") {
                     ss >> radiusX >> delim >> radiusY;
                 } else if (token == "tf") {
@@ -1155,7 +1173,7 @@ void Net::parseConfigFile(const string &configFilename)
                 }
             }
 
-            // Now do something with the data we extracted:
+            // Now check the data we extracted:
 
             // If this is the first layer, check that it is called "input":
 
@@ -1163,6 +1181,19 @@ void Net::parseConfigFile(const string &configFilename)
                 cerr << "Error in " << configFilename << ": the first layer must be named 'input'" << endl;
                 throw("Topology config file syntax error");
             }
+
+            // If this is not the first layer, check that it does not have a channel parameter.
+            // If it is the input layer, we'll save the color channel in the Net object:
+
+            if (layers.size() != 0 && layerName != "input") {
+                if (colorChannelSpecified) {
+                    throw("Error in topology config file: color channel applies only to input layer");
+                }
+            } else {
+                colorChannel = channel;
+            }
+
+            // Check the source layer:
 
             int32_t layerNumFrom = getLayerNumberFromName(fromLayerName); // input layer will return -1
 

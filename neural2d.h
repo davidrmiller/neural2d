@@ -115,22 +115,29 @@ namespace NNet {
 
 //  ***********************************  Input samples  ***********************************
 
-// Training samples, including the pixel data.
-// Each sample consists of an input filename and expected output values.
-// When running a trained net on unlabeled input data, the target values are not known
-// and therefore not used.
+// Training samples, including the pixel data. Each sample consists of an input
+// filename and expected output values. When running a trained net on unlabeled
+// input data, the target values are not known and therefore not used.
 //
+// The code below is specific for samples derived from image files. The parameter
+// Net::colorChannel can be set to choose the function that converts the RGB pixel
+// value into a floating point number in the range 0.0..1.0.
+//
+
+enum ColorChannel_t { R, G, B, BW };
+
 
 class Sample
 {
 public:
     string imageFilename;
-    vector<double> &getData(void);
+    vector<double> &getData(ColorChannel_t colorChannel);
     vector<double> targetVals;
 
 private:
     vector<double> data; // Pixel data converted to doubles and flattened to a 1D array
 };
+
 
 class SampleSet
 {
@@ -227,6 +234,10 @@ class Net
 public:
     // Parameters that affect overall network operation. These can be set by
     // directly accessing the data members:
+
+    // The color channel specifies how RGB pixels are converted to doubles:
+
+    ColorChannel_t colorChannel;   // R, G, B, or BW
 
     // eta is the network learning rate. It can be set to a constant value, somewhere
     // in the range 0.0001 to 0.1. Optionally, set dynamicEtaAdjust to true to allow

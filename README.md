@@ -17,7 +17,7 @@ Features
 *     Adjustable or automatic training rate (eta)
 *     Optional momentum (alpha) and regularization (lambda)
 *     Standalone console program
-*     Heavily-commented code, < 2000 lines, suitable for prototyping and experimentation
+*     Simple, heavily-commented code, < 2000 lines, suitable for prototyping, learning, and experimentation
 *     Optional GUI controller
 *     Tutorial video coming soon!
 
@@ -59,7 +59,7 @@ Place all the files, maintaining the relative directory structure, into a conven
 
 In the images/digits/ subdirectory, extract the image files from the archive into the same directory.
 
-To compile neural2d, cd to the directory containing the Makefile and execute:
+To compile neural2d, cd to the directory containing the Makefile and execute the default make target:
 
     make
 
@@ -92,7 +92,7 @@ named "weights.txt".
 GUI interface<a name="GUI"></a>
 -------------
 
-The GUI is written in Python 3.x, and requires PyQt4.
+The optional GUI is written in Python 3.x, and requires PyQt4.
 
 To run the GUI controller, execute:
 
@@ -210,13 +210,15 @@ Topology config file format<a name="TopologyConfig"></a>
 
 The topology config file contains lines of the following format:
 
-> *layer-definition-line* := *layer-name* size *size-spec* [from *layer-name*] [radius *size-spec*] [tf *transfer-function*]
+> *layer-definition-line* := *layer-name* size *size-spec* [from *layer-name*] [channel *channel-name*] [radius *size-spec*] [tf *transfer-function*]
 
 where
 
  > *layer-name* := "input", "output", or a string that begins with "layer"
     
  > *size-spec* := *integer* ["x" *integer*]
+ 
+ > *channel-name* := R, G, B, or BW
     
  > *transfer-function* := "tanh", "logistic", "linear", "ramp", or "gaussian"
 
@@ -231,6 +233,8 @@ Rules:
 1. The hidden layers can be named anything beginning with "layer".
 
 1. The argument for "from" must be a layer already defined.
+
+1. The color channel parameter can be specified only on the input layer.
 
 1. The same layer name can be defined multiple times with different "from" parameters.
 This allows source neurons from more than one layer to be combined in one 
@@ -395,14 +399,22 @@ There are two places to change: first find where transferFunctionTanh() is defin
 and add your new transfer function and its derivative there. Next, locate the constructor
 for class Neuron and add a new else-if clause there, following the examples.
 
-**How do I map RGB pixels from an image to the input neurons?**
+**How do the color image pixels get converted to floating point for the input layer?**
 
 That's in the ReadBMP() function in neural2d-core.cpp. The default version of ReadBMP()
-converts each RBG pixel to a single monochrome floating point value in the range 0.0 to 1.0.
-Alternatively, you can extract just a single color channel, or apply any conversion you
-want, as long as the result is a vector<> container with enough floating point values in the range
-0.0..1.0 for the input neurons. See the comments in ReadBMP() for alternate ways to
-convert the pixel data to floats.
+converts each RBG pixel to a single floating point value in the range 0.0 to 1.0.
+
+By default, the RGB color pixels are converted to monochrome and normalized to the
+range 0.0 to 1.0. That can be changed at runtime by setting the colorChannel
+member of the Net object to R, G, B, or BW prior to calling feedForward().
+E.g., to use only the green color channel of the images, use:
+
+    myNet.colorChannel = NNet::G;
+
+The color conversion can also be specified in the topology config file on the
+line that defines the input layer by setting the "channel" parameter to R, G, B, or BW, e.g.:
+
+    input size 64x64 channel G
 
 **Why does the net error rate stay high? Why doesn't my net learn?**
 

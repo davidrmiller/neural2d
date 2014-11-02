@@ -36,7 +36,6 @@ int main(int argc, char **argv)
     myNet.eta = 0.1;
     myNet.dynamicEtaAdjust = false;
     myNet.alpha = 0.001;
-    myNet.lambda = 0.0;
     myNet.reportEveryNth = 25;
     myNet.repeatInputSamples = true;
 
