@@ -578,7 +578,7 @@ void Net::reportResults(const Sample &sample) const
 
     // Report actual and expected outputs:
 
-    cout << "\n" << sample.imageFilename << "\nOutputs: ";
+    cout << "\nPass #" << inputSampleNumber << ": " << sample.imageFilename << "\nOutputs: ";
     for (auto &n : layers.back().neurons) { // For all neurons in output layer
         cout << n.output << " ";
     }
@@ -619,12 +619,14 @@ void Net::reportResults(const Sample &sample) const
         cout << endl;
     }
 
-    cout << "Net error = " << error << ", running average = " << recentAverageError << endl;
-
     // Optionally enable the following line to display the current eta value
     // (in case we're dynamically adjusting it):
+    cout << "  eta=" << eta;
 
-    cout << "  eta=" << eta << endl;
+    // Show overall net error for this sample and for the last few samples averaged:
+    cout << "Net error = " << error << ", running average = " << recentAverageError << endl;
+
+
 }
 
 

@@ -70,7 +70,7 @@ For more information, see the tutorial video.
  * Layer objects. Each Layer object holds a container of Neuron objects. Each
  * Neuron object holds containers of references to Connection objects which
  * define the connections. The container of Connection objects is held in the
- * net object and neurons refer to them by indices. Class SampleSet holds
+ * net object and neurons refer to connections by indices. Class SampleSet holds
  * the input samples that are presented to the neural net when the
  * feedForward() member is called.
  */
@@ -109,18 +109,9 @@ using namespace std;
 
 // Everything we define in this file will be inside the NNet namespace. This keeps
 // all of our definitions out of the global namespace. (You can indent all the source
-// lines inside the namespace if you're an indenting purist.)
+// lines inside the namespace below if you're an indenting purist.)
 //
 namespace NNet {
-
-// Here are the three modes of operation:
-//
-//enum mode_t {
-//    TRAINING,   // Update weights; known target output values
-//    VALIDATE,   // Don't update weights; known target output values
-//    TRAINED     // Don't update weights; unknown target output values
-//};
-
 
 //  ***********************************  Input samples  ***********************************
 
@@ -288,15 +279,6 @@ public:
     double error;   // Overall net error
     double recentAverageError;  // Averaged over recentAverageSmoothingFactor samples
 
-    //------------------------------------------------
-    // Here is where we store all the weighted connections. The container can get
-    // reallocated, so we'll only refer to elements by indices, not by pointers or
-    // references. This also allows us to hack on the connections container during
-    // training if we want to, by dynamically adding or deleting connections without
-    // invalidating references.
-
-    vector<Connection> connections;
-
     // Creates and connects a net from a topology config file:
 
     Net(const string &topologyFilename);
@@ -324,11 +306,17 @@ public:
     // Functions for displaying the results when processing input samples:
 
     void reportResults(const Sample &sample) const;
-    //void showResults(void) const;                 // Report actual net outputs (unknown expected values)
-    //void showResultsAccuracy(const Sample &sample) const; // Display outputs and expected values
     void debugShowNet(bool details = false);      // Display details of net topology
 
 private:
+    // Here is where we store all the weighted connections. The container can get
+    // reallocated, so we'll only refer to elements by indices, not by pointers or
+    // references. This also allows us to hack on the connections container during
+    // training if we want to, by dynamically adding or deleting connections without
+    // invalidating references.
+
+    vector<Connection> connections;
+
     Neuron bias;  // Fake neuron with constant output 1.0
     void initTrainingSamples(const string &inputFilename);
     void parseConfigFile(const string &configFilename); // Creates layer metadata from a config file
@@ -342,8 +330,6 @@ private:
     void connectBias(Neuron &neuron);
     int32_t getLayerNumberFromName(const string &name) const;
 
-    //bool inputDataEof(bool autoRestart);          // true means out of training samples
-    //Sample *prepareNextTrainingSample(void);      // Move the input values into the input layer
     void doCommand();                             // Handles incoming program command and control
     double adjustedEta(void);
 
@@ -351,15 +337,9 @@ private:
 
     double recentAverageSmoothingFactor;
     double lastRecentAverageError; // Used for dynamically adjusting eta
-    uint32_t totalNumberConnections;
+    uint32_t totalNumberConnections;  // Including 1 bias connection per neuron
     uint32_t totalNumberNeurons;
     double sumWeights; // For regularization calculation
-
-    // Training input data stuff:
-    //vector<Sample> inputSamples;
-    //size_t nextInputSampleIndex;   // Index into .inputSamples[]
-    //unsigned char *findImage(const string &imageFilename);    // Returns NULL if not found
-    //unordered_map<string, unsigned char *> imageCache; // pixel data keyed by filename
 
     // Stuff for the optional command and control interface; unused if
     // enableRemoteInterface is false:
@@ -370,7 +350,6 @@ private:
 #endif
     string cmdFilename;
 };
-
 
 } // end namespace NNet
 
