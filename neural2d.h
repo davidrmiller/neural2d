@@ -1,7 +1,7 @@
 /*
 neural2d.h
 David R. Miller, 2014
-https://github.com/davidrmiller/neural2d
+See https://github.com/davidrmiller/neural2d for more information.
 
 For more information, see the tutorial video.
 */
@@ -271,7 +271,7 @@ public:
     bool shuffleInputSamples;
 
     uint32_t inputSampleNumber; // Increments each time feedForward() is called
-    double error;   // Overall net error
+    double error;               // Overall net error
     double recentAverageError;  // Averaged over recentAverageSmoothingFactor samples
 
     // Creates and connects a net from a topology config file:

@@ -394,7 +394,6 @@ double Neuron::sumDOW_nextLayer(void) const
     for (auto idx : forwardConnectionsIndices) {
         const Connection &conn = (*pConnections)[idx];
 
-        //sum += conn.weight * (conn.pToNeuron)->gradient;
         sum += conn.weight * conn.toNeuron.gradient;
     }
 
@@ -409,7 +408,6 @@ void Neuron::updateInputWeights(double eta, double alpha)
 
     for (auto idx : backConnectionsIndices) {
         Connection &conn = (*pConnections)[idx];
-        //const Neuron &neuron = *(conn.pFromNeuron);
 
         const Neuron &fromNeuron = conn.fromNeuron;
         double oldDeltaWeight = conn.deltaWeight;
@@ -839,6 +837,7 @@ void Net::calculateOverallNetError(const Sample &sample)
     error = 0.0;
 
     // Return if there are no known target values:
+
     if (sample.targetVals.size() == 0) {
         return;
     }
@@ -846,6 +845,7 @@ void Net::calculateOverallNetError(const Sample &sample)
     Layer &outputLayer = layers.back();
 
     // Check that the number of target values equals the number of output neurons:
+
     if (sample.targetVals.size() != outputLayer.neurons.size()) {
         cout << "Error in sample " << inputSampleNumber << ": wrong number of target values" << endl;
         throw("Wrong number of target values");
@@ -925,8 +925,8 @@ void Net::connectNeuron(Layer &layerTo, Layer &fromLayer, Neuron &neuron,
     uint32_t lfromX = uint32_t(normalizedX * fromLayer.sizeX); // should we round off instead of round down?
     uint32_t lfromY = uint32_t(normalizedY * fromLayer.sizeY);
 
-    //cout << "our neuron at " << nx << "," << ny << " covers neuron at " 
-    //     << lfromX << "," << lfromY << endl;
+//    cout << "our neuron at " << nx << "," << ny << " covers neuron at "
+//         << lfromX << "," << lfromY << endl;
 
     // Calculate the rectangular window into the "from" layer:
 
@@ -967,7 +967,6 @@ void Net::connectNeuron(Layer &layerTo, Layer &fromLayer, Neuron &neuron,
                 // Add a new Connection record to the main container of connections:
                 connections.push_back(Connection(fromNeuron, neuron));
                 int connectionIdx = connections.size() - 1;  //    and get its index,
-                //Connection &conn = connections.back();       //    and a convenient reference
                 ++totalNumberConnections;
 
                 // Initialize the weight of the connection:
@@ -978,11 +977,6 @@ void Net::connectNeuron(Layer &layerTo, Layer &fromLayer, Neuron &neuron,
 
                 // Remember the source neuron for detecting duplicate connections:
                 neuron.sourceNeurons.insert(&fromNeuron);
-
-                //conn.pFromNeuron = &fromNeuron;
-                //conn.pToNeuron = &neuron;
-                //uint32_t flatIdxTo = nx * sizeY + ny;
-                //assert(&neuron == &layerTo.neurons[flatIdxTo]); // Just checking
 
                 // Record the Connection index at the source neuron:
                 uint32_t flatIdxFrom = flattenXY(x, y, fromLayer.sizeX); // x * fromLayer.sizeY + y;
@@ -1009,12 +1003,7 @@ void Net::connectBias(Neuron &neuron)
     Connection &c = connections.back();
     c.deltaWeight = 0.0;
 
-    //c.pToNeuron = &neuron;
-    //c.pFromNeuron = &bias; // Point to the fake neuron with constant 1.0 output
-
     // Record the back connection with the destination neuron:
-    //neuron.backConnectionsIndices.push_back(connectionIdx);
-    //neuron.backConnections.push_back()
     neuron.backConnectionsIndices.push_back(connectionIdx);
 
     ++totalNumberConnections;
@@ -1061,9 +1050,6 @@ void Net::createNeurons(Layer &layerTo, Layer &layerFrom, const string &transfer
             Neuron &neuron = layerTo.neurons.back(); // Make a more convenient name
             ++totalNumberNeurons;
 
-//          cout << "  created neuron(" << &layerTo.neurons.back() << ")"
-//               << " at " << nx << "," << ny << endl;
-
             // If layerFrom is layerTo, it means we're making input neurons
             // that have no input connections to the neurons. Else, we must make connections
             // to the source neurons and to a bias input:
@@ -1080,37 +1066,9 @@ void Net::createNeurons(Layer &layerTo, Layer &layerFrom, const string &transfer
 }
 
 
-/*
-   Returns true if the neural net was successfully created and connected. Returns
-   false for any error.
-
-   Config file notes:
-
-   There must be a layer named "input" specified first.
-   There must be a layer named "output specified last.
-   Hidden layers can be named anything starting with "layer".
-   The size parameter refers to the number of neurons in the destination layer (layer to the right).
-   The radius parameter refers to the number of neurons in the source layer (layer to the left).
-   A radius of 0 means: connect from just one source input neuron.
-   A radius of 1 means: connect from the corresponding source neuron and its immediate neighbors.
-   A radius larger than the previous layer (or an unspecified radius) harmlessly encompasses all
-   the neurons in the layer.
-   A layer name may be repeated to connect with source neurons in multiple source layers.
-   A repeated layer name must specify identical size parameters.
-
-   Example config file:
-
-   # Comment lines start with #
-   # Blank lines are ignored.
-   input size 64x64
-   layerV from input size 32x32 radius 1x32 tf 0
-   layerH from input size 32x32 radius 32x1
-   layerVH from layerV size 16x16 radius 32x32
-   layerVH from layerH size 16x16 radius 32x32     <-- repeated layer must have same size
-   layerC from layerVH size 8x8                    <-- no radius = fully connected
-   output from layerC size 2x1 radius 8x8 tf 1
-*/
-
+// Returns true if the neural net was successfully created and connected. Returns
+// false for any error. See the GitHub wiki (https://github.com/davidrmiller/neural2d)
+// for more information about the format of the topology config file.
 // Throws an exception for any error.
 //
 void Net::parseConfigFile(const string &configFilename)
@@ -1184,7 +1142,6 @@ void Net::parseConfigFile(const string &configFilename)
                 if (token == "from") {
                     ss >> fromLayerName;
                 } else if (token == "size") {
-                    //ss >> sizeX >> delim >> sizeY;  // Size XxY
                     ss >> tempString;
                     twoNums = extractTwoNums(tempString);
                     sizeX = twoNums.first;
@@ -1323,15 +1280,18 @@ void Net::parseConfigFile(const string &configFilename)
 //
 // Commands:
 //     alpha n               set momentum, float n > 0.0
-//     data filename         init training samples
+//     averageover           number of input samples for running error average
 //     dynamiceta True|False enable/disable dynamic updating of the eta parameter
 //     eta n                 set learning rate, float n > 0.0
+//     lambda n              set regularization factor
 //     load filename         load weights from a file
 //     pause                 pause operation
+//     repeat True|False     whether to repeat the input samples
 //     report n              progress report interval, int n >= 1
 //     resume                resume operation (alias for "run")
 //     run                   resume operation (alias for "resume")
 //     save filename         save weights (but not topology)
+//     shuffle True|False    shuffle input samples
 //     train True|False      enable/disable backprop weight updates
 //
 void Net::doCommand()
@@ -1457,11 +1417,7 @@ void Net::doCommand()
                 sleep(0.5);
             }
             else if (token == "report") {
-                //int everyNth;
-                //ss >> everyNth;
                 ss >> reportEveryNth;
-                //setReportingInterval(everyNth);
-                //cout << "Report everyNth=" << getReportingInterval() << endl;
                 cout << "Report everyNth=" << reportEveryNth << endl;
             }
             else if (token == "averageover") {
