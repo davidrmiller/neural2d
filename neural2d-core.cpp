@@ -461,10 +461,12 @@ Net::Net(const string &topologyFilename)
     colorChannel = NNet::BW;       // Convert input pixels to monochrome
     eta = 0.01;                    // Initial overall net learning rate, [0.0..1.0]
     dynamicEtaAdjust = true;       // true enables automatic eta adjustment during training
+    recentAverageSmoothingFactor = 125.; // Average net errors over this many input samples
+    lastRecentAverageError = recentAverageError = 1.0;
     alpha = 0.1;                   // Momentum factor, multiplier of last deltaWeight, [0.0..1.0]
     lambda = 0.0;                  // Regularization parameter; disabled if 0.0
     projectRectangular = false;    // Use elliptical areas for sparse connections
-    enableRemoteInterface = true;  // if true, causes the net to respond to remote commands
+    enableRemoteInterface = true;  // If true, causes the net to respond to remote commands
     isRunning = !enableRemoteInterface;
     totalNumberConnections = 0;
     totalNumberNeurons = 0;
@@ -491,13 +493,6 @@ Net::Net(const string &topologyFilename)
         isRunning = true;   // Start immediately, don't wait for a remote command
     }
     
-    // The recent average smoothing factor helps us to better see how training is
-    // proceeding by averaging the overall network errors over a number of recent
-    // training samples:
-
-    recentAverageSmoothingFactor = 125.;
-    lastRecentAverageError = recentAverageError = 1.0;
-
     // Initialize the dummy bias neuron to provide a weighted bias input for all other neurons.
     // This is a single special neuron that has no inputs of its own, and feeds a constant
     // 1.0 through weighted connections to every other neuron in the network except input
