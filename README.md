@@ -391,7 +391,7 @@ setting the eta member of the Net object, like this:
 When using neuron2d-gui, you can change the eta parameter (and other parameters)
 in the GUI at any time, even while the network is busy processing input data.
 
-Also see the [[Parameter List|ParameterList]]
+Also see the [Parameter List](https://github.com/davidrmiller/neural2d/wiki/ParameterList)
 in the wiki.
 
 **Are the output neurons binary or floating point?**
