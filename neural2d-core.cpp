@@ -278,7 +278,7 @@ Connection::Connection(Neuron &from, Neuron &to)
 
 // ***********************************  Transfer Functions  ***********************************
 
-// Here is where we define at least one transfer function to use. We refer to them by
+// Here is where we define at least one transfer function. We refer to them by
 // name, where "" is an alias for the default function. To select a different one,
 // add a "tf" parameter to the layer definition in the topology config file. All the
 // neurons in any one layer will use the same transfer function.
@@ -289,7 +289,7 @@ double transferFunctionDerivativeTanh(double x) { return 1.0 - tanh(x) * tanh(x)
 
 // logistic is a sigmoid curve that ranges 0.0 to 1.0:
 double transferFunctionLogistic(double x) { return 1.0 / (1.0 + exp(-x)); }
-double transferFunctionDerivativeLogistic(double x) { return x * (1.0 - x); }
+double transferFunctionDerivativeLogistic(double x) { return exp(-x) / pow((exp(-x) + 1.0), 2.0); }
 
 // linear is a constant slope; ranges from -inf to +inf:
 double transferFunctionLinear(double x) { return x; }
@@ -305,8 +305,8 @@ double transferFunctionRamp(double x)
 double transferFunctionDerivativeRamp(double x) { return (x < -1.0 || x > 1.0) ? 0.0 : 1.0; }
 
 // gaussian:
-double transferFunctionGaussian(double x) { return exp(pow(-x, 2.0)); }
-double transferFunctionDerivativeGaussian(double x) { return -2.0 * x * exp(pow(-x, 2.0)); }
+double transferFunctionGaussian(double x) { return exp(-((x * x) / 2.0)); }
+double transferFunctionDerivativeGaussian(double x) { return -x * exp(-(x * x) / 2.0); }
 
 
 
