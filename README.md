@@ -445,6 +445,10 @@ Neural nets are finicky. Try different network topologies. Try starting with a l
 eta values and reduce it incrementally. It could also be due to redundancy in the input data, 
 or mislabeled target output values. Or you may need more training samples.
 
+**What other parameters do I need to know about?**
+
+Check out the [list of parameters in the wiki(https://github.com/davidrmiller/neural2d/wiki/ParameterList).
+
 
 Licenses<a name="Licenses"></a>
 --------
