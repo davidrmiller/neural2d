@@ -495,7 +495,7 @@ Net::Net(const string &topologyFilename)
     // proceeding by averaging the overall network errors over a number of recent
     // training samples:
 
-    recentAverageSmoothingFactor = 100.;
+    recentAverageSmoothingFactor = 125.;
     lastRecentAverageError = recentAverageError = 1.0;
 
     // Initialize the dummy bias neuron to provide a weighted bias input for all other neurons.
@@ -624,7 +624,7 @@ void Net::reportResults(const Sample &sample) const
 
         // Optionally enable the following line to display the current eta value
         // (in case we're dynamically adjusting it):
-        cout << "  eta=" << eta;
+        cout << "  eta=" << eta << " ";
 
         // Show overall net error for this sample and for the last few samples averaged:
         cout << "Net error = " << error << ", running average = " << recentAverageError << endl;

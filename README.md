@@ -301,6 +301,26 @@ Here are a few complete topology config files and the nets they specify.
 ![console-window](https://raw.github.com/davidrmiller/neural2d/master/images/net-6x6-2x2r2x0-2x2r0x2-1-sm.png)
 
 
+    # This example shows how vertical and horizontal image features can be
+    # extracted through separate paths and combined in a subsequent layer.
+
+    input size 4x4
+
+    layerH1 size 1x4 from input radius 4x0
+    layerH2 size 1x4 from layerH1
+    layerH3 size 1x4 from layerH2
+
+    layerV1 size 4x1 from input radius 0x4
+    layerV2 size 4x1 from layerV1
+    layerV3 size 4x1 from layerV2
+
+    output size 2 from layerV3
+    output size 2 from layerH3
+
+
+![console-window](https://raw.github.com/davidrmiller/neural2d/master/images/net-4x4-hv-deep-sm.png)
+
+
 How-do-I X?<a name="HowDoI"></a>
 -------------
 

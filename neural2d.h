@@ -280,6 +280,11 @@ public:
 
     uint32_t reportEveryNth;
 
+    // For some calculations, we use a running average of net error, averaged over
+    // this many input samples:
+
+    double recentAverageSmoothingFactor;
+
     // If repeatInputSamples is false, the program will pause after running all the
     // input samples once. If set to true, the input samples will automatically repeat.
     // If shuffleInputSamplies is true, then the input samples will be randomly
@@ -348,7 +353,6 @@ private:
 
     vector<Layer> layers;
 
-    double recentAverageSmoothingFactor;
     double lastRecentAverageError; // Used for dynamically adjusting eta
     uint32_t totalNumberConnections;  // Including 1 bias connection per neuron
     uint32_t totalNumberNeurons;
