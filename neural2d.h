@@ -148,9 +148,36 @@ public:
 };
 
 
-//  ***********************************  class Layer  ***********************************
-
 class Neuron; // Forward reference
+
+typedef vector<double> matColumn_t;
+typedef vector<matColumn_t> convolveMatrix_t; // Allows access as convolveMatrix[x][y]
+
+typedef double (*transferFunction_t)(double); // Also used for the derivative function
+
+struct layerParams_t {
+    layerParams_t() 
+        : layerName(""), fromLayerName(""),
+          sizeX(0), sizeY(0),
+          channel(NNet::BW), colorChannelSpecified(false),
+          radiusX(1e9), radiusY(1e9),
+          transferFunctionName(""), tf(NULL), tfDerivative(NULL) { convolveMatrix.clear(); }
+    string layerName;                  // Can be input, output, or layer*
+    string fromLayerName;              // Can be any existing layer name
+    uint32_t sizeX;                    // Format: size XxY
+    uint32_t sizeY;
+    ColorChannel_t channel = NNet::BW; // Applies only to the input layer
+    bool colorChannelSpecified;
+    uint32_t radiusX = 1e9;            // Format: radius XxY
+    uint32_t radiusY = 1e9;
+    string transferFunctionName = "";  // Format: tf name
+    transferFunction_t tf;
+    transferFunction_t tfDerivative;
+    convolveMatrix_t convolveMatrix;   // Format: convolve {{0,1,0},...
+};
+
+
+//  ***********************************  class Layer  ***********************************
 
 // Each layer is a bag of neurons in a 2D arrangement:
 //
@@ -338,13 +365,11 @@ private:
     Neuron bias;  // Fake neuron with constant output 1.0
     void initTrainingSamples(const string &inputFilename);
     void parseConfigFile(const string &configFilename); // Creates layer metadata from a config file
-    Layer &createLayer(const string &name, uint32_t sizeX, uint32_t sizeY);
-    bool addToLayer(Layer &layerTo, Layer &layerFrom, uint32_t sizeX, uint32_t sizeY,
-                    uint32_t radiusX, uint32_t radiusY);
-    void createNeurons(Layer &layerFrom, Layer &layerTo, const string &transferFunctionName,
-                       uint32_t radiusX = 0, uint32_t radiusY = 0);
+    Layer &createLayer(const layerParams_t &params);
+    bool addToLayer(Layer &layerTo, Layer &layerFrom, layerParams_t &params);
+    void createNeurons(Layer &layerFrom, Layer &layerTo, layerParams_t &params);
     void connectNeuron(Layer &layerFrom, Layer &layerTo, Neuron &neuron,
-                       uint32_t nx, uint32_t ny, uint32_t radiusX, uint32_t radiusY);
+                       uint32_t nx, uint32_t ny, layerParams_t &params);
     void connectBias(Neuron &neuron);
     int32_t getLayerNumberFromName(const string &name) const;
 

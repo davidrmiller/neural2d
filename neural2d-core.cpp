@@ -633,9 +633,9 @@ void Net::reportResults(const Sample &sample) const
 // multiple layers. Returns false for any error, true if successful.
 //
 bool Net::addToLayer(Layer &layerTo, Layer &layerFrom,
-        uint32_t sizeX, uint32_t sizeY, uint32_t radiusX, uint32_t radiusY)
+        layerParams_t &params)
 {
-    if (sizeX != layerTo.sizeX || sizeY != layerTo.sizeY) {
+    if (params.sizeX != layerTo.sizeX || params.sizeY != layerTo.sizeY) {
         cerr << "Error: Config: repeated layer '" << layerTo.name
              << "' must be the same size" << endl;
         return false;
@@ -649,7 +649,7 @@ bool Net::addToLayer(Layer &layerTo, Layer &layerFrom,
         for (uint32_t nx = 0; nx < layerTo.sizeX; ++nx) {
             //cout << "connect to neuron " << nx << "," << ny << endl;
             connectNeuron(layerTo, layerFrom, layerTo.neurons[flattenXY(nx, ny, layerTo.sizeX)],
-                          nx, ny, radiusX, radiusY);
+                          nx, ny, params);
             // n.b. Bias connections were already made when the neurons were first created.
         }
     }
@@ -662,14 +662,14 @@ bool Net::addToLayer(Layer &layerTo, Layer &layerFrom,
 
 // Given a layer name and size, create an empty layer. No neurons are created yet.
 //
-Layer &Net::createLayer(const string &name, uint32_t sizeX, uint32_t sizeY)
+Layer &Net::createLayer(const layerParams_t &params)
 {
     layers.push_back(Layer());
     Layer &layer = layers.back(); // Make a convenient name
 
-    layer.name = name;
-    layer.sizeX = sizeX;
-    layer.sizeY = sizeY;
+    layer.name = params.layerName;
+    layer.sizeX = params.sizeX;
+    layer.sizeY = params.sizeY;
 
     return layer;
 }
@@ -910,7 +910,7 @@ void Net::calculateOverallNetError(const Sample &sample)
 // back connection records in other neurons.
 //
 void Net::connectNeuron(Layer &layerTo, Layer &fromLayer, Neuron &neuron,
-        uint32_t nx, uint32_t ny, uint32_t radiusX, uint32_t radiusY)
+        uint32_t nx, uint32_t ny, layerParams_t &params)
 {
     uint32_t sizeX = layerTo.sizeX;
     uint32_t sizeY = layerTo.sizeY;
@@ -930,11 +930,11 @@ void Net::connectNeuron(Layer &layerTo, Layer &fromLayer, Neuron &neuron,
 
     // Calculate the rectangular window into the "from" layer:
 
-    uint32_t xmin = (uint32_t)max(lfromX - radiusX, 0);
-    uint32_t xmax = (uint32_t)min(lfromX + radiusX, fromLayer.sizeX - 1);
+    uint32_t xmin = (uint32_t)max(lfromX - params.radiusX, 0);
+    uint32_t xmax = (uint32_t)min(lfromX + params.radiusX, fromLayer.sizeX - 1);
 
-    uint32_t ymin = (uint32_t)max(lfromY - radiusY, 0);
-    uint32_t ymax = (uint32_t)min(lfromY + radiusY, fromLayer.sizeY - 1);
+    uint32_t ymin = (uint32_t)max(lfromY - params.radiusY, 0);
+    uint32_t ymax = (uint32_t)min(lfromY + params.radiusY, fromLayer.sizeY - 1);
 
     // Now (xmin,xmax,ymin,ymax) defines a rectangular subset of neurons in a previous layer.
     // We'll make a connection from each of those neurons in the previous layer to our
@@ -951,7 +951,7 @@ void Net::connectNeuron(Layer &layerTo, Layer &fromLayer, Neuron &neuron,
 
     for (uint32_t y = ymin; y <= ymax; ++y) {
         for (uint32_t x = xmin; x <= xmax; ++x) {
-            if (!projectRectangular && elliptDist(xcenter - x, ycenter - y, radiusX, radiusY) > 1.0) {
+            if (!projectRectangular && elliptDist(xcenter - x, ycenter - y, params.radiusX, params.radiusY) > 1.0) {
                 continue; // Skip this location, it's outside the ellipse
             }
             Neuron &fromNeuron = fromLayer.neurons[flattenXY(x, y, fromLayer.sizeX)];
@@ -1031,8 +1031,7 @@ int32_t Net::getLayerNumberFromName(const string &name) const
 // connections and radius doesn't apply. Calling this function with layerFrom == layerTo
 // indicates an input layer.
 //
-void Net::createNeurons(Layer &layerTo, Layer &layerFrom, const string &transferFunctionName,
-                        uint32_t radiusX, uint32_t radiusY)
+void Net::createNeurons(Layer &layerTo, Layer &layerFrom, layerParams_t &params)
 {
     // Reserve enough space in layer.neurons to prevent reallocation (so that
     // we can form stable references to neurons):
@@ -1046,7 +1045,7 @@ void Net::createNeurons(Layer &layerTo, Layer &layerFrom, const string &transfer
         for (uint32_t nx = 0; nx < layerTo.sizeX; ++nx) {
             // When we create a neuron, we have to give it a pointer to the
             // start of the array of Connection objects:
-            layerTo.neurons.push_back(Neuron(&connections, transferFunctionName));
+            layerTo.neurons.push_back(Neuron(&connections, params.transferFunctionName));
             Neuron &neuron = layerTo.neurons.back(); // Make a more convenient name
             ++totalNumberNeurons;
 
@@ -1056,7 +1055,7 @@ void Net::createNeurons(Layer &layerTo, Layer &layerFrom, const string &transfer
 
             if (&layerFrom != &layerTo) {
                 connectNeuron(layerTo, layerFrom, neuron,
-                              nx, ny, radiusX, radiusY);
+                              nx, ny, params);
                 connectBias(neuron);
             }
         }
@@ -1110,26 +1109,17 @@ void Net::parseConfigFile(const string &configFilename)
         ++lineNum;
         istringstream ss(line);
 
-        // Here are the parameters that we will try to extract from each config line:
-
-        string layerName = "";             // Can be input, output, or layer*
-        string fromLayerName = "";         // Can be any existing layer name
-        uint32_t sizeX = 0;                // Format: size XxY
-        uint32_t sizeY = 0;
-        ColorChannel_t channel = NNet::BW; // Applies only to the input layer
-        bool colorChannelSpecified = false;
-        uint32_t radiusX = 1e9;            // Format: radius XxY
-        uint32_t radiusY = 1e9;
-        string transferFunctionName = "";  // Format: tf name
+        // params will hold the parameters extracted from each config line:
+        layerParams_t params;
 
         bool done = false;
         while (!done && !ss.eof()) {
             string token;
             char delim;
-            ss >> layerName;  // First field is the layer name
+            ss >> params.layerName;  // First field is the layer name
 
             // Skip blank and comment lines:
-            if (layerName == "" || layerName[0] == '#') {
+            if (params.layerName == "" || params.layerName[0] == '#') {
                 done = true;
                 continue;
             }
@@ -1142,26 +1132,28 @@ void Net::parseConfigFile(const string &configFilename)
 
                 ss >> token;
                 if (token == "from") {
-                    ss >> fromLayerName;
+                    ss >> params.fromLayerName;
                 } else if (token == "size") {
                     ss >> tempString;
                     twoNums = extractTwoNums(tempString);
-                    sizeX = twoNums.first;
-                    sizeY = twoNums.second;
-                } else if (token == "channel") {
+                    params.sizeX = twoNums.first;
+                    params.sizeY = twoNums.second;
+                } else if (token == "params.channel") {
                     ss >> tempString;  // Expecting R, G, B, or BW
-                    if      (tempString == "R")  channel = NNet::R;
-                    else if (tempString == "G")  channel = NNet::G;
-                    else if (tempString == "B")  channel = NNet::B;
-                    else if (tempString == "BW") channel = NNet::BW;
+                    if      (tempString == "R")  params.channel = NNet::R;
+                    else if (tempString == "G")  params.channel = NNet::G;
+                    else if (tempString == "B")  params.channel = NNet::B;
+                    else if (tempString == "BW") params.channel = NNet::BW;
                     else {
                         throw("Unknown color channel");
                     }
-                    colorChannelSpecified = true;
+                    params.colorChannelSpecified = true;
                 } else if (token == "radius") {
-                    ss >> radiusX >> delim >> radiusY;
+                    ss >> params.radiusX >> delim >> params.radiusY;
                 } else if (token == "tf") {
-                    ss >> transferFunctionName;
+                    ss >> params.transferFunctionName;
+                } else if (token == "convolve") {
+                    // to do: extract matrix here !!!
                 } else {
                     cout << "Syntax error in " << configFilename << " line " << lineNum << endl;
                     throw("Topology config file syntax error");
@@ -1170,38 +1162,44 @@ void Net::parseConfigFile(const string &configFilename)
 
             // Now check the data we extracted:
 
-            // If this is the first layer, check that it is called "input":
+            // If this is the first layer, check that it is called "input" and that there
+            // is no convolve matrix defined:
 
-            if (layers.size() == 0 && layerName != "input") {
+            if (layers.size() == 0 && params.layerName != "input") {
                 cerr << "Error in " << configFilename << ": the first layer must be named 'input'" << endl;
                 throw("Topology config file syntax error");
+
+                if (params.convolveMatrix.size() > 0) {
+                    cerr << "Error in " << configFilename << ": input layer cannot be a convolution layer" << endl;
+                    throw("Topology config file syntax error");
+                }
             }
 
             // If this is not the first layer, check that it does not have a channel parameter.
             // If it is the input layer, we'll save the color channel in the Net object:
 
-            if (layers.size() != 0 && layerName != "input") {
-                if (colorChannelSpecified) {
+            if (layers.size() != 0 && params.layerName != "input") {
+                if (params.colorChannelSpecified) {
                     throw("Error in topology config file: color channel applies only to input layer");
                 }
             } else {
-                colorChannel = channel;
+                colorChannel = params.channel;
             }
 
             // Check the source layer:
 
-            int32_t layerNumFrom = getLayerNumberFromName(fromLayerName); // input layer will return -1
+            int32_t layerNumFrom = getLayerNumberFromName(params.fromLayerName); // input layer will return -1
 
-            if (layerName != "input") {
+            if (params.layerName != "input") {
                 // If not input layer, then the source layer must already exist:
                 if (layerNumFrom == -1) {
                     cerr << "Error: Config(" << lineNum << "): from layer '"
-                         << fromLayerName << "' is undefined." << endl;
+                         << params.fromLayerName << "' is undefined." << endl;
                     throw("Topology config file syntax error");
                 }
             } else {
                 // For input layer, from layer is not allowed:
-                if (fromLayerName != "") {
+                if (params.fromLayerName != "") {
                     cerr << "Error: Config(" << lineNum << "): "
                          << " input layer cannot have a 'from' parameter" << endl;
                     throw("Topology config file syntax error");
@@ -1210,34 +1208,34 @@ void Net::parseConfigFile(const string &configFilename)
 
             // Check if a layer already exists with the same name:
 
-            previouslyDefinedLayerNumSameName = getLayerNumberFromName(layerName);
+            previouslyDefinedLayerNumSameName = getLayerNumberFromName(params.layerName);
             if (previouslyDefinedLayerNumSameName == -1) {
 
-                // To do: Add range check for sizeX, sizeY, radiusX, radiusY params !!!
+                // To do: Add range check for sizeX, sizeY, radiusX, radiusY, convolveMatrix params !!!
 
                 // Create a new layer of this name.
                 // "input" layer will always take this path.
 
-                Layer &newLayer = createLayer(layerName, sizeX, sizeY);
+                Layer &newLayer = createLayer(params);
 
                 // Create neurons and connect them:
 
-                cout << "Creating layer " << layerName << ", one moment..." << endl;
-                if (layerName == "input") {
-                    createNeurons(newLayer, newLayer, transferFunctionName); // Input layer has no back connections
+                cout << "Creating layer " << params.layerName << ", one moment..." << endl;
+                if (params.layerName == "input") {
+                    createNeurons(newLayer, newLayer, params); // Input layer has no back connections
                 } else {
-                    createNeurons(newLayer, layers[layerNumFrom], transferFunctionName,
-                                  radiusX, radiusY); // Also connects them
+                    createNeurons(newLayer, layers[layerNumFrom], params); // Also connects them
                 }
-                numNeurons += sizeX * sizeY;
+
+                numNeurons += params.sizeX * params.sizeY;
             } else {
 
                 // Layer already exists, add connections to it.
                 // "input" layer will never take this path.
 
                 Layer &layerToRef = layers[previouslyDefinedLayerNumSameName]; // A more convenient name
-                if (layerToRef.sizeX != sizeX || layerToRef.sizeY != sizeY) {
-                    cerr << "Error: Config(" << lineNum << "): layer '" << layerName
+                if (layerToRef.sizeX != params.sizeX || layerToRef.sizeY != params.sizeY) {
+                    cerr << "Error: Config(" << lineNum << "): layer '" << params.layerName
                          << "' already exists, but different size" << endl;
                     throw("Topology config file syntax error");
                 }
@@ -1246,9 +1244,9 @@ void Net::parseConfigFile(const string &configFilename)
 
                 bool ok = addToLayer(layerToRef,
                                      layers[layerNumFrom],
-                                     sizeX, sizeY, radiusX, radiusY);
+                                     params);
                 if (!ok) {
-                    cout << "Error in " << configFilename << ", layer \'" << layerName << "\'" << endl;
+                    cout << "Error in " << configFilename << ", layer \'" << params.layerName << "\'" << endl;
                     throw("Error adding connections");
                 }
             }

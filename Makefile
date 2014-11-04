@@ -2,7 +2,8 @@
 #
 # neural2d is the standalone console program for the neural net.
 # neural2d-gui is the optional Python GUI for neural2d.
-# qtui.py is a necessary part of the GUI, derived from qtui-neural-net2.ui.
+# qtui.py is a part of the GUI, derived from qtui-neural-net2.ui.
+# qtui-neural-net2.ui is created by Qt Creator.
 #
 # This Makefile has the following targets:
 #
@@ -17,14 +18,14 @@ COMPILER=g++ -std=c++11 -fopenmp
 
 # Warning: -O2 and -fopenmp do not work well together.
 # It's ok to use -O1 and -fopenmp at the same time.
-EXTRACFLAGS=-g -O1 -fopenmp -Wall -Wextra
+EXTRACFLAGS=-g -O1 -Wall -Wextra
 
 
 all: neural2d qtui.py
 
-# This rule makes the QT4 part of neural2d-gui.py. If the GUI
-# is not needed, or if you know that your qtui.py is up-to-date,
-# then this rule can be disabled:
+# This rule makes the QT4 part of neural2d-gui.py. It is only needed
+# if you are developing the GUI, otherwise the neural2d program comes
+# with a pre-built qtui.py, and this rule isn't needed.
 
 qtui.py: qtui-neural-net2.ui
 	pyuic4 qtui-neural-net2.ui > qtui.py
