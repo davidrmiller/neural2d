@@ -42,6 +42,7 @@ Document Contents
 * [Are the output neurons binary or floating point?](#howBinary)  
 * [How do I use a different transfer function?](#howTf)  
 * [How do the color image pixels get converted to floating point for the input layer?](#howRgb)  
+* [How can I use .jpg and .png images as inputs to the net?](#howJpg)  
 * [Why does the net error rate stay high? Why doesn't my net learn?](#howLearn)  
 * [What other parameters do I need to know about?](#howParams)  
 
@@ -450,6 +451,14 @@ The color conversion can also be specified in the topology config file on the
 line that defines the input layer by setting the "channel" parameter to R, G, B, or BW, e.g.:
 
     input size 64x64 channel G
+
+**How can I use .jpg and .png images as inputs to the net?**<a name="howJpg"></a>
+
+Currently only .bmp images are supported. This is because the uncompressed BMP format is so simple
+that we can use simple, standard C/C++ to read the image data without any dependencies on third-party
+image libraries. To add an adapter for other image formats, follow the example of the
+ReadBMP() function and write a new adapter such as ReadJPG(), ReadPNG(), etc., using your
+favorite image library, then replace the call to ReadBMP() with your new function.
 
 **Why does the net error rate stay high? Why doesn't my net learn?**<a name="howLearn"></a>
 
