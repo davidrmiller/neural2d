@@ -33,6 +33,18 @@ Document Contents
 [Topology config file format](#TopologyConfig)  
 [Topology config file examples](#TopologyExamples)  
 [How-do-I *X*?](#HowDoI)  
+* [How do I get, build, and install the command-line neural2d program?](#howInstall)  
+* [How do I run the command-line program?](#howConsole)  
+* [How do I run the GUI interface?](#howGui)  
+* [How do I use my own data instead of the digits images?](#howOwnData)  
+* [How do I use a trained net on new data?](#howTrained)  
+* [How do I change the learning rate parameter?](#howEta)  
+* [Are the output neurons binary or floating point?](#howBinary)  
+* [How do I use a different transfer function?](#howTf)  
+* [How do the color image pixels get converted to floating point for the input layer?](#howRgb)  
+* [Why does the net error rate stay high? Why doesn't my net learn?](#howLearn)  
+* [What other parameters do I need to know about?](#howParams)  
+
 [Licenses](#Licenses)  
 
 Also see the [wiki](https://github.com/davidrmiller/neural2d/wiki) for more information.
@@ -324,7 +336,7 @@ Here are a few complete topology config files and the nets they specify.
 How-do-I X?<a name="HowDoI"></a>
 -------------
 
-**How do I get, build, and install the command-line neural2d program?**
+**How do I get, build, and install the command-line neural2d program?**<a name="howInstall"></a>
 
 Get the files from:
 
@@ -343,11 +355,11 @@ To test the installation, run:
 
 If it succeeds, it will create a weights.txt file of non-zero size.
 
-**How do I run the command-line program?**
+**How do I run the command-line program?**<a name="howConsole"></a>
 
      ./neural2d topology.txt inputData.txt weights.txt
 
-**How do I run the GUI interface?**
+**How do I run the GUI interface?**<a name="howGui"></a>
 
 If you have Python 3.x and PyQt4 installed, then one of the following should work:
 
@@ -355,13 +367,13 @@ If you have Python 3.x and PyQt4 installed, then one of the following should wor
      python neural2d-gui.py
      python3 neural2d-gui.py
 
-**How do I use my own data instead of the digits images?**
+**How do I use my own data instead of the digits images?**<a name="howOwnData"></a>
 
 Create your own directory of BMP images, and a config file that follows the same format as
 shown in the provided default inputData.txt. Then define a topology config file with the
 appropriate number of network inputs and outputs, then run the neural2d program.
 
-**How do I use a trained net on new data?**
+**How do I use a trained net on new data?**<a name="howTrained"></a>
 
 It's all about the weights file. After the net has been successfully trained, save 
 the internal connection weights in a weights file.
@@ -381,7 +393,7 @@ You'll need to prepare a new input data config file (default name inputData.txt)
 that contains a list of only those new input data images that you want the net to
 process.
 
-**How do I change the learning rate parameter?**
+**How do I change the learning rate parameter?**<a name="howEta"></a>
 
 In the command-line program, you can set the eta parameter or change it by directly
 setting the eta member of the Net object, like this:
@@ -394,7 +406,7 @@ in the GUI at any time, even while the network is busy processing input data.
 Also see the [Parameter List](https://github.com/davidrmiller/neural2d/wiki/ParameterList)
 in the wiki.
 
-**Are the output neurons binary or floating point?**
+**Are the output neurons binary or floating point?**<a name="howBinary"></a>
 
 They are whatever you train them to be, but you can only train the outputs to take
 values in the range that the transfer function is capable of producing.
@@ -405,7 +417,7 @@ For example, when using the default tanh() transfer function, train the outputs 
 be -1 and +1 for false and true. When using the logistic transfer function, train the
 outputs to be 0 and 1.
 
-**How do I use a different transfer function?**
+**How do I use a different transfer function?**<a name="howTf"></a>
 
 You can add a "tf" parameter to any layer definition line in the topology config file.
 The argument to tf can be "tanh", "logistic", "linear", "ramp", or "gaussian". 
@@ -422,7 +434,7 @@ There are two places to change: first find where transferFunctionTanh() is defin
 and add your new transfer function and its derivative there. Next, locate the constructor
 for class Neuron and add a new else-if clause there, following the examples.
 
-**How do the color image pixels get converted to floating point for the input layer?**
+**How do the color image pixels get converted to floating point for the input layer?**<a name="howRgb"></a>
 
 That's in the ReadBMP() function in neural2d-core.cpp. The default version of ReadBMP()
 converts each RBG pixel to a single floating point value in the range 0.0 to 1.0.
@@ -439,13 +451,13 @@ line that defines the input layer by setting the "channel" parameter to R, G, B,
 
     input size 64x64 channel G
 
-**Why does the net error rate stay high? Why doesn't my net learn?**
+**Why does the net error rate stay high? Why doesn't my net learn?**<a name="howLearn"></a>
 
 Neural nets are finicky. Try different network topologies. Try starting with a larger
 eta values and reduce it incrementally. It could also be due to redundancy in the input data, 
 or mislabeled target output values. Or you may need more training samples.
 
-**What other parameters do I need to know about?**
+**What other parameters do I need to know about?**<a name="howParams"></a>
 
 Check out the [list of parameters in the wiki](https://github.com/davidrmiller/neural2d/wiki/ParameterList).
 
