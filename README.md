@@ -109,7 +109,7 @@ The optional GUI is written in Python 3.x, and requires PyQt4.
 
 To run the GUI controller, execute:
 
-    neuron2d-gui.py
+    ./neuron2d-gui.py
 
 If you get an error complaining about the python interpreter, it's because line 1 of neuron2d-gui.py
 contains the wrong path to your Python 3 interpreter. Either change line 1 or else run it by
@@ -385,8 +385,8 @@ the member function loadWeights(filename). Once the net has been loaded with wei
 it can be used applied to new data by calling feedForward(). Prior to calling
 feedForward(), you'll want to set a couple of parameters:
 
-     repeatInputSamples = false;
-     reportEveryNth = 1;
+     myNet.repeatInputSamples = false;
+     myNet.reportEveryNth = 1;
 
 This is normally done in neural2d.cpp.
 
@@ -399,7 +399,7 @@ process.
 In the command-line program, you can set the eta parameter or change it by directly
 setting the eta member of the Net object, like this:
 
-     eta = 0.1;
+     myNet.eta = 0.1;
 
 When using neuron2d-gui, you can change the eta parameter (and other parameters)
 in the GUI at any time, even while the network is busy processing input data.
@@ -438,7 +438,7 @@ for class Neuron and add a new else-if clause there, following the examples.
 **How do the color image pixels get converted to floating point for the input layer?**<a name="howRgb"></a>
 
 That's in the ReadBMP() function in neural2d-core.cpp. The default version of ReadBMP()
-converts each RBG pixel to a single floating point value in the range 0.0 to 1.0.
+converts each RGB pixel to a single floating point value in the range 0.0 to 1.0.
 
 By default, the RGB color pixels are converted to monochrome and normalized to the
 range 0.0 to 1.0. That can be changed at runtime by setting the colorChannel
