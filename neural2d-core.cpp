@@ -151,19 +151,6 @@ void layerParams_t::resolveTransferFunctionName(void)
 }
 
 
-void layerParams_t::sumMatrixElements(void)
-{
-    sumConvolveWeights = 0.0;
-
-    for (auto const &row : convolveMatrix) {
-        for (auto weight : row) {
-            sumConvolveWeights += weight;
-        }
-    }
-}
-
-
-
 void layerParams_t::clear(void)
 {
     layerName.clear();
@@ -177,9 +164,8 @@ void layerParams_t::clear(void)
     transferFunctionName.clear();
     tf = transferFunctionTanh;
     tfDerivative = transferFunctionDerivativeTanh;
-    convolveMatrix.clear();   // Format: convolve {{0,1,0},...
-    isConvolutionLayer = false;           // Equivalent to (convolveMatrix.size() != 0)
-    sumConvolveWeights = 0.0;
+    convolveMatrix.clear();       // Format: convolve {{0,1,0},...
+    isConvolutionLayer = false;   // Equivalent to (convolveMatrix.size() != 0)
 }
 
 
@@ -847,9 +833,9 @@ void Net::feedForward(Sample &sample)
         //throw("Wrong number of inputs");
     }
 
-    //for (uint32_t i = 0; i < data.size(); ++i) { // limit should be size of neurons, not data !!!
-    // Rather than make it a fatal error, if the number of input neurons != number
+    // Rather than make it a fatal error if the number of input neurons != number
     // of input data values, we'll use whatever we can and skip the rest:
+    // To do: report a mismatch in number of inputs neurons and size of input sample!!!
 
     for (uint32_t i = 0; i < (uint32_t)min(inputLayer.neurons.size(), data.size()); ++i) {
         inputLayer.neurons[i].output = data[i];
@@ -906,7 +892,7 @@ void Net::calculateOverallNetError(const Sample &sample)
 
     if (sample.targetVals.size() != outputLayer.neurons.size()) {
         cout << "Error in sample " << inputSampleNumber << ": wrong number of target values" << endl;
-        //throw("Wrong number of target values"); // !!! re-enable after testing
+        throw("Wrong number of target values");
     }
 
     for (uint32_t n = 0; n < outputLayer.neurons.size(); ++n) {
@@ -926,9 +912,7 @@ void Net::calculateOverallNetError(const Sample &sample)
         for (uint32_t layerIdx = 1; layerIdx < layers.size(); ++layerIdx) {
             Layer &layer = layers[layerIdx];
             for (auto const &neuron : layer.neurons) {
-                // To do: skip the bias connection correctly; it's usually, but not always,
-                // the last connection in the list
-                // To do: don't skip last connection for convolution layers!!!
+                // To do: skip the bias connection correctly;
                 for (uint32_t idx = 0; idx < neuron.backConnectionsIndices.size() - 1; ++idx) {
                     Connection &conn = (*neuron.pConnections)[neuron.backConnectionsIndices[idx]];
                     sumWeightsSquared += conn.weight * conn.weight;
@@ -1068,12 +1052,7 @@ void Net::connectNeuron(Layer &layerTo, Layer &fromLayer, Neuron &neuron,
 
                 // Initialize the weight of the connection:
                 if (params.isConvolutionLayer) {
-                    cout << " weight = " << params.convolveMatrix[x - xmin][y - ymin] << endl; // !!!
-                    if (params.sumConvolveWeights == 0.0) {
-                        connections.back().weight = 0.0;
-                    } else {
-                        connections.back().weight = params.convolveMatrix[x - xmin][y - ymin] / params.sumConvolveWeights;
-                    }
+                    connections.back().weight = params.convolveMatrix[x - xmin][y - ymin];
                 } else {
                     connections.back().weight = (randomFloat() - 0.5) / maxNumSourceNeurons;
                 }
@@ -1089,13 +1068,12 @@ void Net::connectNeuron(Layer &layerTo, Layer &fromLayer, Neuron &neuron,
                 fromLayer.neurons[flatIdxFrom].forwardConnectionsIndices.push_back(
                            connectionIdx);
 
-                cout << "    connect from layer " << fromLayer.params.layerName
-                     << " at " << x << "," << y
-                     << " to " << nx << "," << ny << endl;
+//                cout << "    connect from layer " << fromLayer.params.layerName
+//                     << " at " << x << "," << y
+//                     << " to " << nx << "," << ny << endl;
             }
         }
     }
-    cout << "neuron connected." << endl; // !!!
 }
 
 
@@ -1311,19 +1289,19 @@ convolveMatrix_t Net::parseMatrixSpec(istringstream &ss)
         }
         if (convMat.back().size() != firstRowSize) {
             cout << "Warning: in convolution matrix in topology config file, inconsistent matrix row size" << endl;
-            // !!! throw()
+            // throw()
         }
     }
 
-    // For debugging only!!!
-    cout << "Convolution matrix = " << endl;
-    for (unsigned y = 0; y < convMat.size(); ++y) {
-        vector<double> &row = convMat[y];
-        for (unsigned x = 0; x < row.size(); ++x) {
-            cout << row[x] << ", ";
-        }
-        cout << endl;
-    }
+    // For debugging the convolution kernel:
+//    cout << "Convolution matrix = " << endl;
+//    for (unsigned y = 0; y < convMat.size(); ++y) {
+//        vector<double> &row = convMat[y];
+//        for (unsigned x = 0; x < row.size(); ++x) {
+//            cout << row[x] << ", ";
+//        }
+//        cout << endl;
+//    }
 
     return convMat;
 }
@@ -1374,7 +1352,6 @@ void Net::parseConfigFile(const string &configFilename)
 
     while (getline(cfg, line)) {
         ++lineNum;
-        cout << "line:" << line << endl; // !!!
         istringstream ss(line);
         params.clear();
 
@@ -1426,10 +1403,7 @@ void Net::parseConfigFile(const string &configFilename)
                     ss >> params.transferFunctionName;
                     params.resolveTransferFunctionName();
                 } else if (token == "convolve") {
-                    cout << ss.tellg() << endl; // !!!
                     params.convolveMatrix = parseMatrixSpec(ss);
-                    params.sumMatrixElements();
-                    cout << ss.tellg() << endl; // !!!
                     if (ss.tellg() == -1) {
                         break; // todo: figure out why this is necessary
                     }
@@ -1563,7 +1537,7 @@ void Net::parseConfigFile(const string &configFilename)
     }
 
     // Optionally enable the next line to display the resulting net topology:
-    debugShowNet(false); // !!!
+    //debugShowNet(false);
 
     cout << "\nConfig file parsed successfully." << endl;
     cout << "Found " << neuronsWithNoSink << " neurons with no sink." << endl;

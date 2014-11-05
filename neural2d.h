@@ -158,7 +158,6 @@ typedef double (*transferFunction_t)(double); // Also used for the derivative fu
 struct layerParams_t {
     layerParams_t() { clear(); }
     void resolveTransferFunctionName(void);
-    void sumMatrixElements(void);
     void clear(void);
     string layerName;                  // Can be input, output, or layer*
     string fromLayerName;              // Can be any existing layer name
@@ -173,7 +172,6 @@ struct layerParams_t {
     transferFunction_t tfDerivative;
     convolveMatrix_t convolveMatrix;   // Format: convolve {{0,1,0},...
     bool isConvolutionLayer;           // Equivalent to (convolveMatrix.size() != 0)
-    double sumConvolveWeights;
 };
 
 

@@ -16,8 +16,9 @@ Features
 *     Selectable transfer function per layer
 *     Adjustable or automatic training rate (eta)
 *     Optional momentum (alpha) and regularization (lambda)
+*     Any layer(s) can be configured as convolution filters
 *     Standalone console program
-*     Simple, heavily-commented code, < 2000 lines, suitable for prototyping, learning, and experimentation
+*     Simple, heavily-commented code, < 3000 lines, suitable for prototyping, learning, and experimentation
 *     Optional GUI controller
 *     Tutorial video coming soon!
 
@@ -30,6 +31,7 @@ Document Contents
 [GUI interface](#GUI)  
 [How to use your own data](#YourOwnData)  
 [The 2D in neural2d](#2D)  
+[Convolution fitering](#Convolution)  
 [Topology config file format](#TopologyConfig)  
 [Topology config file examples](#TopologyExamples)  
 [How-do-I *X*?](#HowDoI)  
@@ -89,7 +91,7 @@ To run the demo, execute:
 
 In this demo, we train the neural net to recognize digits.
 The input data, or "training set", consists of a few thousand images of numeric digits. The
-first 50 look like this:
+first 50 look like these:
 
 ![console-window](https://raw.github.com/davidrmiller/neural2d/master/images/digits-illus.png)
 
@@ -102,7 +104,7 @@ a high level.
 Once the net is sufficiently trained, all the connection weights are saved in a file
 named "weights.txt".
 
-GUI interface<a name="GUI"></a>
+GUI interface (optional)<a name="GUI"></a>
 -------------
 
 The optional GUI is written in Python 3.x, and requires PyQt4.
@@ -171,7 +173,7 @@ the weights in a file for later use.
 
 Or execute the console program directly, specifying the topology, input data, and weights filenames, like this:
 
-    neuron2d topology.txt inputData.txt weights.txt
+    ./neuron2d topology.txt inputData.txt weights.txt
 
 The weights file will be written with the network connection weights after the net has
 been successfully trained.
@@ -201,8 +203,10 @@ in this picture so you can see what's going on, but imagine all of them connecte
 
 ![radius-1x1](images/proj-1x1-sm.png)
 
-The pattern that is projected onto the source layer is elliptical. Here are some projected
-connection patterns for various radii:
+The pattern that is projected onto the source layer is elliptical. (Layers configured as
+convolution filters work slightly differently; see the later section about convolution filtering.)
+
+Here are some projected connection patterns for various radii:
 
 radius 0x0   
 ![radius-0x0](images/radius-0x0.png)
@@ -217,13 +221,60 @@ radius 3x1
 ![radius-3x1](images/radius-3x1.png)
 
 
+Convolution filtering<a name="Convolution"></a>
+---------------------
+
+Any layer other than the input layer can be configured as a convolution filter layer by
+specifying a *convolve-matrix* specification for the layer in the topology config file.
+The neurons are still called neurons, but their operation differs in the following ways:
+
+* The connection pattern to the source layer is defined by the convolution kernel dimensions
+(not by a *radius* parameter)
+
+* The connection weights are initialized from the convolution kernel, and are
+constant throughout the life of the net.
+
+* The transfer function is automatically set to the identity function (not by a *tf* parameter).
+
+For example, the following line in the topology config file defines a 3x3 convolution kernel
+for smoothing (low-pass) the source layer:
+
+     layerConv1 size 64x64 from input convolve {{0,1,0},{1,2,1},{0,1,0}}
+
+When a convolution matrix is specified for a layer, you cannot also specify a *radius* 
+parameter for that layer, as
+the convolution kernel size determines the size and shape of the rectangle of neurons in
+the source layer. You also cannot also specify a *tf* parameter, because the transfer function
+on a convolution layer is automatically set to be the identity function.
+
+The elements of the convolution matrix are stored as connection weights to the source
+neurons. Connection weights on convolution layers are not updated by the back propagation
+algorithm, so they remain constant for the life of the net.
+
+The results are undefined if a layer is defined as both a convolution layer and a
+regular layer.
+
+For example, the following topology config file defines a convolution filter with a
+2x2 kernel that is applied to the input layer, then the results are combined
+with a reduced-resolution fully-connected pathway. The blue connections are the
+convolution connections; the green connections are regular neural connections:
+
+    input size 8x8
+    layerConvolve size 8x8 from input convolve {{-1,2},{-1,2}}
+    layerReducedRes size 4x4 from input
+    output size 2 from layerConvolve
+    output size 2 from layerReducedRes
+
+![radius-3x1](images/net-convolve-8x8.png)
+
+
 
 Topology config file format<a name="TopologyConfig"></a>
 ---------------------------
 
 The topology config file contains lines of the following format:
 
-> *layer-definition-line* := *layer-name* size *size-spec* [from *layer-name*] [channel *channel-name*] [radius *size-spec*] [tf *transfer-function*]
+> *layer-definition-line* := *layer-name* size *size-spec* [from *layer-name*] [channel *channel-name*] [radius *size-spec*] [tf *transfer-function*] [convolve *convolve-matrix*] 
 
 where
 
@@ -234,6 +285,8 @@ where
  > *channel-name* := R, G, B, or BW
     
  > *transfer-function* := "tanh", "logistic", "linear", "ramp", or "gaussian"
+ 
+ > *convolve-matrix* := same {{,},{,}} syntax used for array initialization in C, C#, VB, Java, etc.
 
 Rules:
 
@@ -248,6 +301,8 @@ Rules:
 1. The argument for "from" must be a layer already defined.
 
 1. The color channel parameter can be specified only on the input layer.
+
+1. A convolution matrix specification cannot appear on the same layer with a *radius* or *tf* spec.
 
 1. The same layer name can be defined multiple times with different "from" parameters.
 This allows source neurons from more than one layer to be combined in one 
@@ -270,6 +325,8 @@ If only one dimension is given, the other is assumed to be 1. For example:
  * "8x1" means a row of 8 neurons
  * "1x8" means a column of 8 neurons.  
  * "8" means the same as "8x1"  
+
+
 
 Topology config file examples<a name="TopologyExamples"></a>
 -----------------------------
