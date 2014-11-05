@@ -156,12 +156,10 @@ typedef vector<matColumn_t> convolveMatrix_t; // Allows access as convolveMatrix
 typedef double (*transferFunction_t)(double); // Also used for the derivative function
 
 struct layerParams_t {
-    layerParams_t() 
-        : layerName(""), fromLayerName(""),
-          sizeX(0), sizeY(0),
-          channel(NNet::BW), colorChannelSpecified(false),
-          radiusX(1e9), radiusY(1e9),
-          transferFunctionName(""), tf(NULL), tfDerivative(NULL) { convolveMatrix.clear(); }
+    layerParams_t() { clear(); }
+    void resolveTransferFunctionName(void);
+    void sumMatrixElements(void);
+    void clear(void);
     string layerName;                  // Can be input, output, or layer*
     string fromLayerName;              // Can be any existing layer name
     uint32_t sizeX;                    // Format: size XxY
@@ -174,6 +172,8 @@ struct layerParams_t {
     transferFunction_t tf;
     transferFunction_t tfDerivative;
     convolveMatrix_t convolveMatrix;   // Format: convolve {{0,1,0},...
+    bool isConvolutionLayer;           // Equivalent to (convolveMatrix.size() != 0)
+    double sumConvolveWeights;
 };
 
 
@@ -183,9 +183,11 @@ struct layerParams_t {
 //
 struct Layer
 {
-    string name;      // Can be "input", "output", or starts with "layer"
-    uint32_t sizeX;   // Number of neurons in the layer, arranged 2D
-    uint32_t sizeY;
+    layerParams_t params;
+    //string name;      // Can be "input", "output", or starts with "layer"
+    //uint32_t sizeX;   // Number of neurons in the layer, arranged 2D
+    //uint32_t sizeY;
+
     // For each layer, before any references are made to its members, the .neurons
     // member must be initialized with sufficient capacity to prevent reallocation.
     // This allows us to form stable pointers, iterators, or references to neurons.
@@ -219,7 +221,7 @@ class Neuron
 {
 public:
     Neuron();
-    Neuron(vector<Connection> *pConnectionsData, const string &transferFunctionName);
+    Neuron(vector<Connection> *pConnectionsData, transferFunction_t tf, transferFunction_t tfDerivative);
     double output;
     double gradient;
 
@@ -365,6 +367,7 @@ private:
     Neuron bias;  // Fake neuron with constant output 1.0
     void initTrainingSamples(const string &inputFilename);
     void parseConfigFile(const string &configFilename); // Creates layer metadata from a config file
+    convolveMatrix_t parseMatrixSpec(istringstream &ss);
     Layer &createLayer(const layerParams_t &params);
     bool addToLayer(Layer &layerTo, Layer &layerFrom, layerParams_t &params);
     void createNeurons(Layer &layerFrom, Layer &layerTo, layerParams_t &params);

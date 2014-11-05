@@ -36,12 +36,12 @@ int main(int argc, char **argv)
     myNet.eta = 0.1;
     myNet.dynamicEtaAdjust = false;
     myNet.alpha = 0.001;
-    myNet.reportEveryNth = 25;
-    myNet.repeatInputSamples = true;
+    myNet.reportEveryNth = 125;
+    myNet.repeatInputSamples = false;
 
     double doneErrorThreshold = 0.005;
 
-    while (myNet.repeatInputSamples) {
+    do {
         if (myNet.shuffleInputSamples) {
             mySamples.shuffle();
         }
@@ -57,7 +57,7 @@ int main(int argc, char **argv)
                 exit(0);
             }
         }
-    }
+    } while (myNet.repeatInputSamples);
 
     cout << "Done." << endl;
     return 0;
