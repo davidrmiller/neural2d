@@ -238,9 +238,9 @@ constant throughout the life of the net.
 * The transfer function is automatically set to the identity function (not by a *tf* parameter).
 
 For example, the following line in the topology config file defines a 3x3 convolution matrix
-for smoothing (low-pass) the source layer:
+for shrarpening the source layer:
 
-     layerConv1 size 64x64 from input convolve {{0,1,0},{1,2,1},{0,1,0}}
+     layerConv1 size 64x64 from input convolve {{0,-1,0},{-1,5,-1},{0,-1,0}}
 
 When a convolution matrix is specified for a layer, you cannot also specify a *radius* 
 parameter for that layer, as
@@ -258,9 +258,9 @@ regular layer.
 For illustrations of various convolution kernels, see
 [this Wikipedia article](http://en.wikipedia.org/wiki/Kernel_%28image_processing%29)
 
-For example, the following topology config file defines a convolution filter with a
+In the following illustration, the topology config file defines a convolution filter with a
 2x2 kernel that is applied to the input layer, then the results are combined
-with a reduced-resolution fully-connected pathway. The blue connections are the
+with a reduced-resolution fully-connected pathway. The blue connections in the picture are the
 convolution connections; the green connections are regular neural connections:
 
     input size 8x8
