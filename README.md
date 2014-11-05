@@ -31,7 +31,7 @@ Document Contents
 [GUI interface](#GUI)  
 [How to use your own data](#YourOwnData)  
 [The 2D in neural2d](#2D)  
-[Convolution fitering](#Convolution)  
+[Convolution filtering](#Convolution)  
 [Topology config file format](#TopologyConfig)  
 [Topology config file examples](#TopologyExamples)  
 [How-do-I *X*?](#HowDoI)  
@@ -43,6 +43,7 @@ Document Contents
 * [How do I change the learning rate parameter?](#howEta)  
 * [Are the output neurons binary or floating point?](#howBinary)  
 * [How do I use a different transfer function?](#howTf)  
+* [How do I define a convolution filter?](#howConvolve)  
 * [How do the color image pixels get converted to floating point for the input layer?](#howRgb)  
 * [How can I use .jpg and .png images as inputs to the net?](#howJpg)  
 * [Why does the net error rate stay high? Why doesn't my net learn?](#howLearn)  
@@ -228,22 +229,22 @@ Any layer other than the input layer can be configured as a convolution filter l
 specifying a *convolve-matrix* specification for the layer in the topology config file.
 The neurons are still called neurons, but their operation differs in the following ways:
 
-* The connection pattern to the source layer is defined by the convolution kernel dimensions
+* The connection pattern to the source layer is defined by the convolution matrix (kernel) dimensions
 (not by a *radius* parameter)
 
-* The connection weights are initialized from the convolution kernel, and are
+* The connection weights are initialized from the convolution matrix, and are
 constant throughout the life of the net.
 
 * The transfer function is automatically set to the identity function (not by a *tf* parameter).
 
-For example, the following line in the topology config file defines a 3x3 convolution kernel
+For example, the following line in the topology config file defines a 3x3 convolution matrix
 for smoothing (low-pass) the source layer:
 
      layerConv1 size 64x64 from input convolve {{0,1,0},{1,2,1},{0,1,0}}
 
 When a convolution matrix is specified for a layer, you cannot also specify a *radius* 
 parameter for that layer, as
-the convolution kernel size determines the size and shape of the rectangle of neurons in
+the convolution matrix size determines the size and shape of the rectangle of neurons in
 the source layer. You also cannot also specify a *tf* parameter, because the transfer function
 on a convolution layer is automatically set to be the identity function.
 
@@ -253,6 +254,9 @@ algorithm, so they remain constant for the life of the net.
 
 The results are undefined if a layer is defined as both a convolution layer and a
 regular layer.
+
+For illustrations of various convolution kernels, see
+[this Wikipedia article](http://en.wikipedia.org/wiki/Kernel_%28image_processing%29)
 
 For example, the following topology config file defines a convolution filter with a
 2x2 kernel that is applied to the input layer, then the results are combined
@@ -492,6 +496,13 @@ There are two places to change: first find where transferFunctionTanh() is defin
 and add your new transfer function and its derivative there. Next, locate the constructor
 for class Neuron and add a new else-if clause there, following the examples.
 
+**How do I define a convolution filter?**<a name="howConvolve"></a>  
+
+In the topology config file, any layer defined with a *convolve* parameter will
+operate as a convolution filter applied to the source layer. The syntax is of the form:
+
+     layer2 size 64x64 from input convolve {{1,0,-1},{0,0,0},{-1,0,1}}
+
 **How do the color image pixels get converted to floating point for the input layer?**<a name="howRgb"></a>
 
 That's in the ReadBMP() function in neural2d-core.cpp. The default version of ReadBMP()
@@ -534,4 +545,3 @@ Licenses<a name="Licenses"></a>
 The neural2d program and its documentation are copyrighted and licensed under the terms of the MIT license.
 
 The set of digits images in the images/digits/ subdirectory are released to the public domain.
-
