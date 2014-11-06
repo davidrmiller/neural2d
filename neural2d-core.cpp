@@ -119,8 +119,8 @@ double transferFunctionDerivativeRamp(double x) { return (x < -1.0 || x > 1.0) ?
 double transferFunctionGaussian(double x) { return exp(-((x * x) / 2.0)); }
 double transferFunctionDerivativeGaussian(double x) { return -x * exp(-(x * x) / 2.0); }
 
-double transferFunctionIdentity(double x) { return x; }
-double transferFunctionIdentityDerivative(double x) { return (void)x, 0.0; }
+double transferFunctionIdentity(double x) { return x; } // Used only in convolution layers
+double transferFunctionIdentityDerivative(double x) { return (void)x, 1.0; }
 
 
 void layerParams_t::resolveTransferFunctionName(void)
@@ -1026,7 +1026,7 @@ void Net::connectNeuron(Layer &layerTo, Layer &fromLayer, Neuron &neuron,
     for (int32_t y = ymin; y <= ymax; ++y) {
         for (int32_t x = xmin; x <= xmax; ++x) {
             if (!params.isConvolutionLayer && !projectRectangular && elliptDist(xcenter - x, ycenter - y,
-                                                  params.radiusX, params.radiusY) > 1.0) {
+                                                  params.radiusX, params.radiusY) >= 1.0) {
                 continue; // Skip this location, it's outside the ellipse
             }
 
@@ -1251,9 +1251,6 @@ convolveMatrix_t Net::parseMatrixSpec(istringstream &ss)
             num = 0.0; // Start a new number after this
             break;
         case ACCUM:
-//            if (ss) {
-//                ss >> num; // Eat as many chars as possible
-//            }
             // We've got the first char of the number in c, which can be -, +, ., or a digit.
             // Now gather the rest of the numeric string:
             string numstr;
@@ -1289,7 +1286,7 @@ convolveMatrix_t Net::parseMatrixSpec(istringstream &ss)
         }
         if (convMat.back().size() != firstRowSize) {
             cout << "Warning: in convolution matrix in topology config file, inconsistent matrix row size" << endl;
-            // throw()
+            throw("Error in topology config file: inconsistent row size in convolve matrix spec");
         }
     }
 
@@ -1399,6 +1396,9 @@ void Net::parseConfigFile(const string &configFilename)
                     params.colorChannelSpecified = true;
                 } else if (token == "radius") {
                     ss >> params.radiusX >> delim >> params.radiusY;
+                    if (delim == '\0') {
+                        params.radiusY = 0;
+                    }
                 } else if (token == "tf") {
                     ss >> params.transferFunctionName;
                     params.resolveTransferFunctionName();
