@@ -126,7 +126,7 @@ or:
 
 A GUI interface will appear that looks like:
 
-![neuron2d-gui](images/gui1.png)
+![neuron2d-gui](https://raw.github.com/davidrmiller/neural2d/master/images/gui1.png)
 
 Press Start Net to launch the neural2d program. You'll see a separate window appear that looks something like this:
 
@@ -190,11 +190,11 @@ The 2D in neural2d<a name="2D"></a>
 
 In a simple traditional neural net model, the neurons are arranged in a column in each layer:
 
-![net-5-4-2](images/net-542-sm.png)
+![net-5-4-2](https://raw.github.com/davidrmiller/neural2d/master/images/net-542-sm.png)
 
 In neural2d, you can specify a rectangular arrangement of neurons in each layer, such as:
 
-![net-2D](images/net-5x5-4x4-2-sm.png)
+![net-2D](https://raw.github.com/davidrmiller/neural2d/master/images/net-5x5-4x4-2-sm.png)
 
 The neurons can be sparsely connected to mimic how retinal neurons are connected in biological brains.
 For example, if a radius of "1x1" is specified in the topology config file,
@@ -210,16 +210,16 @@ convolution filters work slightly differently; see the later section about convo
 Here are some projected connection patterns for various radii:
 
 radius 0x0   
-![radius-0x0](images/radius-0x0.png)
+![radius-0x0](https://raw.github.com/davidrmiller/neural2d/master/images/radius-0x0.png)
 
 radius 1x1   
-![radius-1x1](images/radius-1x1.png)
+![radius-1x1](https://raw.github.com/davidrmiller/neural2d/master/images/radius-1x1.png)
 
 radius 2x2   
-![radius-2x2](images/radius-2x2.png)
+![radius-2x2](https://raw.github.com/davidrmiller/neural2d/master/images/radius-2x2.png)
 
 radius 3x1   
-![radius-3x1](images/radius-3x1.png)
+![radius-3x1](https://raw.github.com/davidrmiller/neural2d/master/images/radius-3x1.png)
 
 
 Convolution filtering<a name="Convolution"></a>
@@ -269,7 +269,7 @@ convolution connections; the green connections are regular neural connections:
     output size 2 from layerConvolve
     output size 2 from layerReducedRes
 
-![radius-3x1](images/net-convolve-8x8.png)
+![radius-3x1](https://raw.github.com/davidrmiller/neural2d/master/images/net-convolve-8x8.png)
 
 
 
