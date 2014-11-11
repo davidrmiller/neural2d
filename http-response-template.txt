@@ -32,7 +32,10 @@ function initVars()
    document.getElementById("train").checked = train;
    document.getElementById("stopError").value = stopError;
    document.getElementById(channel).checked = 1;
-   document.getElementById(runMode).checked = 1;
+   document.getElementById("runOnce").checked = false;
+   document.getElementById("runRepeat").checked = false;
+   document.getElementById("runRepeatShuffle").checked = false;
+   document.getElementById(runMode).checked = true;
    document.getElementById("eta").value = eta;
    document.getElementById("dynamicEta").checked = dynamicEta;
    document.getElementById("alpha").value = alpha;
@@ -68,8 +71,15 @@ function initVars()
        var offList = [ "train", "stopError", "eta", "dynamicEta", "alpha", "lambda", "smoothingFactor" ];
        for (i = 0; i < offList.length; ++i) {
            document.getElementById(offList[i]).disabled = true;
-           //document.getElementById(offList[i] + "Label").disabled = true;
-           document.getElementById(offList[i] + "Label").style.color = "#888888";
+           document.getElementById(offList[i] + "Label").style.color = "#bbbbbb";
+       }
+   }
+
+   if (!train) {
+       var offList = [ "stopError", "eta", "dynamicEta", "alpha", "lambda", "smoothingFactor" ];
+       for (i = 0; i < offList.length; ++i) {
+           document.getElementById(offList[i]).disabled = true;
+           document.getElementById(offList[i] + "Label").style.color = "#bbbbbb";
        }
    }
 }
@@ -248,22 +258,31 @@ INPUT[type="text"] {
             <div class="col">
               <form>
                 <INPUT type="hidden" name="runOnceShadow" value="1" />
-                <INPUT type="radio" name="runMode" id="runOnce" checked=0 />
+                <INPUT type="radio" name="runMode" id="runOnce" />
                 <LABEL for="runOnce">Run input samples once then pause</label><br />
               </form>
               
               <form>
                 <INPUT type="hidden" name="runRepeatShadow" value="1" />
-                <INPUT type="radio" name="runMode" id="runRepeat" checked=0 />
+                <INPUT type="radio" name="runMode" id="runRepeat" />
                 <LABEL for="runRepeat">Run input samples; repeat</label><br />
               </form>
               
               <form>
                 <INPUT type="hidden" name="runRepeatShuffleShadow" value="1" />
-                <INPUT type="radio" name="runMode" id="runRepeatShuffle" checked=0 />
+                <INPUT type="radio" name="runMode" id="runRepeatShuffle" />
                 <LABEL for="runRepeatShuffle">Run input samples; shuffle; repeat</label>
               </form>
             </div>
+          </div>
+        </div>
+  
+        <div class="row">
+          <div class="cell"><!-- ******************************************* reportEveryNth -->
+            <form>
+              <LABEL for="reportEveryNth">Report every Nth result</label>
+              <INPUT type="text" name="reportEveryNth" id="reportEveryNth" />
+            </form>
           </div>
         </div>
   
@@ -298,15 +317,6 @@ INPUT[type="text"] {
             <form>
               <LABEL for="lambda" id="lambdaLabel">lambda</label>
               <INPUT type="text" name="lambda"  id="lambda" />
-            </form>
-          </div>
-        </div>
-  
-        <div class="row">
-          <div class="cell"><!-- ******************************************* reportEveryNth -->
-            <form>
-              <LABEL for="reportEveryNth">Report every Nth result</label>
-              <INPUT type="text" name="reportEveryNth" id="reportEveryNth" />
             </form>
           </div>
         </div>
