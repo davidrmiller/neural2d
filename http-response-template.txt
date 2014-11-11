@@ -56,7 +56,7 @@ function initVars()
    forms = document.getElementsByTagName("form");
    for (i = 0; i < forms.length; ++i) {
        forms[i].setAttribute("action", "http://localhost:" + portNumber.toString());
-       forms[i].setAttribute("method", "get");
+       forms[i].setAttribute("method", "post");
    }
 
    // Enable/disable widgets depending on state

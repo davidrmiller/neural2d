@@ -122,7 +122,7 @@ void MessageQueue::pop(Message_t &msg)
 }
 
 
-// Web server stuff:
+//  ***********************************  Web server  ***********************************
 
 WebServer::WebServer(void)
 {
@@ -208,42 +208,42 @@ void WebServer::replyToUnknownRequest(int httpConnectionFd)
     close(httpConnectionFd);
 }
 
-// Look for "GET /?" followed by a message.
-// If this is the first GET we receive, we'll treat it as if it were "GET / " of the root document.
+// Look for "POST /" or "GET /?" followed by a message or POST.
+// If this is the first GET or POST we receive, we'll treat it as if it were
+// "GET / " of the root document.
 //
 void WebServer::extractAndQueueMessage(string s, int httpConnectionFd, MessageQueue &messages)
 {
     struct Message_t msg;
+    size_t pos;
 
-    size_t pos = s.find("GET /?");
-    if (pos == string::npos) {
-        if (s.find("GET / ") != string::npos) {
-            msg.text = ""; // Causes a default web form html page to be sent back
-            msg.httpResponseFileDes = httpConnectionFd;
-            messages.push(msg);
-            firstAccess = false;
-        } else {
-            cerr << "Unknown HTTP request" << endl;
-            replyToUnknownRequest(httpConnectionFd);
-        }
-
-        return;
+    if (firstAccess) {
+        msg.text = ""; // Causes a default web form html page to be sent back
+        firstAccess = false;
+    } else if ((pos = s.find("POST /")) != string::npos) {
+        // POST
+        pos = s.find("\r\n\r\n");
+        assert(pos != string::npos);
+        msg.text = s.substr(pos + 4);
+    } else if ((pos = s.find("GET /?")) != string::npos) {
+        // GET with an argument
+        string rawMsg = s.substr(pos + 6);
+        pos = rawMsg.find(" ");
+        assert(pos != string::npos);
+        msg.text = rawMsg.substr(0, pos);
+    } else if ((pos = s.find("GET /")) != string::npos) {
+        // GET without an argument
+        msg.text = "";
     } else {
-        // GET with an argument:
-        if (firstAccess) {
-            msg.text = "";
-            firstAccess = false;
-        } else {
-            string rawMsg = s.substr(pos + 6);
-            pos = rawMsg.find(" ");
-            assert(pos != string::npos);
-            rawMsg = rawMsg.substr(0, pos);
-            msg.text = rawMsg;
-
-        }
-        msg.httpResponseFileDes = httpConnectionFd;
-        messages.push(msg);
+        // Unknown HTTP request
+        replyToUnknownRequest(httpConnectionFd);
+        return;
     }
+
+    cout << "msg.text = " << msg.text << endl;
+
+    msg.httpResponseFileDes = httpConnectionFd;
+    messages.push(msg);
 }
 
 
@@ -1896,6 +1896,8 @@ void Net::actOnMessageReceived(Message_t &msg)
     ColorChannel_t newColorChannel = colorChannel;
 
     string &line = msg.text;
+
+    cout << "acting on message: \"" << line << "\"" << endl;
 
     if (line == "" &&  msg.httpResponseFileDes != -1) {
         makeParameterBlock(parameterBlock);
