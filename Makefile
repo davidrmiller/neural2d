@@ -15,7 +15,7 @@ COMPILER=g++ -std=c++11 -pthread -fopenmp
 
 # Warning: -O2 and -fopenmp do not always work well together.
 # It's ok to use -O1 and -fopenmp at the same time.
-EXTRACFLAGS=-g -O1 -Wall -Wextra
+EXTRACFLAGS=-g -O1 -Wall -Wextra -Wno-missing-field-initializers
 
 
 all: neural2d

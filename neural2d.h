@@ -27,8 +27,9 @@ For more information, see the tutorial video.
  * features and a few POSIX features that should be widely available on any
  * compiler that knows about C++11.
  *
- * This is a console program that requires no GUI. However, a GUI is optional;
- * See the Python GUI implementation called neural2d-gui.py.
+ * This is a console program that requires no GUI. However, a GUI is optional:
+ * The WebServer class provides an HTTP server that a web browser can connect to
+ * at port 24080.
  *
  * For most array indices and offsets into containers, we use 32-bit integers
  * (uint32_t). This allows 2 billion neurons per layer, 2 billion connections
@@ -82,27 +83,24 @@ For more information, see the tutorial video.
 
 #include <algorithm>
 #include <cassert>
-#include <condition_variable>
+#include <condition_variable> // For mutex
 #include <cstdint>
 #include <cstdlib>
 #include <fstream>
 #include <iostream>
-#include <climits>
 #include <queue>
 #include <set>
 #include <sstream>
 #include <string>
 #include <thread>
-#include <unordered_map>
-#include <utility>
+#include <utility> // For pair(), make_pair()
 #include <vector>
 
 using namespace std;
 
 // POSIX headers:
 
-#include <fcntl.h>     // For O_RDONLY, O_NONBLOCK, for the optional remote control channel
-#include <unistd.h>    // For getppid() and read(), for the optional remote control channel
+#include <unistd.h>    // For sleep()
 
 #ifdef _WIN32
 // Windows headers:
@@ -111,15 +109,8 @@ using namespace std;
 #endif
 
 // For web server:
-#include <sys/types.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
-#include <arpa/inet.h>
-#include <cstdio>
-#include <iostream>
-#include <cstdlib>
-#include <cstring>
-#include <unistd.h>
 
 
 // Everything we define in this file will be inside the NNet namespace. This keeps
@@ -128,7 +119,7 @@ using namespace std;
 //
 namespace NNet {
 
-//  ****************************  For GUI and Web interfaces  *****************************
+//  ****************************  For the web server interface  *****************************
 
 // A Thread-safe FIFO; pushes to the back, pops from the front. Push and
 // pop are always non-blocking. If the queue is empty, pop() immediately

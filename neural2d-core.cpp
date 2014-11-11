@@ -128,6 +128,7 @@ void WebServer::stopServer(void)
         cout << "Closing webserver socket..." << endl;
         shutdown(socketFd, SHUT_RDWR);
         close(socketFd);
+        socketFd = -1;
     }
 }
 
@@ -143,9 +144,7 @@ void WebServer::initializeHttpResponse(void)
     // Keep appending lines to firstPart until we get the line with the sentinel:
     ifstream httpTemplate("http-response-template.txt");
     if (!httpTemplate.is_open()) {
-        firstPart = "Cannot open http response template; web server is disabled.\r\n";
-        //cerr << firstPart << endl;
-        //enableWebServer = false;
+        firstPart = "Cannot open file \"http-response-template.txt\"; web server is disabled.\r\n";
         return;
     }
 
@@ -159,6 +158,7 @@ void WebServer::initializeHttpResponse(void)
         getline(httpTemplate, line);
 
         // Add \r\n; the \r may already be there:
+
         if (line[line.length() - 1] == '\r') {
             line.append("\n");
         } else {
@@ -166,6 +166,7 @@ void WebServer::initializeHttpResponse(void)
         }
 
         // Save the line:
+
         if (part == 1) {
             firstPart.append(line);
         } else {
@@ -181,13 +182,13 @@ void WebServer::initializeHttpResponse(void)
 }
 
 
+// This sends a 404 Not Found reply
+//
 void WebServer::replyToUnknownRequest(int httpConnectionFd)
 {
-    //cout << "Replying 404" << endl;
-
     string response = "HTTP/1.1 404 Not Found\r\nContent-Type: text/html\r\nConnection: close\r\n\r\n";
 
-    send(httpConnectionFd, response.c_str(), strlen(response.c_str()), 0);
+    send(httpConnectionFd, response.c_str(), response.length(), 0);
 
     shutdown(httpConnectionFd, SHUT_RDWR);
     close(httpConnectionFd);
@@ -237,7 +238,7 @@ void WebServer::sendHttpResponse(string parameterBlock, int httpResponseFileDes)
     string response = firstPart + parameterBlock + secondPart;
     const char *buf = response.c_str();
 
-    size_t lenToSend = strlen(response.c_str());
+    size_t lenToSend = response.length();
     while (lenToSend > 0) {
         int numWritten = write(httpResponseFileDes, buf, lenToSend);
         if (numWritten < 0) {
@@ -254,31 +255,34 @@ void WebServer::sendHttpResponse(string parameterBlock, int httpResponseFileDes)
 
 void WebServer::webServerThread(int portNumber, MessageQueue &messages)
 {
-    struct sockaddr_in stSockAddr;
+    static const struct sockaddr_in zero_sockaddr_in = { 0 };
+    struct sockaddr_in stSockAddr = zero_sockaddr_in;
     char buff[2048];
+
     socketFd = socket(PF_INET, SOCK_STREAM, IPPROTO_TCP);
 
     if (-1 == socketFd) {
-        cerr << "can not create socket" << endl;
-        exit(EXIT_FAILURE);
+        cerr << "Cannot create socket for the web server interface" << endl;
+        //exit(1);
+        return;
     }
-
-    memset(&stSockAddr, 0, sizeof(stSockAddr));
 
     stSockAddr.sin_family = AF_INET;
     stSockAddr.sin_port = htons(portNumber);
     stSockAddr.sin_addr.s_addr = htonl(INADDR_ANY);
 
     if (-1 == bind(socketFd, (struct sockaddr *)&stSockAddr, sizeof(stSockAddr))) {
-        cerr << "error bind failed" << endl;
+        cerr << "Cannot bind socket for the web server interface" << endl;
         close(socketFd);
-        exit(EXIT_FAILURE);
+        //exit(1);
+        return;
     }
 
     if (-1 == listen(socketFd, 10)) {
-        cerr << "error listen failed" << endl;
+        cerr << "Web server network failure" << endl;
         close(socketFd);
-        exit(EXIT_FAILURE);
+        //exit(1);
+        return;
     }
 
     cout << "Web server started." << endl;
@@ -286,14 +290,13 @@ void WebServer::webServerThread(int portNumber, MessageQueue &messages)
     while (true) {
         int httpConnectionFd = accept(socketFd, NULL, NULL);
 
-        if(0 > httpConnectionFd) {
-            cerr << "error accept failed" << endl;
+        if (0 > httpConnectionFd) {
+            cerr << "Webserver failed to accept connection" << endl;
             close(socketFd);
-            //exit(EXIT_FAILURE);
+            //exit(1);
             return;
         }
 
-        /* perform read write operations ...*/
         uint32_t numChars = read(httpConnectionFd, buff, sizeof buff);
 
         if (numChars > 0) {

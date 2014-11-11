@@ -443,7 +443,7 @@ setting the eta member of the Net object, like this:
 
      myNet.eta = 0.1;
 
-When using neuron2d-gui, you can change the eta parameter (and other parameters)
+When using the web interface, you can change the eta parameter (and other parameters)
 in the GUI at any time, even while the network is busy processing input data.
 
 Also see the [Parameter List](https://github.com/davidrmiller/neural2d/wiki/ParameterList)
