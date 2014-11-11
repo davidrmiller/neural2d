@@ -19,9 +19,7 @@ Features
 *     Any layer(s) can be configured as convolution filters
 *     Standalone console program
 *     Simple, heavily-commented code, < 3000 lines, suitable for prototyping, learning, and experimentation
-*     Optional GUI controller
-*     Tutorial video coming soon!
-
+*     Optional web-browser-based GUI controller
 
 Document Contents
 -----------------
@@ -53,19 +51,15 @@ Document Contents
 
 Also see the [wiki](https://github.com/davidrmiller/neural2d/wiki) for more information.
 
+
 Requirements<a name="Requirements"></a>
 ------------
 
 For the neural2d standalone console program:
 
 * C++-11 compiler (e.g., g++ on Linux)
+* POSIX sockets
 * Runs on Linux, Windows, and probably Mac
-
-For neural2d-gui:
-
-* Requires Python 3.x, and PyQt4  
-* Requires xterm (Linux only)  
-* Runs on Linux (Windows and Mac untested)
 
 
 How to run the demo<a name="Demo"></a>
@@ -90,52 +84,45 @@ To run the demo, execute:
 
     make test
 
-In this demo, we train the neural net to recognize digits.
-The input data, or "training set", consists of a few thousand images of numeric digits. The
-first 50 look like these:
+In this demo, we train the neural net to recognize digits. The input data, or "training set",
+consists of a few thousand images of numeric digits. The first 50 look like these:
 
 ![console-window](https://raw.github.com/davidrmiller/neural2d/master/images/digits-illus.png)
 
-The images are 32x32 pixels each, stored in .bmp format.
-In this demo, the neural net is configured to have 32x32 input neurons, and 10 output neurons. 
-The net is trained to classify the
-digits in the images and to indicate the answer by driving the corresponding output neuron to
-a high level.
+The images are 32x32 pixels each, stored in .bmp format. In this demo, the neural net is 
+configured to have 32x32 input neurons, and 10 output neurons. The net is trained to classify 
+the digits in the images and to indicate the answer by driving the corresponding output 
+neuron to a high level.
 
 Once the net is sufficiently trained, all the connection weights are saved in a file
 named "weights.txt".
 
+
 GUI interface (optional)<a name="GUI"></a>
 -------------
 
-The optional GUI is written in Python 3.x, and requires PyQt4.
+First, launch the neural2d console program in a command window with the -p option:
 
-To run the GUI controller, execute:
+     ./neural2d topology.txt inputData.txt weights.txt -p
 
-    ./neuron2d-gui.py
-
-If you get an error complaining about the python interpreter, it's because line 1 of neuron2d-gui.py
-contains the wrong path to your Python 3 interpreter. Either change line 1 or else run it by
-invoking the python interpreter directly, as in:
-
-    python neuron2d-gui.py
-
-or:
-
-    python3 neuron2d-gui.py
-
-A GUI interface will appear that looks like:
-
-![neuron2d-gui](https://raw.github.com/davidrmiller/neural2d/master/images/gui1.png)
-
-Press Start Net to launch the neural2d program. You'll see a separate window appear that looks something like this:
+The -p option causes the neural2d program to wait for a command before starting
+the training. The screen will look something like this:
 
 ![console-window](https://raw.github.com/davidrmiller/neural2d/master/images/console1.png)
 
-The neural net is initialized at this point, and paused waiting for your command to resume.
+At this point, the neural2d console program is paused and waiting for a command
+to continue. Using any web browser, open:
+
+     http://localhost:24080
+
+A GUI interface will appear that looks like:
+
+![neuron2d-gui](https://raw.github.com/davidrmiller/neural2d/master/images/gui2-sm.png)
 
 Press Resume to start the neural net training. It will automatically pause when the
-average error rate falls below a certain threshold. You now have a trained net.
+average error rate falls below a certain threshold (or when you press Pause). You 
+now have a trained net. You can press Save Weights to save the weights for later use.
+
 
 How to use your own data<a name="YourOwnData"></a>
 ------------------------
@@ -143,16 +130,16 @@ How to use your own data<a name="YourOwnData"></a>
 You'll need to prepare a set of image files and two configuration files.
 One config file (named inputData.txt by default) is a list of images to use
 as inputs to the neural net. The other config file (named topology.txt by default) 
-contains a specification of the neural
-net topology (the number and arrangement of neurons and connections).
+contains a specification of the neural net topology (the number and arrangement 
+of neurons and connections).
 
 First, prepare your set of input images. They need to be in .bmp format, and all must have
 the same dimensions. Put those in a convenient directory.
 
 Next, prepare the input data config file, by default named "inputData.txt" but
-can be named anything. It contains a list of the
-input image filenames and the expected output values of the neural net's output neurons.
-A typical file contains lines formatted like this:
+can be named anything. It contains a list of the input image filenames and the 
+expected output values of the neural net's output neurons. A typical file contains 
+lines formatted like this:
 
     images/thumbnails/test-918.bmp -1 1 -1 -1 -1 -1 -1 -1 -1 -1
     images/thumbnails/test-919.bmp -1 -1 -1 -1 -1 -1 -1 -1 1 -1
@@ -169,21 +156,14 @@ in a later section. A typical topology config file looks something like this:
     layer2 size 16x16 from layer1  
     output size 1x10 from layer2  
 
-Then run neuron2d-gui and experiment with the parameters until the net is adequately trained, then save
-the weights in a file for later use.
+Then run neuron2d (optionally with the web browser interface) and experiment with the parameters 
+until the net is adequately trained, then save the weights in a file for later use.
 
-Or execute the console program directly, specifying the topology, input data, and weights filenames, like this:
+If you run the web interface, you can change the global parameters from the GUI while the
+neural2d program is running. If you run the neural2d console program without the GUI interface,
+there is no way to interact with it while running. Instead, you'll need to examine and
+modify the parameters in the code at the top of the files neural2d.cpp and neural2d-core.cpp.
 
-    ./neuron2d topology.txt inputData.txt weights.txt
-
-The weights file will be written with the network connection weights after the net has
-been successfully trained.
-
-If you run the GUI program, you can change the network parameters from the GUI while the
-neural2d program is running. If you run the
-neural2d console program directly, there is no way to interact with it while running.
-Instead, you'll need to examine and modify the parameters in the code at the top of
-the files neural2d.cpp and neural2d-core.cpp.
 
 The 2D in neural2d<a name="2D"></a>
 ------------------
@@ -196,11 +176,12 @@ In neural2d, you can specify a rectangular arrangement of neurons in each layer,
 
 ![net-2D](https://raw.github.com/davidrmiller/neural2d/master/images/net-5x5-4x4-2-sm.png)
 
-The neurons can be sparsely connected to mimic how retinal neurons are connected in biological brains.
-For example, if a radius of "1x1" is specified in the topology config file,
-each neuron on the right (destination) layer will connect to a circular patch
-of neurons in the left (source) layer as shown here (only a single neuron on the right side is shown connected
-in this picture so you can see what's going on, but imagine all of them connected in the same pattern):
+The neurons can be sparsely connected to mimic how retinal neurons are connected in 
+biological brains. For example, if a radius of "1x1" is specified in the topology 
+config file, each neuron on the right (destination) layer will connect to a circular patch
+of neurons in the left (source) layer as shown here (only a single neuron on the right 
+side is shown connected in this picture so you can see what's going on, but imagine 
+all of them connected in the same pattern):
 
 ![radius-1x1](images/proj-1x1-sm.png)
 
@@ -243,10 +224,10 @@ for shrarpening the source layer:
      layerConv1 size 64x64 from input convolve {{0,-1,0},{-1,5,-1},{0,-1,0}}
 
 When a convolution matrix is specified for a layer, you cannot also specify a *radius* 
-parameter for that layer, as
-the convolution matrix size determines the size and shape of the rectangle of neurons in
-the source layer. You also cannot also specify a *tf* parameter, because the transfer function
-on a convolution layer is automatically set to be the identity function.
+parameter for that layer, as the convolution matrix size determines the size and shape of 
+the rectangle of neurons in the source layer. You also cannot also specify a *tf* parameter,
+because the transfer function on a convolution layer is automatically set to be the 
+identity function.
 
 The elements of the convolution matrix are stored as connection weights to the source
 neurons. Connection weights on convolution layers are not updated by the back propagation
@@ -310,10 +291,10 @@ Rules:
 
 1. The same layer name can be defined multiple times with different "from" parameters.
 This allows source neurons from more than one layer to be combined in one 
-destination layer. The source layers can be any size.
-When a destination layer is defined more than once, each line must have 
-an identical size parameter. In the following example, layerCombined appears twice
-with the same size:
+destination layer. The source layers can be any size. When a destination layer is 
+defined more than once, each line must have  an identical size parameter. In the 
+following example, layerCombined correctly appears twice with the same size 
+specification:
 
      input size 128x128  
      layerVertical size 32x32 from input radius 1x8  
@@ -423,11 +404,11 @@ If it succeeds, it will create a weights.txt file of non-zero size.
 
 **How do I run the GUI interface?**<a name="howGui"></a>
 
-If you have Python 3.x and PyQt4 installed, then one of the following should work:
+First launch the neural2d program with the -p option:
 
-     ./neural2d-gui.py
-     python neural2d-gui.py
-     python3 neural2d-gui.py
+     ./neural2d topology.txt inputData.txt weights.txt -p
+
+Then open a web browser and point it at http://localhost:24080 .
 
 **How do I use my own data instead of the digits images?**<a name="howOwnData"></a>
 
@@ -470,11 +451,12 @@ in the wiki.
 
 **Are the output neurons binary or floating point?**<a name="howBinary"></a>
 
-They are whatever you train them to be, but you can only train the outputs to take
-values in the range that the transfer function is capable of producing.
+They are interpreted in whatever manner you train them to be, but you can only 
+train the outputs to take values in the range that the transfer function is 
+capable of producing.
 
-If you're training a net to output binary values,
-it's best if you use the maxima of the transfer function to represent the two binary values.
+If you're training a net to output binary values, it's best if you use the 
+maxima of the transfer function to represent the two binary values.
 For example, when using the default tanh() transfer function, train the outputs to
 be -1 and +1 for false and true. When using the logistic transfer function, train the
 outputs to be 0 and 1.

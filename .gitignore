@@ -30,4 +30,7 @@
 images/digits/*.bmp
 weights.txt
 images/digits/LICENSE
+images/digits/topology.txt
+images/digits/inputData.txt
+neural2d
 

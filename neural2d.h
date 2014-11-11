@@ -20,7 +20,7 @@ For more information, see the tutorial video.
  *    7. Optional momentum (alpha) and regularization (lambda)
  *    8. Standalone console program
  *    9. Heavily-commented code, < 2000 lines, suitable for prototyping, learning, and experimentation
- *   10. Optional GUI controller
+ *   10. Optional web GUI controller
  *   11. Tutorial video coming soon!
  *
  * This program is written in the C++-11 dialect. It uses mostly ISO-standard C++
@@ -82,15 +82,19 @@ For more information, see the tutorial video.
 
 #include <algorithm>
 #include <cassert>
+#include <condition_variable>
 #include <cstdint>
 #include <cstdlib>
 #include <fstream>
 #include <iostream>
 #include <climits>
+#include <queue>
 #include <set>
 #include <sstream>
 #include <string>
+#include <thread>
 #include <unordered_map>
+#include <utility>
 #include <vector>
 
 using namespace std;
@@ -106,12 +110,72 @@ using namespace std;
 #define sleep(secs) Sleep(secs * 1000)
 #endif
 
+// For web server:
+#include <sys/types.h>
+#include <sys/socket.h>
+#include <netinet/in.h>
+#include <arpa/inet.h>
+#include <cstdio>
+#include <iostream>
+#include <cstdlib>
+#include <cstring>
+#include <unistd.h>
+
 
 // Everything we define in this file will be inside the NNet namespace. This keeps
 // all of our definitions out of the global namespace. (You can indent all the source
 // lines inside the namespace below if you're an indenting purist.)
 //
 namespace NNet {
+
+//  ****************************  For GUI and Web interfaces  *****************************
+
+// A Thread-safe FIFO; pushes to the back, pops from the front. Push and
+// pop are always non-blocking. If the queue is empty, pop() immediately
+// returns with s set to an empty string.
+
+struct Message_t
+{
+    string text;
+    int httpResponseFileDes;
+};
+
+class MessageQueue
+{
+public:
+    MessageQueue() { };
+    void push(Message_t msg);
+    void pop(Message_t &msg);
+    MessageQueue(const MessageQueue &) = delete;            // No copying
+    MessageQueue &operator=(const MessageQueue &) = delete; // No assignment
+
+private:
+    queue<Message_t> mqueue;
+    mutex mmutex;
+};
+
+
+class WebServer
+{
+public:
+    WebServer(void);
+    ~WebServer(void);
+    void start(int portNumber, MessageQueue &messages);
+    void stopServer(void);
+    void sendHttpResponse(string parameterBlock, int httpResponseFileDes);
+    void webServerThread(int portNumber, MessageQueue &messageQueue);
+    int portNumber;    // needed?
+    int socketFd;
+
+private:
+    void initializeHttpResponse(void);
+    void extractAndQueueMessage(string s, int httpConnectionFd, MessageQueue &messages);
+    void replyToUnknownRequest(int httpConnectionFd);
+
+    string firstPart;  // First part of the HTTP response
+    string secondPart; // Last part of the HTTP response
+};
+
 
 //  ***********************************  Input samples  ***********************************
 
@@ -142,7 +206,8 @@ private:
 class SampleSet
 {
 public:
-    SampleSet(const string &inputDataConfigFilename);
+    SampleSet() {};
+    void loadSamples(const string &inputDataConfigFilename);
     void shuffle(void);
     vector<Sample> samples;
 };
@@ -182,9 +247,6 @@ struct layerParams_t {
 struct Layer
 {
     layerParams_t params;
-    //string name;      // Can be "input", "output", or starts with "layer"
-    //uint32_t sizeX;   // Number of neurons in the layer, arranged 2D
-    //uint32_t sizeY;
 
     // For each layer, before any references are made to its members, the .neurons
     // member must be initialized with sufficient capacity to prevent reallocation.
@@ -266,6 +328,12 @@ public:
 
     ColorChannel_t colorChannel;   // R, G, B, or BW
 
+    bool enableBackPropTraining; // If false, backProp() won't update any weights
+
+    // Training will pause when the recent average overall error falls below this threshold:
+
+    double doneErrorThreshold;
+
     // eta is the network learning rate. It can be set to a constant value, somewhere
     // in the range 0.0001 to 0.1. Optionally, set dynamicEtaAdjust to true to allow
     // the program to automatically adjust eta during learning for optimal learning.
@@ -292,14 +360,7 @@ public:
 
     bool projectRectangular;
 
-    // If enableRemoteInterface is true, we'll monitor the remote command file and act on any
-    // commands received. If false, we'll start running the network immediately and not wait
-    // for commands to arrive. The command channel is implemented as a regular text file, opened
-    // for writing by the controlling program, line-buffered, and opened in this program for
-    // non-blocking reading.
-
-    bool enableRemoteInterface;  // If true, causes the net to respond to remote commands
-    bool isRunning;     // If true, start processing without waiting for a "run" command
+    bool isRunning;     // If true, start processing without waiting for a "resume" command
     
     // To reduce screen clutter during training, reportEveryNth can be set > 1. When
     // in VALIDATE or TRAINED mode, you'll want to set this to 1 so you can see every
@@ -320,6 +381,8 @@ public:
     bool repeatInputSamples;
     bool shuffleInputSamples;
 
+    string weightsFilename;     // Filename to use in saveWeights() and loadWeights()
+
     uint32_t inputSampleNumber; // Increments each time feedForward() is called
     double error;               // Overall net error
     double recentAverageError;  // Averaged over recentAverageSmoothingFactor samples
@@ -327,9 +390,7 @@ public:
     // Creates and connects a net from a topology config file:
 
     Net(const string &topologyFilename);
-
-    // This is the function to call to loop through the input samples and do forward prop
-    // and maybe backprop depending on the mode:
+    ~Net(void);
 
     void feedForward(void);                       // Propagate inputs to outputs
     void feedForward(Sample &sample);
@@ -353,6 +414,8 @@ public:
     void reportResults(const Sample &sample) const;
     void debugShowNet(bool details = false);      // Display details of net topology
 
+    SampleSet sampleSet;     // List of input images and access to their data
+
 private:
     // Here is where we store all the weighted connections. The container can get
     // reallocated, so we'll only refer to elements by indices, not by pointers or
@@ -374,24 +437,24 @@ private:
     void connectBias(Neuron &neuron);
     int32_t getLayerNumberFromName(const string &name) const;
 
-    void doCommand();                             // Handles incoming program command and control
+    void doCommand(); // Handles incoming program command and control
+    void actOnMessageReceived(Message_t &msg);
     double adjustedEta(void);
 
     vector<Layer> layers;
 
-    double lastRecentAverageError; // Used for dynamically adjusting eta
-    uint32_t totalNumberConnections;  // Including 1 bias connection per neuron
+    double lastRecentAverageError;   // Used for dynamically adjusting eta
+    uint32_t totalNumberConnections; // Including 1 bias connection per neuron
     uint32_t totalNumberNeurons;
-    double sumWeights; // For regularization calculation
+    double sumWeights;               // For regularization calculation
 
-    // Stuff for the optional command and control interface; unused if
-    // enableRemoteInterface is false:
-#ifdef _WIN32
-    ifstream cmdStream;
-#else
-    int cmdFd;
-#endif
-    string cmdFilename;
+    // Stuff for the web interface:
+
+    WebServer webServer;
+    bool enableWebServer;
+    int portNumber;
+    MessageQueue messages;
+    void makeParameterBlock(string &s);
 };
 
 } // end namespace NNet

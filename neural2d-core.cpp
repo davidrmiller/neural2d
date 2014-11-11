@@ -86,6 +86,224 @@ pair<uint32_t, uint32_t> extractTwoNums(const string &s)
     return pair<uint32_t, uint32_t>(sizeX, sizeY);
 }
 
+// Message queue
+// A Thread-safe non-blocking FIFO; pushes to the back, pops from the front.
+// If the queue is empty, pop() immediately returns with s set to an empty string.
+
+void MessageQueue::push(Message_t msg)
+{
+    unique_lock<mutex> locker(mmutex);
+    mqueue.push(msg);
+}
+
+void MessageQueue::pop(Message_t &msg)
+{
+    unique_lock<std::mutex> locker(mmutex);
+    if (mqueue.empty()) {
+        msg.text = "";
+        msg.httpResponseFileDes = -1;
+    } else {
+        msg = mqueue.front();
+        mqueue.pop();
+    }
+}
+
+
+// Web server stuff:
+
+WebServer::WebServer(void)
+{
+    socketFd = -1;
+    initializeHttpResponse();
+}
+
+WebServer::~WebServer(void)
+{
+    stopServer();
+}
+
+void WebServer::stopServer(void)
+{
+    if (socketFd != -1) {
+        cout << "Closing webserver socket..." << endl;
+        shutdown(socketFd, SHUT_RDWR);
+        close(socketFd);
+    }
+}
+
+
+// The web server runs in a separate thread. It receives a GET from the browser,
+// extracts the message (e.g., "eta=0.1") and appends it to a shared message
+// queue. Periodically, the Net object will pop messages and respond to them
+// by constructing a parameter block (a string) and calling a function to
+// send the http response.
+//
+void WebServer::initializeHttpResponse(void)
+{
+    // Keep appending lines to firstPart until we get the line with the sentinel:
+    ifstream httpTemplate("http-response-template.txt");
+    if (!httpTemplate.is_open()) {
+        firstPart = "Cannot open http response template; web server is disabled.\r\n";
+        //cerr << firstPart << endl;
+        //enableWebServer = false;
+        return;
+    }
+
+    firstPart = "";
+    secondPart = "";
+
+    int part = 1; // The lines before the sentinel goes into firstPart
+
+    while (httpTemplate.good()) {
+        string line;
+        getline(httpTemplate, line);
+
+        // Add \r\n; the \r may already be there:
+        if (line[line.length() - 1] == '\r') {
+            line.append("\n");
+        } else {
+            line.append("\r\n");
+        }
+
+        // Save the line:
+        if (part == 1) {
+            firstPart.append(line);
+        } else {
+            secondPart.append(line);
+        }
+
+        // If this is the line with the sentinel, we'll change to secondPart for the rest:
+
+        if (line.find("Parameter block") != string::npos) {
+            part = 2;
+        }
+    }
+}
+
+
+void WebServer::replyToUnknownRequest(int httpConnectionFd)
+{
+    //cout << "Replying 404" << endl;
+
+    string response = "HTTP/1.1 404 Not Found\r\nContent-Type: text/html\r\nConnection: close\r\n\r\n";
+
+    send(httpConnectionFd, response.c_str(), strlen(response.c_str()), 0);
+
+    shutdown(httpConnectionFd, SHUT_RDWR);
+    close(httpConnectionFd);
+}
+
+// Look for "GET /?" followed by a message.
+//
+void WebServer::extractAndQueueMessage(string s, int httpConnectionFd, MessageQueue &messages)
+{
+    struct Message_t msg;
+
+    size_t pos = s.find("GET /?");
+    if (pos == string::npos) {
+        if (s.find("GET / ") != string::npos) {
+            msg.text = ""; // Causes a default web form html page to be sent back
+            msg.httpResponseFileDes = httpConnectionFd;
+            messages.push(msg);
+        } else {
+            cerr << "Unknown HTTP request" << endl;
+            replyToUnknownRequest(httpConnectionFd);
+        }
+
+        return;
+    }
+
+    string rawMsg = s.substr(pos + 6);
+    pos = rawMsg.find(" ");
+    assert(pos != string::npos);
+    rawMsg = rawMsg.substr(0, pos);
+
+    msg.text = rawMsg;
+    msg.httpResponseFileDes = httpConnectionFd;
+    messages.push(msg);
+}
+
+
+void WebServer::start(int portNumber_, MessageQueue &messages)
+{
+    portNumber = portNumber_;
+    thread webThread(&WebServer::webServerThread, this, portNumber, ref(messages));
+    webThread.detach();
+}
+
+
+void WebServer::sendHttpResponse(string parameterBlock, int httpResponseFileDes)
+{
+    string response = firstPart + parameterBlock + secondPart;
+    const char *buf = response.c_str();
+
+    size_t lenToSend = strlen(response.c_str());
+    while (lenToSend > 0) {
+        int numWritten = write(httpResponseFileDes, buf, lenToSend);
+        if (numWritten < 0) {
+            break; // Serious error
+        }
+        lenToSend -= numWritten;
+        buf += numWritten;
+    }
+
+    shutdown(httpResponseFileDes, SHUT_RDWR);
+    close(httpResponseFileDes);
+}
+
+
+void WebServer::webServerThread(int portNumber, MessageQueue &messages)
+{
+    struct sockaddr_in stSockAddr;
+    char buff[2048];
+    socketFd = socket(PF_INET, SOCK_STREAM, IPPROTO_TCP);
+
+    if (-1 == socketFd) {
+        cerr << "can not create socket" << endl;
+        exit(EXIT_FAILURE);
+    }
+
+    memset(&stSockAddr, 0, sizeof(stSockAddr));
+
+    stSockAddr.sin_family = AF_INET;
+    stSockAddr.sin_port = htons(portNumber);
+    stSockAddr.sin_addr.s_addr = htonl(INADDR_ANY);
+
+    if (-1 == bind(socketFd, (struct sockaddr *)&stSockAddr, sizeof(stSockAddr))) {
+        cerr << "error bind failed" << endl;
+        close(socketFd);
+        exit(EXIT_FAILURE);
+    }
+
+    if (-1 == listen(socketFd, 10)) {
+        cerr << "error listen failed" << endl;
+        close(socketFd);
+        exit(EXIT_FAILURE);
+    }
+
+    cout << "Web server started." << endl;
+
+    while (true) {
+        int httpConnectionFd = accept(socketFd, NULL, NULL);
+
+        if(0 > httpConnectionFd) {
+            cerr << "error accept failed" << endl;
+            close(socketFd);
+            //exit(EXIT_FAILURE);
+            return;
+        }
+
+        /* perform read write operations ...*/
+        uint32_t numChars = read(httpConnectionFd, buff, sizeof buff);
+
+        if (numChars > 0) {
+            extractAndQueueMessage(buff, httpConnectionFd, messages);
+        }
+    }
+
+    close(socketFd);
+}
+
 
 // ***********************************  Transfer Functions  ***********************************
 
@@ -177,8 +395,6 @@ void layerParams_t::clear(void)
 //
 void ReadBMP(const string &filename, vector<double> &dataContainer, ColorChannel_t colorChannel)
 {
-    //assert(expectedNumElements > 0);
-
     FILE* f = fopen(filename.c_str(), "rb");
 
     if (f == NULL) {
@@ -298,7 +514,7 @@ vector<double> &Sample::getData(ColorChannel_t colorChannel)
 // in memory. For now, we'll just read the image filenames and, if available, the
 // target output values. We'll defer reading the image pixel data until it's needed.
 //
-SampleSet::SampleSet(const string &inputFilename)
+void SampleSet::loadSamples(const string &inputFilename)
 {
     string line;
     uint32_t lineNum = 0;
@@ -491,6 +707,8 @@ Net::Net(const string &topologyFilename)
     // See nnet.h for descriptions of these variables:
 
     colorChannel = NNet::BW;       // Convert input pixels to monochrome
+    enableBackPropTraining = true;
+    doneErrorThreshold = 0.001;
     eta = 0.01;                    // Initial overall net learning rate, [0.0..1.0]
     dynamicEtaAdjust = true;       // true enables automatic eta adjustment during training
     recentAverageSmoothingFactor = 125.; // Average net errors over this many input samples
@@ -498,33 +716,20 @@ Net::Net(const string &topologyFilename)
     alpha = 0.1;                   // Momentum factor, multiplier of last deltaWeight, [0.0..1.0]
     lambda = 0.0;                  // Regularization parameter; disabled if 0.0
     projectRectangular = false;    // Use elliptical areas for sparse connections
-    enableRemoteInterface = true;  // If true, causes the net to respond to remote commands
-    isRunning = !enableRemoteInterface;
+    isRunning = true;              // Command line option -p overrides this
     totalNumberConnections = 0;
     totalNumberNeurons = 0;
     sumWeights = 0.0;
+    weightsFilename = "weights.txt";
     repeatInputSamples = true;
     inputSampleNumber = 0;         // Increments each time feedForward() is called
+    enableWebServer = true;
+    portNumber = 24080;
 
-    // Init the optional remote command interface: For now, we'll establish the
-    // filename for the command file, but set the file descriptor to an invalid
-    // value to show that it is not yet open. The function doCommand() will
-    // open the file when it is needed.
+    // Web interface:
 
-#ifndef _WIN32
-    cmdFd = -1;
-#endif
-    if (enableRemoteInterface) {
-#ifdef _WIN32
-        cmdFilename = "neural2d-command";
-#else
-        cmdFilename = "neural2d-command-" + to_string((unsigned)getppid());
-#endif
-    } else {
-        cout << "Remote command interface disabled." << endl;
-        isRunning = true;   // Start immediately, don't wait for a remote command
-    }
-    
+    webServer.start(portNumber, messages);
+
     // Initialize the dummy bias neuron to provide a weighted bias input for all other neurons.
     // This is a single special neuron that has no inputs of its own, and feeds a constant
     // 1.0 through weighted connections to every other neuron in the network except input
@@ -537,6 +742,11 @@ Net::Net(const string &topologyFilename)
     // Set up the layers, create neurons, and connect them:
 
     parseConfigFile(topologyFilename);  // Throws an exception if any error
+}
+
+
+Net::~Net(void) {
+    webServer.stopServer();
 }
 
 
@@ -663,8 +873,7 @@ void Net::reportResults(const Sample &sample) const
 // connections. This happens when a layer specification is repeated in
 // the config file, thus creating connections to source neurons from
 // multiple layers. This applies to regular neurons and neurons in a
-// convolution layer.
-// Returns false for any error, true if successful.
+// convolution layer. Returns false for any error, true if successful.
 //
 bool Net::addToLayer(Layer &layerTo, Layer &layerFrom,
         layerParams_t &params)
@@ -768,6 +977,10 @@ void Net::debugShowNet(bool details)
 //
 void Net::backProp(const Sample &sample)
 {
+    if (!enableBackPropTraining) {
+        return;
+    }
+
     // Calculate output layer gradients:
 
     Layer &outputLayer = layers.back();
@@ -1290,16 +1503,6 @@ convolveMatrix_t Net::parseMatrixSpec(istringstream &ss)
         }
     }
 
-    // For debugging the convolution kernel:
-//    cout << "Convolution matrix = " << endl;
-//    for (unsigned y = 0; y < convMat.size(); ++y) {
-//        vector<double> &row = convMat[y];
-//        for (unsigned x = 0; x < row.size(); ++x) {
-//            cout << row[x] << ", ";
-//        }
-//        cout << endl;
-//    }
-
     return convMat;
 }
 
@@ -1405,7 +1608,7 @@ void Net::parseConfigFile(const string &configFilename)
                 } else if (token == "convolve") {
                     params.convolveMatrix = parseMatrixSpec(ss);
                     if (ss.tellg() == -1) {
-                        break; // todo: figure out why this is necessary
+                        break; // todo: figure out why this break is necessary
                     }
                     params.isConvolutionLayer = true;
                     params.transferFunctionName = "identity";
@@ -1545,182 +1748,277 @@ void Net::parseConfigFile(const string &configFilename)
          << " back+bias connections." << endl;
     cout << "About " << (int)((float)totalNumberConnections / numNeurons + 0.5)
          << " connections per neuron on average." << endl;
+    cout << (isRunning ? "" : "Paused.") << endl;
+}
+
+
+// This is the interface between the Net class and the WebServer class. Here
+// we construct a string containing lines of JavaScript variable assignments that
+// the web server can insert into the HTTP HTML response page.
+//
+void Net::makeParameterBlock(string &s)
+{
+    s = "";
+
+    // isRunning=0|1
+
+    s.append("isRunning=");
+    s.append(isRunning ? "1" : "0");
+    s.append(";\r\n");
+
+    // targetOutputsDefined=0|1
+
+    s.append("targetOutputsDefined=");
+    if (sampleSet.samples[0].targetVals.size() > 0) {
+        s.append("1;\r\n");
+    } else {
+        s.append("0;\r\n");
+    }
+
+    // runMode="runOnce|runRepeat|runRepeatShuffle"
+
+    if (repeatInputSamples && shuffleInputSamples) {
+        s.append("runMode=\"runRepeatShuffle\";\r\n");
+    } else if (repeatInputSamples && !shuffleInputSamples) {
+        s.append("runMode=\"runRepeat\";\r\n");
+    } else {
+        s.append("runMode=\"runOnce\";\r\n");
+    }
+
+    // train=0|1
+
+    if (enableBackPropTraining) {
+        s.append("train=1;\r\n");
+    } else {
+        s.append("train=0;\r\n");
+    }
+
+    // stopError=float
+
+    s.append("stopError=" + to_string(doneErrorThreshold) + ";\r\n");
+
+    // channel=R|G|B|BW
+
+    string channel = "BW";
+    if (colorChannel == NNet::R) {
+        channel = "R";
+    } else if (colorChannel == NNet::G) {
+        channel = "G";
+    } else if (colorChannel == NNet::B) {
+        channel = "B";
+    }
+
+    s.append("channel=\"" + channel + "\";\r\n");
+
+    // eta=float
+
+    s.append("eta=" + to_string(eta) + ";\r\n");
+
+    // dynamicEta=0|1
+
+    s.append("dynamicEta=");
+    s.append(dynamicEtaAdjust ? "1" : "0");
+    s.append(";\r\n");
+
+    // alpha=float
+
+    s.append("alpha=" + to_string(alpha) + ";\r\n");
+
+    // lambda=float
+
+    s.append("lambda=" + to_string(lambda) + ";\r\n");
+
+    // reportEveryNth=int
+
+    s.append("reportEveryNth=" + to_string(reportEveryNth) + ";\r\n");
+
+    // smoothingFactor=float
+
+    s.append("smoothingFactor=" + to_string(recentAverageSmoothingFactor) + ";\r\n");
+
+    // weightsFile="text"
+    s.append("weightsFile=\"" + weightsFilename + "\";\r\n");
+
+    // portNumber=int
+    s.append("portNumber=" + to_string(webServer.portNumber) + ";\r\n");
+
+    return;
 }
 
 
 // Handler for the optional external controller for the neural2d program.
 // This function reads the command file and acts on any commands received.
-// The command file is named cmdFilename, which by default is
-// "neural2d-command-" plus the process ID of the parent process.
-// Returns when all outstanding commands have been executed. Returns
-// immediately if no commands have arrived, or if the remote command interface
-// is disabled.
 //
-// Commands:
-//     alpha n               set momentum, float n > 0.0
-//     averageover           number of input samples for running error average
-//     dynamiceta True|False enable/disable dynamic updating of the eta parameter
-//     eta n                 set learning rate, float n > 0.0
-//     lambda n              set regularization factor
-//     load filename         load weights from a file
-//     pause                 pause operation
-//     repeat True|False     whether to repeat the input samples
-//     report n              progress report interval, int n >= 1
-//     resume                resume operation (alias for "run")
-//     run                   resume operation (alias for "resume")
-//     save filename         save weights (but not topology)
-//     shuffle True|False    shuffle input samples
-//     train True|False      enable/disable backprop weight updates
-//
-void Net::doCommand()
+void Net::actOnMessageReceived(Message_t &msg)
 {
-    if (!enableRemoteInterface) {
+    string parameterBlock;
+
+    string &line = msg.text;
+
+    if (line == "" &&  msg.httpResponseFileDes != -1) {
+        makeParameterBlock(parameterBlock);
+        webServer.sendHttpResponse(parameterBlock, msg.httpResponseFileDes);
         return;
     }
 
-    // Typically fewer than 10 or so commands may have been written to the command file by
-    // the controlling program before we have the chance to read and act on them.
-    // The size of buf[] should be large enough to hold the outstanding command strings.
+    istringstream ss(line);
+    string token;
 
-    char buf[1024];
+    ss >> token;
 
-    // Check if the optional interface is enabled and active. If it's enabled but not
-    // yet open, we'll open it and leave it open. We can tell that the file is already
-    // open if cmdFd is nonnegative. We must open it in non-blocking mode so that we
-    // don't hang in read() if no commands have arrived.
+    // trainShadow
 
-#ifdef _WIN32
-    if (!cmdStream.is_open() && isFileExists(cmdFilename)) {
-        cout << "opening command interface file \'" << cmdFilename << "\'" << endl;
-        cmdStream.open(cmdFilename);
-        if (!cmdStream.is_open()) {
-            // The command interface file exists but we can't open it
-            cout << "Error opening remote command interface file \'"
-                 << cmdFilename << "\'" << endl;
-            throw("Error opening command interface file");
-        }
-        
-#else
-    if (cmdFd < 0 && isFileExists(cmdFilename)) {
-        cout << "opening command interface file \'" << cmdFilename << "\'" << endl;
-        cmdFd = open(cmdFilename.c_str(), O_RDONLY | O_NONBLOCK);
-        if (cmdFd < 0) {
-            // The command interface file exists but we can't open it
-            cout << "Error opening remote command interface file \'"
-                 << cmdFilename << "\'" << endl;
-            throw("Error opening command interface file");
-        }
-#endif
-    } else if (!isFileExists(cmdFilename)) {
-        // If we get here, it's because enableRemoteInterface is true, but the command file
-        // does not exist. Instead of waiting forever for a command that will never arrive,
-        // we'll instead set isRunning to true so that the net can start processing data.
-        isRunning = true;
+    if (token.find("trainShadow=&train=on") == 0) {
+        enableBackPropTraining = true;
+    } else if (token.find("trainShadow=") == 0) {
+        enableBackPropTraining = false;
     }
 
+    else if (token.find("training=") == 0) {
+        enableBackPropTraining = true;
+        doneErrorThreshold = 0.01;
+        reportEveryNth = 125;
+        recentAverageSmoothingFactor = 100;
+    } else if (token.find("validate=") == 0) {
+        enableBackPropTraining = false;
+        doneErrorThreshold = 0.0;
+        reportEveryNth = 1;
+        recentAverageSmoothingFactor = 1;
+    } else if (token.find("trained=") == 0) {
+        enableBackPropTraining = false;
+        reportEveryNth = 1;
+    }
+
+    // stopError
+
+    else if (token.find("stopError=") == 0) {
+        doneErrorThreshold = strtod(token.substr(10).c_str(), NULL);
+    }
+
+    else if (token.find("runOnceShadow=") == 0) {
+        repeatInputSamples = false;
+        shuffleInputSamples = false;
+    } else if (token.find("runRepeatShadow=") == 0) {
+        repeatInputSamples = true;
+        shuffleInputSamples = false;
+    } else if (token.find("runRepeatShuffleShadow=") == 0) {
+        repeatInputSamples = true;
+        shuffleInputSamples = true;
+    }
+
+    // colorchannel
+
+    else if (token.find("channelRShadow=") == 0) {
+        colorChannel = NNet::R;
+    } else if (token.find("channelGShadow=") == 0) {
+        colorChannel = NNet::G;
+    } else if (token.find("channelBShadow=") == 0) {
+        colorChannel = NNet::B;
+    } else if (token.find("channelBWShadow=") == 0) {
+        colorChannel = NNet::BW;
+    }
+
+    // alpha
+
+    else if (token.find("alpha=") == 0) {
+        alpha = strtod(token.substr(6).c_str(), NULL);
+        cout << "Set alpha=" << alpha << endl;
+    }
+
+    else if (token.find("eta=") == 0) {
+        eta = strtod(token.substr(4).c_str(), NULL);
+        cout << "Set eta=" << eta << endl;
+    }
+
+    else if (token.find("etaShadow=&dynamicEta=1") == 0) {
+        dynamicEtaAdjust = true;
+        cout << "dynamicEtaAdjust=" << dynamicEtaAdjust << endl;
+    }
+
+    else if (token.find("etaShadow=") == 0) {
+        dynamicEtaAdjust = false;
+        cout << "dynamicEtaAdjust=" << dynamicEtaAdjust << endl;
+    }
+
+    else if (token.find("lambda") == 0) {
+        lambda = strtod(token.substr(6).c_str(), NULL);
+        cout << "Set lambda=" << lambda << endl;
+    }
+
+    else if (token == "load") {
+        ss >> token;
+        cout << "Load weights from " << token << endl;
+        loadWeights(token);
+    }
+
+    else if (token.find("pause") == 0) {
+        isRunning = false;
+        cout << "Pause" << endl;
+        sleep(0.5);
+    }
+
+    else if (token.find("reportEveryNth=") == 0) {
+        reportEveryNth = strtod(token.substr(15).c_str(), NULL);
+        cout << "Report everyNth=" << reportEveryNth << endl;
+    }
+
+    else if (token.find("smoothingFactor=") == 0) {
+        recentAverageSmoothingFactor = strtod(token.substr(16).c_str(), NULL);
+        cout << "Average window over " << recentAverageSmoothingFactor << endl;
+    }
+
+    else if (token.find("weightsFile=") == 0) {
+        weightsFilename = token.substr(12);
+        cout << "weightsFilename = " << weightsFilename << endl;
+    }
+
+    else if (token == "run" || token.find("resume") == 0) {
+        isRunning = true;
+        cout << "Resume run" << endl;
+    }
+
+    else if (token.find("savew") == 0) {
+        cout << "Save weights to " << weightsFilename << endl;
+        saveWeights(weightsFilename);
+    }
+
+    else if (token.find("loadw") == 0) {
+        cout << "Load weights from " << weightsFilename << endl;
+        loadWeights(weightsFilename);
+    }
+
+    else if (token == "repeat") {
+        ss >> token;
+        repeatInputSamples = (token == "True");
+        cout << "repeatInputSamples=" << repeatInputSamples << endl;
+    }
+
+    else if (token == "shuffle") {
+        ss >> token;
+        shuffleInputSamples = (token == "True");
+        cout << "shuffleInputSamples=" << shuffleInputSamples << endl;
+    }
+
+    // Send the HTTP response:
+    // To do: use async() !!!
+
+    makeParameterBlock(parameterBlock);
+    webServer.sendHttpResponse(parameterBlock, msg.httpResponseFileDes);
+}
+
+
+void Net::doCommand()
+{
+    // First check the web interface:
+
     do {
-        // If the command file is open, see if there's anything there to read. If not,
-        // return immediately.
-
-        int numRead = 0;
-    #ifdef _WIN32
-        if (cmdStream.is_open() && cmdStream.good()) {
-            cmdStream.read(buf, sizeof buf - 1);
-            numRead = cmdStream.gcount();
-    #else
-        if (cmdFd >= 0) {
-            numRead = read(cmdFd, buf, sizeof buf - 1);
-    #endif
-            if (numRead == 0 && isRunning) {
-                // eof
-                return;
-            } else if (numRead < 0) {
-                // errno 11 is EAGAIN (try again) which may be the same on Linux as EWOULDBLOCK
-                if (errno != EAGAIN) {
-                    cout << "Error in command-and-control stream, errno=" << errno << endl;
-                    // ToDo: add appropriate error recovery here. Or ignore it and keep going.
-                    // throw("Error reading command file");
-                }
-                if (isRunning) {
-                    return;
-                }
-            }
-        } else if (isRunning) {
-            return;
-        } else {
-            sleep(0.5);
+        Message_t msg;
+        messages.pop(msg);
+        if (msg.httpResponseFileDes != -1) {
+            actOnMessageReceived(msg);
         }
-
-        // Got one or more lines of text. Separate the individual lines and parse them.
-
-        buf[numRead] = '\0';
-        //cout << "heard " << buf << endl;
-
-        string lines(buf);
-        istringstream sss(lines);
-
-        while (!sss.eof()) {
-            char line[512];
-            sss.getline(line, sizeof line - 1);
-            istringstream ss(line);
-            string token;
-
-            ss >> token;
-            if (token == "alpha") {
-                ss >> alpha;
-                cout << "Set alpha=" << alpha << endl;
-            }
-            else if (token == "eta") {
-                ss >> eta;
-                cout << "Set eta=" << eta << endl;
-            }
-            else if (token == "dynamiceta") {
-                //ss >> dynamicEtaAdjust;
-                ss >> token;
-                dynamicEtaAdjust = (token == "True");
-                cout << "dynamicEtaAdjust=" << dynamicEtaAdjust << endl;
-            }
-            else if (token == "lambda") {
-                ss >> lambda;
-                cout << "Set lambda=" << lambda << endl;
-            }
-            else if (token == "load") {
-                ss >> token;
-                cout << "Load weights from " << token << endl;
-                loadWeights(token);
-            }
-            else if (token == "pause") {
-                isRunning = false;
-                cout << "Pause" << endl;
-                sleep(0.5);
-            }
-            else if (token == "report") {
-                ss >> reportEveryNth;
-                cout << "Report everyNth=" << reportEveryNth << endl;
-            }
-            else if (token == "averageover") {
-                    ss >> recentAverageSmoothingFactor;
-                    cout << "Average window over " << recentAverageSmoothingFactor << endl;
-            }
-            else if (token == "run" || token == "resume") {
-                isRunning = true;
-                cout << "Resume run" << endl;
-            }
-            else if (token == "save") {
-                ss >> token;
-                cout << "Save weights to " << token << endl;
-                saveWeights(token);
-            }
-            else if (token == "repeat") {
-                ss >> token;
-                repeatInputSamples = (token == "True");
-                cout << "repeatInputSamples=" << repeatInputSamples << endl;
-            }
-            else if (token == "shuffle") {
-                ss >> token;
-                shuffleInputSamples = (token == "True");
-                cout << "shuffleInputSamples=" << shuffleInputSamples << endl;
-            }
+        if (!isRunning) {
+            sleep(0.5);
         }
     } while (!isRunning);
 }
