@@ -82,6 +82,10 @@ function initVars()
            document.getElementById(offList[i] + "Label").style.color = "#bbbbbb";
        }
    }
+
+   // Leave the address bar with a safe URL:
+
+   history.pushState('', '', "http://localhost:" + portNumber.toString());
 }
 
 </script>
