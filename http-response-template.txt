@@ -41,12 +41,6 @@ function initVars()
    document.getElementById("reportEveryNth").value = reportEveryNth;
    document.getElementById("weightsFile").value = weightsFile;
    
-   if (!isRunning) {
-       document.getElementById("pause").disabled = true;
-   } else {
-       document.getElementById("resume").disabled = true;
-   }
-
    // Add onChange attribute to every input element:
 
    inputs = document.getElementsByTagName("INPUT");
@@ -63,8 +57,13 @@ function initVars()
    }
 
    // Enable/disable widgets depending on state
-   // to do !!! also disable associated labels
    
+   if (!isRunning) {
+       document.getElementById("pause").disabled = true;
+   } else {
+       document.getElementById("resume").disabled = true;
+   }
+
    if (!targetOutputsDefined) {
        var offList = [ "train", "stopError", "eta", "dynamicEta", "alpha", "lambda", "smoothingFactor" ];
        for (i = 0; i < offList.length; ++i) {
@@ -164,201 +163,201 @@ INPUT[type="text"] {
 </style>
 
 </head>
-    <body>
-        <div class="outer">
-            <div class="row rowheader">
-                <div class="cell">
-                neural2d runtime control
-                </div>
+  <body>
+    <div class="outer">
+      <div class="row rowheader">
+        <div class="cell">
+        neural2d runtime control
+        </div>
+      </div>
+
+      <div class="bgroup">
+        <div class="row">
+          <div class="cell"><!-- ******************************************* Quick settings -->
+            <LABEL>Quick settings:</label>
+          </div>
+        </div>
+
+        <div class="row">
+          <div class="cell"><!-- ******************************************* Quick settings, cont'd -->
+            <form>
+              <BUTTON name="training">Training</BUTTON>
+            </form>
+            <form>
+              <BUTTON name="validate">Validate</BUTTON>
+            </form>
+            <form>
+              <BUTTON name="trained">Trained</BUTTON>
+            </form>
+          </div>
+        </div>
+      </div>
+
+      <div class="bgroup">
+        <div class="row">
+          <div class="cell"><!-- ******************************************* enable train -->
+            <form>
+              <INPUT type="hidden" name="trainShadow" />
+              <LABEL for="train" id="trainLabel">Enable backprop training</label>
+              <INPUT type="checkbox" name="train" id="train" />
+            </form>
+          </div>
+        </div>
+  
+        <div class="row">
+          <div class="cell"><!-- ******************************************* pause when error < n -->
+            <form>
+              <LABEL for="stopError" id="stopErrorLabel">Pause when error &lt; N</label>
+              <INPUT type="text" name="stopError" id="stopError" />
+            </form>
+          </div>
+        </div>
+  
+        <div class="row"><!-- ******************************************* channel -->
+          <div class="cell">
+            <LABEL>Color channel: </label>
+            <form>
+              <INPUT type="hidden" name="channelRShadow" value="1" />
+              <LABEL for="R">R</label>
+              <INPUT type="radio" name="channel" id="R" />
+            </form>
+            
+             <form>
+              <INPUT type="hidden" name="channelGShadow" value="1" />
+              <LABEL for="G">G</label>
+              <INPUT type="radio" name="channel" id="G" />
+            </form>
+            
+            <form>
+              <INPUT type="hidden" name="channelBShadow" value="1" />
+              <LABEL for="B">B</label>
+              <INPUT type="radio" name="channel" id="B" />
+            </form>
+            
+            <form>
+              <INPUT type="hidden" name="channelBWShadow" value="1" />
+              <LABEL for="BW">BW</label>
+              <INPUT type="radio" name="channel" id="BW" />
+            </form>
+            
+          </div>
+        </div>
+  
+        <div class="bgroup">
+          <div class="row"><!-- ******************************************* run mode -->
+            <div class="col">
+              <form>
+                <INPUT type="hidden" name="runOnceShadow" value="1" />
+                <INPUT type="radio" name="runMode" id="runOnce" checked=0 />
+                <LABEL for="runOnce">Run input samples once then pause</label><br />
+              </form>
+              
+              <form>
+                <INPUT type="hidden" name="runRepeatShadow" value="1" />
+                <INPUT type="radio" name="runMode" id="runRepeat" checked=0 />
+                <LABEL for="runRepeat">Run input samples; repeat</label><br />
+              </form>
+              
+              <form>
+                <INPUT type="hidden" name="runRepeatShuffleShadow" value="1" />
+                <INPUT type="radio" name="runMode" id="runRepeatShuffle" checked=0 />
+                <LABEL for="runRepeatShuffle">Run input samples; shuffle; repeat</label>
+              </form>
             </div>
+          </div>
+        </div>
+  
+        <div class="row">
+          <div class="cell"><!-- ******************************************* eta -->
+            <form>
+              <LABEL for="eta" id="etaLabel">eta</label>
+              <INPUT type="text" name="eta" id="eta" />
+            </form>
+          </div>
+  
+          <div class="cell"><!-- ******************************************* Dynamic eta -->
+            <form>
+              <INPUT type="hidden" name="etaShadow" />
+              <LABEL for="dynamicEta" id="dynamicEtaLabel">Dynamic eta</label>
+              <INPUT type="checkbox" name="dynamicEta" id="dynamicEta" value="1" />
+            </form>
+          </div>
+        </div>
+  
+        <div class="row">
+          <div class="cell"><!-- ******************************************* alpha -->
+            <form>
+              <LABEL for="alpha" id="alphaLabel">alpha</label>
+              <INPUT type="text" name="alpha" id="alpha" />
+            </form>
+          </div>
+        </div>
+  
+        <div class="row">
+          <div class="cell"><!-- ******************************************* lambda -->
+            <form>
+              <LABEL for="lambda" id="lambdaLabel">lambda</label>
+              <INPUT type="text" name="lambda"  id="lambda" />
+            </form>
+          </div>
+        </div>
+  
+        <div class="row">
+          <div class="cell"><!-- ******************************************* reportEveryNth -->
+            <form>
+              <LABEL for="reportEveryNth">Report every Nth result</label>
+              <INPUT type="text" name="reportEveryNth" id="reportEveryNth" />
+            </form>
+          </div>
+        </div>
+  
+        <div class="row">
+          <div class="cell"><!-- ******************************************* Average over -->
+            <form>
+              <LABEL for="smoothingFactor" id="smoothingFactorLabel">Avg err over N samples</label>
+              <INPUT type="text" name="smoothingFactor" id="smoothingFactor" />
+            </form>
+          </div>
+        </div>
+      </div>
 
-<div class="bgroup">
-            <div class="row">
-                <div class="cell"><!-- ******************************************* Quick mode -->
-                    <LABEL>Quick mode:</label>
-                </div>
-            </div>
+      <div class="bgroup">
+        <div class="row">
+          <div class="cell"><!-- ******************************************* weights file -->
+            <form>
+              <LABEL>Weights file</label>
+              <INPUT type="text" name="weightsFile" id="weightsFile" />
+            </form>
+          </div>
+        </div>
+  
+        <div class="row">
+          <div class="cell"><!-- ******************************************* weights save/load -->
+            <form>
+              <BUTTON name="savew">Save weights</BUTTON>
+            </form>
+  
+            <form>
+              <BUTTON name="loadw">Load weights</BUTTON>
+            </form>
+          </div>
+        </div>
+      </div>
 
-            <div class="row">
-                <div class="cell"><!-- ******************************************* Quick mode, cont'd -->
-                    <form>
-                        <BUTTON name="training">Training</BUTTON>
-                    </form>
-                    <form>
-                        <BUTTON name="validate">Validate</BUTTON>
-                    </form>
-                    <form>
-                        <BUTTON name="trained">Trained</BUTTON>
-                    </form>
-                </div>
-            </div>
-</div>
+      <div class="row bgroup">
+        <div class="cell"><!-- ******************************************* Pause/Resume -->
+          <form>
+            <BUTTON name="pause" id="pause" class="bbtn">Pause</BUTTON>
+          </form>
 
-<div class="bgroup">
-            <div class="row">
-                <div class="cell"><!-- ******************************************* enable train -->
-                    <form>
-                        <INPUT type="hidden" name="trainShadow" />
-                        <LABEL for="train" id="trainLabel">Enable backprop training</label>
-                        <INPUT type="checkbox" name="train" id="train" />
-                    </form>
-                </div>
-            </div>
+          <form>
+            <BUTTON name="resume" id="resume" class="bbtn">Resume</BUTTON>
+          </form>
+        </div>
+      </div>
 
-            <div class="row">
-                <div class="cell"><!-- ******************************************* stop when error < n -->
-                    <form>
-                        <LABEL for="stopError" id="stopErrorLabel">Stop when error &lt; N</label>
-                        <INPUT type="text" name="stopError" id="stopError" />
-                    </form>
-                </div>
-            </div>
+    </div><!-- end table -->
 
-            <div class="row"><!-- ******************************************* channel -->
-                <div class="cell">
-                    <LABEL>Color channel: </label>
-                    <form>
-                        <INPUT type="hidden" name="channelRShadow" value="1" />
-                        <LABEL for="R">R</label>
-                        <INPUT type="radio" name="channel" id="R" />
-                    </form>
-                    
-                     <form>
-                        <INPUT type="hidden" name="channelGShadow" value="1" />
-                        <LABEL for="G">G</label>
-                        <INPUT type="radio" name="channel" id="G" />
-                    </form>
-                    
-                    <form>
-                        <INPUT type="hidden" name="channelBShadow" value="1" />
-                        <LABEL for="B">B</label>
-                        <INPUT type="radio" name="channel" id="B" />
-                    </form>
-                    
-                    <form>
-                        <INPUT type="hidden" name="channelBWShadow" value="1" />
-                        <LABEL for="BW">BW</label>
-                        <INPUT type="radio" name="channel" id="BW" />
-                    </form>
-                    
-                </div>
-            </div>
-
-<div class="bgroup">
-            <div class="row"><!-- ******************************************* run mode -->
-                <div class="col">
-                    <form>
-                        <INPUT type="hidden" name="runOnceShadow" value="1" />
-                        <INPUT type="radio" name="runMode" id="runOnce" />
-                        <LABEL for="runOnce">Run input samples once then pause</label><br />
-                    </form>
-                    
-                    <form>
-                        <INPUT type="hidden" name="runRepeatShadow" value="1" />
-                        <INPUT type="radio" name="runMode" id="runRepeat" />
-                        <LABEL for="runRepeat">Run input samples; repeat</label><br />
-                    </form>
-                    
-                    <form>
-                        <INPUT type="hidden" name="runRepeatShuffleShadow" value="1" />
-                        <INPUT type="radio" name="runMode" id="runRepeatShuffle" />
-                        <LABEL for="runRepeatShuffle">Run input samples; shuffle; repeat</label>
-                    </form>
-                </div>
-            </div>
-</div>
-
-            <div class="row">
-                <div class="cell"><!-- ******************************************* eta -->
-                    <form>
-                        <LABEL for="eta" id="etaLabel">eta</label>
-                        <INPUT type="text" name="eta" id="eta" />
-                    </form>
-                </div>
-
-                <div class="cell"><!-- ******************************************* Dynamic eta -->
-                    <form>
-                        <INPUT type="hidden" name="etaShadow" />
-                        <LABEL for="dynamicEta" id="dynamicEtaLabel">Dynamic eta</label>
-                        <INPUT type="checkbox" name="dynamicEta" id="dynamicEta" value="1" />
-                    </form>
-                </div>
-            </div>
-
-            <div class="row">
-                <div class="cell"><!-- ******************************************* alpha -->
-                    <form>
-                        <LABEL for="alpha" id="alphaLabel">alpha</label>
-                        <INPUT type="text" name="alpha" id="alpha" />
-                    </form>
-                </div>
-            </div>
-
-            <div class="row">
-                <div class="cell"><!-- ******************************************* lambda -->
-                    <form>
-                        <LABEL for="lambda" id="lambdaLabel">lambda</label>
-                        <INPUT type="text" name="lambda"  id="lambda" />
-                    </form>
-                </div>
-            </div>
-
-            <div class="row">
-                <div class="cell"><!-- ******************************************* reportEveryNth -->
-                    <form>
-                        <LABEL for="reportEveryNth">Report every Nth result</label>
-                        <INPUT type="text" name="reportEveryNth" id="reportEveryNth" />
-                    </form>
-                </div>
-            </div>
-
-            <div class="row">
-                <div class="cell"><!-- ******************************************* Average over -->
-                    <form>
-                        <LABEL for="smoothingFactor" id="smoothingFactorLabel">Avg err over N samples</label>
-                        <INPUT type="text" name="smoothingFactor" id="smoothingFactor" />
-                    </form>
-                </div>
-            </div>
-</div>
-
-<div class="bgroup">
-            <div class="row">
-                <div class="cell"><!-- ******************************************* weights file -->
-                    <form>
-                        <LABEL>Weights file</label>
-                        <INPUT type="text" name="weightsFile" id="weightsFile" />
-                    </form>
-                </div>
-            </div>
-
-            <div class="row">
-                <div class="cell"><!-- ******************************************* weights save/load -->
-                    <form>
-                        <BUTTON name="savew">Save weights</BUTTON>
-                    </form>
-
-                    <form>
-                        <BUTTON name="loadw">Load weights</BUTTON>
-                    </form>
-                </div>
-            </div>
-</div>
-
-            <div class="row bgroup">
-                <div class="cell"><!-- ******************************************* Pause/Resume -->
-                    <form>
-                        <BUTTON name="pause" id="pause" class="bbtn">Pause</BUTTON>
-                    </form>
-
-                    <form>
-                        <BUTTON name="resume" id="resume" class="bbtn">Resume</BUTTON>
-                    </form>
-                </div>
-            </div>
-
-        </div><!-- end table -->
-
-    </body>
+  </body>
 </html>
 
