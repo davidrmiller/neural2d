@@ -183,7 +183,7 @@ of neurons in the left (source) layer as shown here (only a single neuron on the
 side is shown connected in this picture so you can see what's going on, but imagine 
 all of them connected in the same pattern):
 
-![radius-1x1](images/proj-1x1-sm.png)
+![radius-1x1](https://raw.github.com/davidrmiller/neural2d/master/images/proj-1x1-sm.png )
 
 The pattern that is projected onto the source layer is elliptical. (Layers configured as
 convolution filters work slightly differently; see the later section about convolution filtering.)
