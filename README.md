@@ -87,7 +87,7 @@ To run the demo, execute:
 In this demo, we train the neural net to recognize digits. The input data, or "training set",
 consists of a few thousand images of numeric digits. The first 50 look like these:
 
-![console-window](https://raw.github.com/davidrmiller/neural2d/master/images/digits-illus.png)
+![training samples](https://raw.github.com/davidrmiller/neural2d/master/images/digits-illus.png)
 
 The images are 32x32 pixels each, stored in .bmp format. In this demo, the neural net is 
 configured to have 32x32 input neurons, and 10 output neurons. The net is trained to classify 
@@ -117,7 +117,7 @@ to continue. Using any web browser, open:
 
 A GUI interface will appear that looks like:
 
-![neuron2d-gui](https://raw.github.com/davidrmiller/neural2d/master/images/gui2-sm.png)
+![HTTP interface](https://raw.github.com/davidrmiller/neural2d/master/images/gui2-sm.png)
 
 Press Resume to start the neural net training. It will automatically pause when the
 average error rate falls below a certain threshold (or when you press Pause). You 
@@ -170,11 +170,11 @@ The 2D in neural2d<a name="2D"></a>
 
 In a simple traditional neural net model, the neurons are arranged in a column in each layer:
 
-![net-5-4-2](https://raw.github.com/davidrmiller/neural2d/master/images/net-542-sm.png)
+![](https://raw.github.com/davidrmiller/neural2d/master/images/net-542-sm.png)
 
 In neural2d, you can specify a rectangular arrangement of neurons in each layer, such as:
 
-![net-2D](https://raw.github.com/davidrmiller/neural2d/master/images/net-5x5-4x4-2-sm.png)
+![](https://raw.github.com/davidrmiller/neural2d/master/images/net-5x5-4x4-2-sm.png)
 
 The neurons can be sparsely connected to mimic how retinal neurons are connected in 
 biological brains. For example, if a radius of "1x1" is specified in the topology 
@@ -191,16 +191,16 @@ convolution filters work slightly differently; see the later section about convo
 Here are some projected connection patterns for various radii:
 
 radius 0x0   
-![radius-0x0](https://raw.github.com/davidrmiller/neural2d/master/images/radius-0x0.png)
+![](https://raw.github.com/davidrmiller/neural2d/master/images/radius-0x0.png)
 
 radius 1x1   
-![radius-1x1](https://raw.github.com/davidrmiller/neural2d/master/images/radius-1x1.png)
+![](https://raw.github.com/davidrmiller/neural2d/master/images/radius-1x1.png)
 
 radius 2x2   
-![radius-2x2](https://raw.github.com/davidrmiller/neural2d/master/images/radius-2x2.png)
+![](https://raw.github.com/davidrmiller/neural2d/master/images/radius-2x2.png)
 
 radius 3x1   
-![radius-3x1](https://raw.github.com/davidrmiller/neural2d/master/images/radius-3x1.png)
+![](https://raw.github.com/davidrmiller/neural2d/master/images/radius-3x1.png)
 
 
 Convolution filtering<a name="Convolution"></a>
@@ -250,7 +250,7 @@ convolution connections; the green connections are regular neural connections:
     output size 2 from layerConvolve
     output size 2 from layerReducedRes
 
-![radius-3x1](https://raw.github.com/davidrmiller/neural2d/master/images/net-convolve-8x8.png)
+![](https://raw.github.com/davidrmiller/neural2d/master/images/net-convolve-8x8.png)
 
 
 
@@ -323,25 +323,25 @@ Here are a few complete topology config files and the nets they specify.
     layer2 size 2x2 from layer1
     output size 1 from layer2
 
-![console-window](https://raw.github.com/davidrmiller/neural2d/master/images/net-4x4-3x3-2x2-1-sm.png)
+![](https://raw.github.com/davidrmiller/neural2d/master/images/net-4x4-3x3-2x2-1-sm.png)
 
     input size 4x4
     layer1 size 1x4 from input
     layer2 size 3x1 from layer1
     output size 1 from layer2
 
-![console-window](https://raw.github.com/davidrmiller/neural2d/master/images/net-4x4-1x4-3x1-1-sm.png)
+![](https://raw.github.com/davidrmiller/neural2d/master/images/net-4x4-1x4-3x1-1-sm.png)
 
     input size 4x4
     output size 4x1 from input radius 0x2
 
-![console-window](https://raw.github.com/davidrmiller/neural2d/master/images/net-4x4-4x1r0x2-sm.png)
+![](https://raw.github.com/davidrmiller/neural2d/master/images/net-4x4-4x1r0x2-sm.png)
 
     input size 16x16
     layer1 size 4x4 from input radius 1x1
     output size 7x1 from layer1
 
-![console-window](https://raw.github.com/davidrmiller/neural2d/master/images/net-16x16-4x4r1x1-7-sm.png)
+![](https://raw.github.com/davidrmiller/neural2d/master/images/net-16x16-4x4r1x1-7-sm.png)
 
     # In the picture that follows, layerVertical is the set of 4 neurons
     # in the upper part of the picture, and layerHorizontal is the lower
@@ -353,7 +353,7 @@ Here are a few complete topology config files and the nets they specify.
     output size 1 from layerHorizontal
     output size 1 from layerVertical
 
-![console-window](https://raw.github.com/davidrmiller/neural2d/master/images/net-6x6-2x2r2x0-2x2r0x2-1-sm.png)
+![](https://raw.github.com/davidrmiller/neural2d/master/images/net-6x6-2x2r2x0-2x2r0x2-1-sm.png)
 
 
     # This example shows how vertical and horizontal image features can be
@@ -373,7 +373,7 @@ Here are a few complete topology config files and the nets they specify.
     output size 2 from layerH3
 
 
-![console-window](https://raw.github.com/davidrmiller/neural2d/master/images/net-4x4-hv-deep-sm.png)
+![](https://raw.github.com/davidrmiller/neural2d/master/images/net-4x4-hv-deep-sm.png)
 
 
 How-do-I X?<a name="HowDoI"></a>
