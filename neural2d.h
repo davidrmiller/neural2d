@@ -163,6 +163,7 @@ private:
     void extractAndQueueMessage(string s, int httpConnectionFd, MessageQueue &messages);
     void replyToUnknownRequest(int httpConnectionFd);
 
+    bool firstAccess;
     string firstPart;  // First part of the HTTP response
     string secondPart; // Last part of the HTTP response
 };

@@ -127,6 +127,7 @@ void MessageQueue::pop(Message_t &msg)
 WebServer::WebServer(void)
 {
     socketFd = -1;
+    firstAccess = true;        // Used to detect when the first HTTP GET arrives
     initializeHttpResponse();
 }
 
@@ -208,6 +209,7 @@ void WebServer::replyToUnknownRequest(int httpConnectionFd)
 }
 
 // Look for "GET /?" followed by a message.
+// If this is the first GET we receive, we'll treat it as if it were "GET / " of the root document.
 //
 void WebServer::extractAndQueueMessage(string s, int httpConnectionFd, MessageQueue &messages)
 {
@@ -219,22 +221,29 @@ void WebServer::extractAndQueueMessage(string s, int httpConnectionFd, MessageQu
             msg.text = ""; // Causes a default web form html page to be sent back
             msg.httpResponseFileDes = httpConnectionFd;
             messages.push(msg);
+            firstAccess = false;
         } else {
             cerr << "Unknown HTTP request" << endl;
             replyToUnknownRequest(httpConnectionFd);
         }
 
         return;
+    } else {
+        // GET with an argument:
+        if (firstAccess) {
+            msg.text = "";
+            firstAccess = false;
+        } else {
+            string rawMsg = s.substr(pos + 6);
+            pos = rawMsg.find(" ");
+            assert(pos != string::npos);
+            rawMsg = rawMsg.substr(0, pos);
+            msg.text = rawMsg;
+
+        }
+        msg.httpResponseFileDes = httpConnectionFd;
+        messages.push(msg);
     }
-
-    string rawMsg = s.substr(pos + 6);
-    pos = rawMsg.find(" ");
-    assert(pos != string::npos);
-    rawMsg = rawMsg.substr(0, pos);
-
-    msg.text = rawMsg;
-    msg.httpResponseFileDes = httpConnectionFd;
-    messages.push(msg);
 }
 
 
@@ -285,9 +294,9 @@ void WebServer::webServerThread(int portNumber, MessageQueue &messages)
     stSockAddr.sin_addr.s_addr = htonl(INADDR_ANY);
 
     if (-1 == bind(socketFd, (struct sockaddr *)&stSockAddr, sizeof(stSockAddr))) {
-        cerr << "Cannot bind socket for the web server interface" << endl;
+        cerr << "Cannot bind socket for the web server interface\n\n" << endl;
         close(socketFd);
-        //exit(1);
+        exit(1);
         return;
     }
 
