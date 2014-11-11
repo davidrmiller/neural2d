@@ -86,6 +86,19 @@ pair<uint32_t, uint32_t> extractTwoNums(const string &s)
     return pair<uint32_t, uint32_t>(sizeX, sizeY);
 }
 
+
+// Replaces suspicious chars with underscores
+//
+void sanitizeFilename(string &s)
+{
+    for (size_t i = 0; i < s.size(); ++i) {
+        char c = s[i];
+        if (!isalnum(c) && c != '_' && c != '-' && c != '.' && c != '%') {
+            s[i] = '_';
+        }
+    }
+}
+
 // Message queue
 // A Thread-safe non-blocking FIFO; pushes to the back, pops from the front.
 // If the queue is empty, pop() immediately returns with s set to an empty string.
@@ -1972,6 +1985,7 @@ void Net::actOnMessageReceived(Message_t &msg)
 
     else if (token.find("weightsFile=") == 0) {
         weightsFilename = token.substr(12);
+        sanitizeFilename(weightsFilename);
         cout << "weightsFilename = " << weightsFilename << endl;
     }
 
