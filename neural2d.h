@@ -187,6 +187,7 @@ class Sample
 public:
     string imageFilename;
     vector<double> &getData(ColorChannel_t colorChannel);
+    void clearPixelCache(void);
     vector<double> targetVals;
 
 private:
@@ -200,6 +201,7 @@ public:
     SampleSet() {};
     void loadSamples(const string &inputDataConfigFilename);
     void shuffle(void);
+    void clearPixelCache(void);
     vector<Sample> samples;
 };
 

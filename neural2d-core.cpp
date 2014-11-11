@@ -510,9 +510,8 @@ void ReadBMP(const string &filename, vector<double> &dataContainer, ColorChannel
     delete[] imageData;
 }
 
-// If this is the first time getData() is called, we'll open the image file and
-// cache the pixel data in memory.
-// Returns a reference to the container of input data.
+// If this is the first time getData() is called for this sample, we'll open the image
+// file and cache the pixel data in memory. Returns a reference to the container of input data.
 //
 vector<double> &Sample::getData(ColorChannel_t colorChannel)
 {
@@ -523,6 +522,12 @@ vector<double> &Sample::getData(ColorChannel_t colorChannel)
    // If we get here, we can assume there is something in the .data member
 
    return data;
+}
+
+
+void Sample::clearPixelCache(void)
+{
+    data.clear();
 }
 
 
@@ -579,6 +584,17 @@ void SampleSet::loadSamples(const string &inputFilename)
 void SampleSet::shuffle(void)
 {
     random_shuffle(samples.begin(), samples.end());
+}
+
+
+// By clearing the cache, future image access will cause the pixel data to
+// be re-read and converted by whatever color conversion is in effect then.
+//
+void SampleSet::clearPixelCache(void)
+{
+    for (auto &samp : samples) {
+        samp.clearPixelCache();
+    }
 }
 
 
@@ -1868,6 +1884,7 @@ void Net::makeParameterBlock(string &s)
 void Net::actOnMessageReceived(Message_t &msg)
 {
     string parameterBlock;
+    ColorChannel_t newColorChannel = colorChannel;
 
     string &line = msg.text;
 
@@ -1923,15 +1940,18 @@ void Net::actOnMessageReceived(Message_t &msg)
     }
 
     // colorchannel
+    // If the color channel changes after we have already started caching pixel data,
+    // then we need to dump the cached data so that the images will be re-read and
+    // converted using the new color channel.
 
     else if (token.find("channelRShadow=") == 0) {
-        colorChannel = NNet::R;
+        newColorChannel = NNet::R;
     } else if (token.find("channelGShadow=") == 0) {
-        colorChannel = NNet::G;
+        newColorChannel = NNet::G;
     } else if (token.find("channelBShadow=") == 0) {
-        colorChannel = NNet::B;
+        newColorChannel = NNet::B;
     } else if (token.find("channelBWShadow=") == 0) {
-        colorChannel = NNet::BW;
+        newColorChannel = NNet::BW;
     }
 
     // alpha
@@ -2014,6 +2034,13 @@ void Net::actOnMessageReceived(Message_t &msg)
         ss >> token;
         shuffleInputSamples = (token == "True");
         cout << "shuffleInputSamples=" << shuffleInputSamples << endl;
+    }
+
+    // Post processing
+
+    if (newColorChannel != colorChannel) {
+        sampleSet.clearPixelCache();
+        colorChannel = newColorChannel;
     }
 
     // Send the HTTP response:
