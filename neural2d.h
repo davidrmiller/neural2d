@@ -2,8 +2,6 @@
 neural2d.h
 David R. Miller, 2014
 See https://github.com/davidrmiller/neural2d for more information.
-
-For more information, see the tutorial video.
 */
 
 /*
@@ -25,7 +23,7 @@ For more information, see the tutorial video.
  *
  * This program is written in the C++-11 dialect. It uses mostly ISO-standard C++
  * features and a few POSIX features that should be widely available on any
- * compiler that knows about C++11.
+ * compiler that knows about C++11 and POSIX.
  *
  * This is a console program that requires no GUI. However, a GUI is optional:
  * The WebServer class provides an HTTP server that a web browser can connect to
@@ -102,10 +100,15 @@ using namespace std;
 
 #include <unistd.h>    // For sleep()
 
-#ifdef _WIN32
-// Windows headers:
-#include <windows.h>
-#define sleep(secs) Sleep(secs * 1000)
+#if defined(__CYGWIN__)
+// On Windows, cygwin is missing to_string(), so we'll make one here:
+    template <typename T>
+    std::string to_string(T value)
+    {
+      std::ostringstream os;
+      os << value;
+      return os.str();
+    }
 #endif
 
 // For web server:
