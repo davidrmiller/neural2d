@@ -240,7 +240,7 @@ void WebServer::extractAndQueueMessage(string s, int httpConnectionFd, MessageQu
         return;
     }
 
-    cout << "msg.text = " << msg.text << endl;
+    //cout << "msg.text = " << msg.text << endl;
 
     msg.httpResponseFileDes = httpConnectionFd;
     messages.push(msg);
@@ -322,6 +322,8 @@ void WebServer::webServerThread(int portNumber, MessageQueue &messages)
         uint32_t numChars = read(httpConnectionFd, buff, sizeof buff);
 
         if (numChars > 0) {
+            assert(numChars < sizeof buff);
+            buff[numChars] = '\0';
             extractAndQueueMessage(buff, httpConnectionFd, messages);
         }
     }
@@ -1898,7 +1900,7 @@ void Net::actOnMessageReceived(Message_t &msg)
 
     string &line = msg.text;
 
-    cout << "acting on message: \"" << line << "\"" << endl;
+    //cout << "acting on message: \"" << line << "\"" << endl;
 
     if (line == "" &&  msg.httpResponseFileDes != -1) {
         makeParameterBlock(parameterBlock);
