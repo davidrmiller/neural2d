@@ -55,12 +55,9 @@ Also see the [wiki](https://github.com/davidrmiller/neural2d/wiki) for more info
 Requirements<a name="Requirements"></a>
 ------------
 
-For the neural2d standalone console program:
-
 * C++-11 compiler (e.g., g++ on Linux)
-* POSIX sockets
-* Runs on Linux, Windows (but see [issue #4](https://github.com/davidrmiller/neural2d/issues/4)),
-and probably Mac
+* POSIX sockets (e.g., Cygwin on Windows)
+* Compiles and runs on Linux, Windows, and probably Mac
 
 
 How to run the demo<a name="Demo"></a>
