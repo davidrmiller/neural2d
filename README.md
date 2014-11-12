@@ -59,7 +59,8 @@ For the neural2d standalone console program:
 
 * C++-11 compiler (e.g., g++ on Linux)
 * POSIX sockets
-* Runs on Linux, Windows, and probably Mac
+* Runs on Linux, Windows (but see [issue #4](https://github.com/davidrmiller/neural2d/issues/4)),
+and probably Mac
 
 
 How to run the demo<a name="Demo"></a>
@@ -72,10 +73,6 @@ In the images/digits/ subdirectory, extract the image files from the archive int
 To compile neural2d, cd to the directory containing the Makefile and execute the default make target:
 
     make
-
-If using MinGW on Windows, depending on how it's installed, you may need to use:
-
-    mingw32-make
 
 This will use g++ to compile neural2d.cpp and neural2d-core.cpp and result in an executable
 named neural2d.
@@ -408,7 +405,9 @@ First launch the neural2d program with the -p option:
 
      ./neural2d topology.txt inputData.txt weights.txt -p
 
-Then open a web browser and point it at http://localhost:24080 .
+Then open a web browser and point it at [http://localhost:24080](http://localhost:24080) .
+
+If your firewall complains, you may need to allow access to TCP port 24080.
 
 **How do I use my own data instead of the digits images?**<a name="howOwnData"></a>
 
