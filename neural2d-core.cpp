@@ -613,6 +613,7 @@ void SampleSet::clearPixelCache(void)
 Connection::Connection(Neuron &from, Neuron &to)
      : fromNeuron(from), toNeuron(to)
 {
+    deltaWeight = 0.0;
 }
 
 
