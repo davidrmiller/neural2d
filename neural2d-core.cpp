@@ -4,9 +4,6 @@ David R. Miller, 2014
 https://github.com/davidrmiller/neural2d
 
 See neural2d.h for more information.
-
-Also see the tutorial video explaining the theory of operation and the
-construction of the program.
 */
 
 
@@ -22,9 +19,9 @@ namespace NNet {
 
 // Returns a random float in the range [0.0..1.0]
 //
-double randomFloat(void)
+float randomFloat(void)
 {
-    return (double)rand() / RAND_MAX;
+    return (float)rand() / RAND_MAX;
 }
 
 
@@ -42,7 +39,7 @@ uint32_t flattenXY(uint32_t x, uint32_t y, uint32_t xSize)
 // a positive value if x,y is outside the ellipse; 0.0 if on the ellipse;
 // negative if inside the ellipse.
 //
-double elliptDist(double x, double y, double radiusX, double radiusY)
+float elliptDist(float x, float y, float radiusX, float radiusY)
 {
     assert(radiusX >= 0.0 && radiusY >= 0.0);
     return radiusY*radiusY*x*x + radiusX*radiusX*y*y - radiusX*radiusX*radiusY*radiusY;
@@ -59,7 +56,7 @@ bool isFileExists(string const &filename)
 // Add overloads as needed:
 int32_t max(int32_t a, int32_t b) { return a >= b ? a : b; }
 int32_t min(int32_t a, int32_t b) { return a <= b ? a : b; }
-double absd(double a) { return a < 0.0 ? -a : a; }
+float absd(float a) { return a < 0.0 ? -a : a; }
 
 
 // Extracts the X and Y components from the string of the form "XxY".
@@ -87,7 +84,7 @@ pair<uint32_t, uint32_t> extractTwoNums(const string &s)
 }
 
 
-// Replaces suspicious chars with underscores
+// Replaces potentially dangerous chars with underscores
 //
 void sanitizeFilename(string &s)
 {
@@ -340,32 +337,32 @@ void WebServer::webServerThread(int portNumber, MessageQueue &messages)
 // neurons in any one layer will use the same transfer function.
 
 // tanh is a sigmoid curve scaled; output ranges from -1 to +1:
-double transferFunctionTanh(double x) { return tanh(x); }
-double transferFunctionDerivativeTanh(double x) { return 1.0 - tanh(x) * tanh(x); }
+float transferFunctionTanh(float x) { return tanh(x); }
+float transferFunctionDerivativeTanh(float x) { return 1.0 - tanh(x) * tanh(x); }
 
 // logistic is a sigmoid curve that ranges 0.0 to 1.0:
-double transferFunctionLogistic(double x) { return 1.0 / (1.0 + exp(-x)); }
-double transferFunctionDerivativeLogistic(double x) { return exp(-x) / pow((exp(-x) + 1.0), 2.0); }
+float transferFunctionLogistic(float x) { return 1.0 / (1.0 + exp(-x)); }
+float transferFunctionDerivativeLogistic(float x) { return exp(-x) / pow((exp(-x) + 1.0), 2.0); }
 
 // linear is a constant slope; ranges from -inf to +inf:
-double transferFunctionLinear(double x) { return x; }
-double transferFunctionDerivativeLinear(double x) { return (void)x, 1.0; }
+float transferFunctionLinear(float x) { return x; }
+float transferFunctionDerivativeLinear(float x) { return (void)x, 1.0; }
 
 // ramp is a constant slope between -1 <= x <= 1, zero slope elsewhere; output ranges from -1 to +1:
-double transferFunctionRamp(double x)
+float transferFunctionRamp(float x)
 {
     if (x < -1.0) return -1.0;
     else if (x > 1.0) return 1.0;
     else return x;
 }
-double transferFunctionDerivativeRamp(double x) { return (x < -1.0 || x > 1.0) ? 0.0 : 1.0; }
+float transferFunctionDerivativeRamp(float x) { return (x < -1.0 || x > 1.0) ? 0.0 : 1.0; }
 
 // gaussian:
-double transferFunctionGaussian(double x) { return exp(-((x * x) / 2.0)); }
-double transferFunctionDerivativeGaussian(double x) { return -x * exp(-(x * x) / 2.0); }
+float transferFunctionGaussian(float x) { return exp(-((x * x) / 2.0)); }
+float transferFunctionDerivativeGaussian(float x) { return -x * exp(-(x * x) / 2.0); }
 
-double transferFunctionIdentity(double x) { return x; } // Used only in convolution layers
-double transferFunctionIdentityDerivative(double x) { return (void)x, 1.0; }
+float transferFunctionIdentity(float x) { return x; } // Used only in convolution layers
+float transferFunctionIdentityDerivative(float x) { return (void)x, 1.0; }
 
 
 void layerParams_t::resolveTransferFunctionName(void)
@@ -409,7 +406,7 @@ void layerParams_t::clear(void)
     transferFunctionName.clear();
     tf = transferFunctionTanh;
     tfDerivative = transferFunctionDerivativeTanh;
-    convolveMatrix.clear();       // Format: convolve {{0,1,0},...
+    convolveMatrix.clear();       // Format: convolve {{0,1,0},...}
     isConvolutionLayer = false;   // Equivalent to (convolveMatrix.size() != 0)
 }
 
@@ -420,14 +417,14 @@ void layerParams_t::clear(void)
 // data extracted from the image, using the conversion function specified
 // in colorChannel:
 //
-void ReadBMP(const string &filename, vector<double> &dataContainer, ColorChannel_t colorChannel)
+void ReadBMP(const string &filename, vector<float> &dataContainer, ColorChannel_t colorChannel)
 {
     FILE* f = fopen(filename.c_str(), "rb");
 
     if (f == NULL) {
         cout << "Error reading image file \'" << filename << "\'" << endl;
         // To do: add appropriate error recovery here
-        throw "Argument Exception";
+        throw "Error reading input image file";
     }
 
     // Read the BMP header to get the image dimensions:
@@ -435,7 +432,7 @@ void ReadBMP(const string &filename, vector<double> &dataContainer, ColorChannel
     unsigned char info[54];
     if (fread(info, sizeof(unsigned char), 54, f) != 54) {
         cout << "Error reading the image header from \'" << filename << "\'" << endl;
-        assert(false);
+        throw "Error reading input image file";
     }
 
     if (info[0] != 'B' || info[1] != 'M') {
@@ -474,7 +471,6 @@ void ReadBMP(const string &filename, vector<double> &dataContainer, ColorChannel
     // Position the read pointer to the first byte of pixel data:
 
     if (fseek(f, dataOffset, SEEK_SET) != 0) {
-        //cout << "Error seeking to offset " << dataOffset << " in file \'" << filename << "\'" << endl;
         throw("Error seeking in BMP file");
     }
 
@@ -493,9 +489,9 @@ void ReadBMP(const string &filename, vector<double> &dataContainer, ColorChannel
         }
 
         // BMP pixels are arranged in memory in the order (B, G, R). We'll convert
-        // the pixel to a double using one of the conversions below:
+        // the pixel to a float using one of the conversions below:
 
-        double val = 0.0;
+        float val = 0.0;
 
         for (uint32_t x = 0; x < width; ++x) {
             if (colorChannel == NNet::R) {
@@ -524,7 +520,7 @@ void ReadBMP(const string &filename, vector<double> &dataContainer, ColorChannel
 // If this is the first time getData() is called for this sample, we'll open the image
 // file and cache the pixel data in memory. Returns a reference to the container of input data.
 //
-vector<double> &Sample::getData(ColorChannel_t colorChannel)
+vector<float> &Sample::getData(ColorChannel_t colorChannel)
 {
    if (data.size() == 0) {
        ReadBMP(imageFilename, data, colorChannel);
@@ -577,7 +573,7 @@ void SampleSet::loadSamples(const string &inputFilename)
 
         // If they exist, read the target values from the rest of the line:
         while (!ss.eof()) {
-            double val;
+            float val;
             if (!(ss >> val).fail()) {
                 sample.targetVals.push_back(val);
             }
@@ -661,9 +657,9 @@ Neuron::Neuron(vector<Connection> *pConnectionsData, transferFunction_t tf, tran
 // value minus the computed output value, times the derivative of
 // the output-layer activation function evaluated at the computed output value.
 //
-void Neuron::calcOutputGradients(double targetVal)
+void Neuron::calcOutputGradients(float targetVal)
 {
-    double delta = targetVal - output;
+    float delta = targetVal - output;
     gradient = delta * Neuron::transferFunctionDerivative(output);
 }
 
@@ -675,16 +671,16 @@ void Neuron::calcOutputGradients(double targetVal)
 //
 void Neuron::calcHiddenGradients(void)
 {
-    double dow = sumDOW_nextLayer();
+    float dow = sumDOW_nextLayer();
     gradient = dow * Neuron::transferFunctionDerivative(output);
 }
 
 
 // To do: add commentary!!!
 //
-double Neuron::sumDOW_nextLayer(void) const
+float Neuron::sumDOW_nextLayer(void) const
 {
-    double sum = 0.0;
+    float sum = 0.0;
 
     // Sum our contributions of the errors at the nodes we feed.
 
@@ -698,7 +694,7 @@ double Neuron::sumDOW_nextLayer(void) const
 }
 
 
-void Neuron::updateInputWeights(double eta, double alpha)
+void Neuron::updateInputWeights(float eta, float alpha)
 {
     // The weights to be updated are the weights from the neurons in the
     // preceding layer (the source layer) to this neuron:
@@ -707,9 +703,9 @@ void Neuron::updateInputWeights(double eta, double alpha)
         Connection &conn = (*pConnections)[idx];
 
         const Neuron &fromNeuron = conn.fromNeuron;
-        double oldDeltaWeight = conn.deltaWeight;
+        float oldDeltaWeight = conn.deltaWeight;
 
-        double newDeltaWeight =
+        float newDeltaWeight =
                 // Individual input, magnified by the gradient and train rate:
                 eta
                 * fromNeuron.output
@@ -729,7 +725,7 @@ void Neuron::updateInputWeights(double eta, double alpha)
 //
 void Neuron::feedForward(void)
 {
-    double sum = 0.0;
+    float sum = 0.0;
 
     // Sum the neuron's inputs:
     for (auto idx : this->backConnectionsIndices) {
@@ -766,6 +762,7 @@ Net::Net(const string &topologyFilename)
     sumWeights = 0.0;
     weightsFilename = "weights.txt";
     repeatInputSamples = true;
+    shuffleInputSamples = true;
     inputSampleNumber = 0;         // Increments each time feedForward() is called
     enableWebServer = true;
     portNumber = 24080;
@@ -871,7 +868,7 @@ void Net::reportResults(const Sample &sample) const
 
     if (sample.targetVals.size() > 0) {
         cout << "Expected ";
-        for (double targetVal : sample.targetVals) {
+        for (float targetVal : sample.targetVals) {
             cout << targetVal << " ";
         }
 
@@ -883,8 +880,8 @@ void Net::reportResults(const Sample &sample) const
         // true or false.
 
         if (true) {
-            //double maxOutput = (numeric_limits<double>::min)();
-            double maxOutput = -1.e8;
+            //float maxOutput = (numeric_limits<float>::min)();
+            float maxOutput = -1.e8;
             size_t maxIdx = 0;
 
             for (size_t i = 0; i < layers.back().neurons.size(); ++i) {
@@ -978,7 +975,9 @@ void Net::debugShowNet(bool details)
              << " neurons arranged in " << l.params.sizeX << "x" << l.params.sizeY << ":" << endl;
 
         for (auto const &n : l.neurons) {
-            cout << "  neuron(" << &n << ")" << endl;
+            if (details) {
+                cout << "  neuron(" << &n << ")" << endl;
+            }
 
             numFwdConnections += n.forwardConnectionsIndices.size();
             numBackConnections += n.backConnectionsIndices.size(); // Includes the bias connection
@@ -1050,6 +1049,7 @@ void Net::backProp(const Sample &sample)
     // parallelize this loop. For gcc 4.x, add the option "-fopenmp" to
     // the compiler command line. If the compiler does not understand
     // OpenMP, the #pragma will be ignored.
+
 #pragma omp parallel for
 
     for (uint32_t layerNum = layers.size() - 1; layerNum > 0; --layerNum) {
@@ -1081,7 +1081,7 @@ void Net::feedForward(Sample &sample)
     // check that the number of components of the input sample equals
     // the number of input neurons:
 
-    const vector<double> &data = sample.getData(colorChannel);
+    const vector<float> &data = sample.getData(colorChannel);
     Layer &inputLayer = layers[0];
 
     if (inputLayer.neurons.size() != data.size()) {
@@ -1153,16 +1153,16 @@ void Net::calculateOverallNetError(const Sample &sample)
     }
 
     for (uint32_t n = 0; n < outputLayer.neurons.size(); ++n) {
-        double delta = sample.targetVals[n] - outputLayer.neurons[n].output;
+        float delta = sample.targetVals[n] - outputLayer.neurons[n].output;
         error += delta * delta;
     }
 
     error /= 2.0 * outputLayer.neurons.size();
 
-    // Regularization calculations -- if this works, calculate the sum of weights on the fly
-    // during backprop:
+    // Regularization calculations -- if this experiment works, calculate the sum of weights on the fly
+    // during backprop for performance reasons:
 
-    double sumWeightsSquared = 0.0;
+    float sumWeightsSquared = 0.0;
     if (lambda != 0.0) {
         // For all layers except the input layer, sum all the weights. These are in
         // the back-connection records:
@@ -1177,7 +1177,7 @@ void Net::calculateOverallNetError(const Sample &sample)
             }
         }
 
-        double sumWeights = (sumWeightsSquared * lambda)
+        float sumWeights = (sumWeightsSquared * lambda)
                           / (2.0 * (totalNumberConnections - totalNumberNeurons));
         error += sumWeights;
     }
@@ -1276,8 +1276,8 @@ void Net::connectNeuron(Layer &layerTo, Layer &fromLayer, Neuron &neuron,
     // more than once in the topology config file with the same "from" layer if the projected
     // rectangular or elliptical areas on the source layer overlap.
 
-    double xcenter = ((double)xmin + (double)xmax) / 2.0;
-    double ycenter = ((double)ymin + (double)ymax) / 2.0;
+    float xcenter = ((float)xmin + (float)xmax) / 2.0;
+    float ycenter = ((float)ymin + (float)ymax) / 2.0;
     uint32_t maxNumSourceNeurons = ((xmax - xmin) + 1) * ((ymax - ymin) + 1);
 
     for (int32_t y = ymin; y <= ymax; ++y) {
@@ -1410,11 +1410,11 @@ void Net::createNeurons(Layer &layerTo, Layer &layerFrom, layerParams_t &params)
 
 
 /*
-Examples:
+Convoluation matrixExamples:
 {0, 1,2}
 { {0,1,2}, {1,2,1}, {0, 1, 0}}
 
-State machine:
+Parser state machine:
 Init: PL = x = y = 0 = upper left of matrix
 States: INIT, WHITESPACE, LEFTBRACE, RIGHTBRACE, COMMA, NUMBER
 Convention: increment y at end of a row
@@ -1444,9 +1444,9 @@ convolveMatrix_t Net::parseMatrixSpec(istringstream &ss)
     state_t lastState = INIT;
     state_t newState = INIT;
     int braceLevel = 0;
-    vector<double> row;
-    vector<vector<double>> mat;
-    double num = 0.0;
+    vector<float> row;
+    vector<vector<float>> mat;
+    float num = 0.0;
 
     action_t table[5][5] = {
       /*                 INIT LEFTBRACE RIGHTBRACE COMMA     NUM  */
@@ -1537,7 +1537,7 @@ convolveMatrix_t Net::parseMatrixSpec(istringstream &ss)
         if (x == 0) {
             firstRowSize = mat[x].size(); // Remember the first row size
         }
-        convMat.push_back(vector<double>());
+        convMat.push_back(vector<float>());
         for (unsigned y = 0; y < mat[x].size(); ++y) {
             convMat.back().push_back(mat[x][y]);
         }
@@ -1784,11 +1784,11 @@ void Net::parseConfigFile(const string &configFilename)
     }
 
     // Optionally enable the next line to display the resulting net topology:
-    //debugShowNet(false);
+    debugShowNet(false);
 
     cout << "\nConfig file parsed successfully." << endl;
     cout << "Found " << neuronsWithNoSink << " neurons with no sink." << endl;
-    cout << numNeurons << " neurons total; " << totalNumberConnections
+    cout << numNeurons << " neurons total; " << totalNumberConnections << "=" << connections.size()
          << " back+bias connections." << endl;
     cout << "About " << (int)((float)totalNumberConnections / numNeurons + 0.5)
          << " connections per neuron on average." << endl;
@@ -2084,12 +2084,12 @@ void Net::doCommand()
 
 // Calculate a new eta parameter based on the current and last average net error.
 //
-double Net::adjustedEta(void)
+float Net::adjustedEta(void)
 {
-    const double thresholdUp = 0.01;       // Ignore error increases less than this magnitude
-    const double thresholdDown = 0.01;     // Ignore error decreases less than this magnitude
-    const double factorUp = 1.01;          // Factor to incrementally increase eta
-    const double factorDown = 0.99;        // Factor to incrementally decrease eta
+    const float thresholdUp = 0.01;       // Ignore error increases less than this magnitude
+    const float thresholdDown = 0.01;     // Ignore error decreases less than this magnitude
+    const float factorUp = 1.01;          // Factor to incrementally increase eta
+    const float factorDown = 0.99;        // Factor to incrementally decrease eta
 
     if (!dynamicEtaAdjust) {
         return eta;
@@ -2097,7 +2097,7 @@ double Net::adjustedEta(void)
 
     assert(thresholdUp > 0.0 && thresholdDown > 0.0 && factorUp >= 1.0 && factorDown >= 0.0 && factorDown <= 1.0);
 
-    double errorGradient = (recentAverageError - lastRecentAverageError) / recentAverageError;
+    float errorGradient = (recentAverageError - lastRecentAverageError) / recentAverageError;
     if (errorGradient > thresholdUp) {
         eta = factorDown * eta;
     } else if (errorGradient < -thresholdDown) {

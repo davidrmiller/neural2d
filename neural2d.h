@@ -36,7 +36,7 @@ See https://github.com/davidrmiller/neural2d for more information.
  * For training input samples, we use BMP images because we can read those
  * easily with standard C/C++ without using image libraries. The function ReadBMP()
  * reads an image file and converts the pixel data into an array (container) of
- * doubles. When an image is first read, we'll cache the image data in memory to
+ * floats. When an image is first read, we'll cache the image data in memory to
  * make subsequent reads faster (because we may want to input the training samples
  * multiple times during training).
  *
@@ -190,12 +190,12 @@ class Sample
 {
 public:
     string imageFilename;
-    vector<double> &getData(ColorChannel_t colorChannel);
+    vector<float> &getData(ColorChannel_t colorChannel);
     void clearPixelCache(void);
-    vector<double> targetVals;
+    vector<float> targetVals;
 
 private:
-    vector<double> data; // Pixel data converted to doubles and flattened to a 1D array
+    vector<float> data; // Pixel data converted to floats and flattened to a 1D array
 };
 
 
@@ -212,10 +212,10 @@ public:
 
 class Neuron; // Forward reference
 
-typedef vector<double> matColumn_t;
+typedef vector<float> matColumn_t;
 typedef vector<matColumn_t> convolveMatrix_t; // Allows access as convolveMatrix[x][y]
 
-typedef double (*transferFunction_t)(double); // Also used for the derivative function
+typedef float (*transferFunction_t)(float); // Also used for the derivative function
 
 struct layerParams_t {
     layerParams_t() { clear(); }
@@ -267,8 +267,8 @@ struct Connection
     Connection(Neuron &from, Neuron &to);
     Neuron &fromNeuron;
     Neuron &toNeuron;
-    double weight;
-    double deltaWeight;  // The weight change from the previous training iteration
+    float weight;
+    float deltaWeight;  // The weight change from the previous training iteration
 };
 
 
@@ -279,8 +279,8 @@ class Neuron
 public:
     Neuron();
     Neuron(vector<Connection> *pConnectionsData, transferFunction_t tf, transferFunction_t tfDerivative);
-    double output;
-    double gradient;
+    float output;
+    float gradient;
 
     // All the input and output connections for this neuron. We store these as indices
     // into an array of Connection objects stored somewhere else. We store indices
@@ -295,8 +295,8 @@ public:
     vector<uint32_t> forwardConnectionsIndices; // Refers to another neuron's back connections
 
     void feedForward(void);                     // Propagate the net inputs to the outputs
-    void updateInputWeights(double eta, double alpha);  // For backprop training
-    void calcOutputGradients(double targetVal);         // For backprop training
+    void updateInputWeights(float eta, float alpha);  // For backprop training
+    void calcOutputGradients(float targetVal);         // For backprop training
     void calcHiddenGradients(void);                     // For backprop training
 
     // The only reason for the .sourceNeurons member is to make it easy to
@@ -307,9 +307,9 @@ public:
     set<Neuron *> sourceNeurons;
 
 private:
-    double (*transferFunction)(double x);
-    double (*transferFunctionDerivative)(double x);
-    double sumDOW_nextLayer(void) const;        // Used in hidden layer backprop training
+    float (*transferFunction)(float x);
+    float (*transferFunctionDerivative)(float x);
+    float sumDOW_nextLayer(void) const;        // Used in hidden layer backprop training
 };
 
 
@@ -321,21 +321,21 @@ public:
     // Parameters that affect overall network operation. These can be set by
     // directly accessing the data members:
 
-    // The color channel specifies how RGB pixels are converted to doubles:
+    // The color channel specifies how RGB pixels are converted to floats:
 
     ColorChannel_t colorChannel;   // R, G, B, or BW
 
-    bool enableBackPropTraining; // If false, backProp() won't update any weights
+    bool enableBackPropTraining;   // If false, backProp() won't update any weights
 
     // Training will pause when the recent average overall error falls below this threshold:
 
-    double doneErrorThreshold;
+    float doneErrorThreshold;
 
     // eta is the network learning rate. It can be set to a constant value, somewhere
     // in the range 0.0001 to 0.1. Optionally, set dynamicEtaAdjust to true to allow
     // the program to automatically adjust eta during learning for optimal learning.
 
-    double eta;               // Initial overall net learning rate, [0.0..1.0]
+    float eta;                // Initial overall net learning rate, [0.0..1.0]
     bool dynamicEtaAdjust;    // true enables automatic eta adjustment during training
 
     // alpha is the momentum factor. Set it to zero to disable momentum. If alpha > 0, then
@@ -344,11 +344,11 @@ public:
     // the early stages of training, but if set too high will interfere with the network
     // converging on the most accurate solution.
 
-    double alpha;              // Initial momentum, multiplier of last deltaWeight, [0.0..1.0]
+    float alpha;              // Initial momentum, multiplier of last deltaWeight, [0.0..1.0]
 
     // Regularization parameter. If zero, regularization is disabled:
 
-    double lambda;
+    float lambda;
 
     // When a net topology specifies sparse connections (i.e., when there is a radius
     // parameter specified in the topology config file), then the shape of the area
@@ -368,7 +368,7 @@ public:
     // For some calculations, we use a running average of net error, averaged over
     // this many input samples:
 
-    double recentAverageSmoothingFactor;
+    float recentAverageSmoothingFactor;
 
     // If repeatInputSamples is false, the program will pause after running all the
     // input samples once. If set to true, the input samples will automatically repeat.
@@ -381,8 +381,8 @@ public:
     string weightsFilename;     // Filename to use in saveWeights() and loadWeights()
 
     uint32_t inputSampleNumber; // Increments each time feedForward() is called
-    double error;               // Overall net error
-    double recentAverageError;  // Averaged over recentAverageSmoothingFactor samples
+    float error;                // Overall net error
+    float recentAverageError;   // Averaged over recentAverageSmoothingFactor samples
 
     // Creates and connects a net from a topology config file:
 
@@ -402,8 +402,8 @@ public:
 
     // Functions for forward propagation:
 
-    double getNetError(void) const { return error; };
-    double getRecentAverageError(void) const { return recentAverageError; };
+    float getNetError(void) const { return error; };
+    float getRecentAverageError(void) const { return recentAverageError; };
     void calculateOverallNetError(const Sample &sample);  // Update .error member
 
     // Functions for displaying the results when processing input samples:
@@ -436,14 +436,14 @@ private:
 
     void doCommand(); // Handles incoming program command and control
     void actOnMessageReceived(Message_t &msg);
-    double adjustedEta(void);
+    float adjustedEta(void);
 
     vector<Layer> layers;
 
-    double lastRecentAverageError;   // Used for dynamically adjusting eta
+    float lastRecentAverageError;   // Used for dynamically adjusting eta
     uint32_t totalNumberConnections; // Including 1 bias connection per neuron
     uint32_t totalNumberNeurons;
-    double sumWeights;               // For regularization calculation
+    float sumWeights;               // For regularization calculation
 
     // Stuff for the web interface:
 
@@ -457,3 +457,4 @@ private:
 } // end namespace NNet
 
 #endif // end #ifndef NNET_H
+

@@ -1,8 +1,8 @@
 /*
 neural2d.cpp
+https://github.com/davidrmiller/neural2d
 David R. Miller, 2014
 For more info, see neural2d.h.
-For more info, see the tutorial video.
 */
 
 #include "neural2d.h"
@@ -15,9 +15,9 @@ int main(int argc, char **argv)
     // the command line. If they are specified on the command line, they must be in
     // the order: topology, input-data, and optionally, weights.
 
-    string topologyFilename = "topology.txt";  // Always needed
+    string topologyFilename = "topology.txt";   // Always needed
     string inputDataFilename = "inputData.txt"; // Always needed
-    string weightsFilename = "weights.txt";   // Needed only if saving or restoring weights
+    string weightsFilename = "weights.txt";     // Needed only if saving or restoring weights
 
     if (argc > 1) topologyFilename  = argv[1];
     if (argc > 2) inputDataFilename = argv[2];
@@ -37,8 +37,8 @@ int main(int argc, char **argv)
 
     myNet.eta = 0.1;
     myNet.dynamicEtaAdjust = false;
-    myNet.alpha = 0.005;
-    myNet.reportEveryNth = 125;
+    myNet.alpha = 0.0;
+    myNet.reportEveryNth = 100;
     myNet.repeatInputSamples = true;
     myNet.doneErrorThreshold = 0.01;
 
@@ -64,3 +64,4 @@ int main(int argc, char **argv)
 
     return 0;
 }
+

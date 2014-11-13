@@ -10,11 +10,10 @@
 #    make test   # execute neural2d on a test set of data
 
 
-# Specify a compiler here that understands C++-11:
+# Specify a compiler invocation that understands C++11 with whatever options it requires:
 COMPILER=g++ -std=c++11 -pthread -fopenmp
 
-# Warning: -O2 and -fopenmp do not always work well together.
-# It's ok to use -O1 and -fopenmp at the same time.
+# Non-essential options:
 EXTRACFLAGS=-g -O1 -Wall -Wextra -Wno-missing-field-initializers
 
 
