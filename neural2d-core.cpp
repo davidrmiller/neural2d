@@ -100,7 +100,7 @@ void sanitizeFilename(string &s)
 // A Thread-safe non-blocking FIFO; pushes to the back, pops from the front.
 // If the queue is empty, pop() immediately returns with s set to an empty string.
 
-void MessageQueue::push(Message_t msg)
+void MessageQueue::push(Message_t &msg)
 {
     unique_lock<mutex> locker(mmutex);
     mqueue.push(msg);
@@ -252,6 +252,9 @@ void WebServer::start(int portNumber_, MessageQueue &messages)
 }
 
 
+// The argument parameterBlock needs to be passed by value because it comes from
+// a different thread:
+//
 void WebServer::sendHttpResponse(string parameterBlock, int httpResponseFileDes)
 {
     string response = firstPart + parameterBlock + secondPart;
@@ -316,7 +319,7 @@ void WebServer::webServerThread(int portNumber, MessageQueue &messages)
             return;
         }
 
-        uint32_t numChars = read(httpConnectionFd, buff, sizeof buff);
+        uint32_t numChars = read(httpConnectionFd, buff, sizeof buff - 1);
 
         if (numChars > 0) {
             assert(numChars < sizeof buff);
@@ -392,6 +395,11 @@ void layerParams_t::resolveTransferFunctionName(void)
     }
 }
 
+
+layerParams_t::layerParams_t(void)
+{
+    clear();
+}
 
 void layerParams_t::clear(void)
 {
@@ -728,7 +736,8 @@ void Neuron::feedForward(void)
     float sum = 0.0;
 
     // Sum the neuron's inputs:
-    for (auto idx : this->backConnectionsIndices) {
+    for (size_t i = 0; i < backConnectionsIndices.size(); ++i) {
+        size_t idx = backConnectionsIndices[i];
         const Connection &conn = (*pConnections)[idx];
 
         sum += conn.fromNeuron.output * conn.weight;
@@ -746,7 +755,6 @@ Net::Net(const string &topologyFilename)
 {
     // See nnet.h for descriptions of these variables:
 
-    colorChannel = NNet::BW;       // Convert input pixels to monochrome
     enableBackPropTraining = true;
     doneErrorThreshold = 0.001;
     eta = 0.01;                    // Initial overall net learning rate, [0.0..1.0]
@@ -873,11 +881,11 @@ void Net::reportResults(const Sample &sample) const
         }
 
         // Optional: Enable the following block if you would like to report the net's
-        // outputs and the expected values as Booleans, where any value <= 0 is considered
-        // false, and > 0 is considered true. This can be used, e.g., for pattern
+        // outputs as a classifier, where the output neuron with the largest output
+        // value indicates which class was recognized. This can be used, e.g., for pattern
         // recognition where each output neuron corresponds to one pattern class,
-        // and the output neurons are trained to be positive or negative to indicate
-        // true or false.
+        // and the output neurons are trained to be high to indicate a pattern match,
+        // and low to indicate no match.
 
         if (true) {
             //float maxOutput = (numeric_limits<float>::min)();
@@ -1045,6 +1053,9 @@ void Net::backProp(const Sample &sample)
     // update connection weights for regular neurons. Skip the udpate in
     // convolution layers.
 
+    for (uint32_t layerNum = layers.size() - 1; layerNum > 0; --layerNum) {
+        Layer &layer = layers[layerNum];
+
     // Optionally enable the following #pragma line to permit OpenMP to
     // parallelize this loop. For gcc 4.x, add the option "-fopenmp" to
     // the compiler command line. If the compiler does not understand
@@ -1052,10 +1063,8 @@ void Net::backProp(const Sample &sample)
 
 #pragma omp parallel for
 
-    for (uint32_t layerNum = layers.size() - 1; layerNum > 0; --layerNum) {
-        Layer &layer = layers[layerNum];
-
-        for (auto &neuron : layer.neurons) {
+        for (size_t i = 0; i < layer.neurons.size(); ++i) {
+            Neuron &neuron = layer.neurons[i];
             if (!layer.params.isConvolutionLayer) {
                 neuron.updateInputWeights(eta, alpha);
             }
@@ -1081,7 +1090,7 @@ void Net::feedForward(Sample &sample)
     // check that the number of components of the input sample equals
     // the number of input neurons:
 
-    const vector<float> &data = sample.getData(colorChannel);
+    const vector<float> &data = sample.getData(layers[0].params.channel);
     Layer &inputLayer = layers[0];
 
     if (inputLayer.neurons.size() != data.size()) {
@@ -1680,14 +1689,11 @@ void Net::parseConfigFile(const string &configFilename)
 
             // If this is not the first layer, check that it does not have a channel parameter
             // and that there is no conflicting tf or radius specified with a convolve matrix.
-            // If it is the input layer, we'll save the color channel in the Net object:
 
             if (layers.size() != 0 && params.layerName != "input") {
                 if (params.colorChannelSpecified) {
                     throw("Error in topology config file: color channel applies only to input layer");
                 }
-            } else {
-                colorChannel = params.channel;
             }
 
             // Check the source layer:
@@ -1843,13 +1849,12 @@ void Net::makeParameterBlock(string &s)
 
     // channel=R|G|B|BW
 
-    string channel = "BW";
-    if (colorChannel == NNet::R) {
-        channel = "R";
-    } else if (colorChannel == NNet::G) {
-        channel = "G";
-    } else if (colorChannel == NNet::B) {
-        channel = "B";
+    string channel;
+    switch(layers[0].params.channel) {
+        case NNet::R: channel = "R"; break;
+        case NNet::G: channel = "G"; break;
+        case NNet::B: channel = "B"; break;
+        case NNet::BW: channel = "BW"; break;
     }
 
     s.append("channel=\"" + channel + "\";\r\n");
@@ -1896,7 +1901,7 @@ void Net::makeParameterBlock(string &s)
 void Net::actOnMessageReceived(Message_t &msg)
 {
     string parameterBlock;
-    ColorChannel_t newColorChannel = colorChannel;
+    ColorChannel_t newColorChannel = layers[0].params.channel;
 
     string &line = msg.text;
 
@@ -2052,9 +2057,9 @@ void Net::actOnMessageReceived(Message_t &msg)
 
     // Post processing
 
-    if (newColorChannel != colorChannel) {
+    if (newColorChannel != layers[0].params.channel) {
         sampleSet.clearPixelCache();
-        colorChannel = newColorChannel;
+        layers[0].params.channel = newColorChannel;
     }
 
     // Send the HTTP response:

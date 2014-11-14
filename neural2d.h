@@ -138,7 +138,7 @@ class MessageQueue
 {
 public:
     MessageQueue() { };
-    void push(Message_t msg);
+    void push(Message_t &msg);
     void pop(Message_t &msg);
     MessageQueue(const MessageQueue &) = delete;            // No copying
     MessageQueue &operator=(const MessageQueue &) = delete; // No assignment
@@ -158,7 +158,7 @@ public:
     void stopServer(void);
     void sendHttpResponse(string parameterBlock, int httpResponseFileDes);
     void webServerThread(int portNumber, MessageQueue &messageQueue);
-    int portNumber;    // needed?
+    int portNumber;
     int socketFd;
 
 private:
@@ -166,7 +166,7 @@ private:
     void extractAndQueueMessage(string s, int httpConnectionFd, MessageQueue &messages);
     void replyToUnknownRequest(int httpConnectionFd);
 
-    bool firstAccess;
+    bool firstAccess;  // So that we can do something different on the first HTTP request
     string firstPart;  // First part of the HTTP response
     string secondPart; // Last part of the HTTP response
 };
@@ -218,18 +218,18 @@ typedef vector<matColumn_t> convolveMatrix_t; // Allows access as convolveMatrix
 typedef float (*transferFunction_t)(float); // Also used for the derivative function
 
 struct layerParams_t {
-    layerParams_t() { clear(); }
+    layerParams_t(void);
     void resolveTransferFunctionName(void);
     void clear(void);
     string layerName;                  // Can be input, output, or layer*
     string fromLayerName;              // Can be any existing layer name
     uint32_t sizeX;                    // Format: size XxY
     uint32_t sizeY;
-    ColorChannel_t channel = NNet::BW; // Applies only to the input layer
+    ColorChannel_t channel;            // Applies only to the input layer
     bool colorChannelSpecified;
-    uint32_t radiusX = 1e9;            // Format: radius XxY
-    uint32_t radiusY = 1e9;
-    string transferFunctionName = "";  // Format: tf name
+    uint32_t radiusX;                  // Format: radius XxY
+    uint32_t radiusY;
+    string transferFunctionName;       // Format: tf name
     transferFunction_t tf;
     transferFunction_t tfDerivative;
     convolveMatrix_t convolveMatrix;   // Format: convolve {{0,1,0},...
@@ -248,7 +248,7 @@ struct Layer
     // For each layer, before any references are made to its members, the .neurons
     // member must be initialized with sufficient capacity to prevent reallocation.
     // This allows us to form stable pointers, iterators, or references to neurons.
-    vector<Neuron> neurons;  // 2d array, flattened index = y * sizeX + x
+    vector<Neuron> neurons;  // 2D array, flattened index = y * sizeX + x
 };
 
 
@@ -320,10 +320,6 @@ class Net
 public:
     // Parameters that affect overall network operation. These can be set by
     // directly accessing the data members:
-
-    // The color channel specifies how RGB pixels are converted to floats:
-
-    ColorChannel_t colorChannel;   // R, G, B, or BW
 
     bool enableBackPropTraining;   // If false, backProp() won't update any weights
 
