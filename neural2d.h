@@ -130,6 +130,7 @@ namespace NNet {
 
 struct Message_t
 {
+    Message_t(void) { text = ""; httpResponseFileDes = -1; };
     string text;
     int httpResponseFileDes;
 };
@@ -137,7 +138,7 @@ struct Message_t
 class MessageQueue
 {
 public:
-    MessageQueue() { };
+    MessageQueue() { mqueue = { }; };
     void push(Message_t &msg);
     void pop(Message_t &msg);
     MessageQueue(const MessageQueue &) = delete;            // No copying
@@ -190,11 +191,9 @@ class Sample
 {
 public:
     string imageFilename;
-    vector<float> &getData(ColorChannel_t colorChannel);
-    void clearPixelCache(void);
+    vector<float> &getData(ColorChannel_t colorChannel); // Review !!!
+    void clearCache(void);
     vector<float> targetVals;
-
-private:
     vector<float> data; // Pixel data converted to floats and flattened to a 1D array
 };
 
@@ -202,10 +201,11 @@ private:
 class SampleSet
 {
 public:
-    SampleSet() {};
+    SampleSet() { samples.clear(); };
     void loadSamples(const string &inputDataConfigFilename);
     void shuffle(void);
-    void clearPixelCache(void);
+    void clearCache(void);
+    void clearImageCache(void); // Clear only cached image data; retain explicit inputs values
     vector<Sample> samples;
 };
 

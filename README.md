@@ -9,7 +9,7 @@ Ver. 1.0
 Features
 --------
 
-*     Optimized for 2D image data -- input data is read from .bmp image files
+*     Optimized for 2D image data -- input data can be read from .bmp image files
 *     Neuron layers can be abstracted as 1D or 2D arrangements of neurons
 *     Network topology is defined in a text file
 *     Neurons in layers can be fully or sparsely connected
@@ -121,29 +121,29 @@ now have a trained net. You can press Save Weights to save the weights for later
 How to use your own data<a name="YourOwnData"></a>
 ------------------------
 
-You'll need to prepare a set of image files and two configuration files.
-One config file (named inputData.txt by default) is a list of images to use
-as inputs to the neural net. The other config file (named topology.txt by default) 
-contains a specification of the neural net topology (the number and arrangement 
-of neurons and connections).
-
-First, prepare your set of input images. They need to be in .bmp format, and all must have
-the same dimensions. Put those in a convenient directory.
-
-Next, prepare the input data config file, by default named "inputData.txt" but
-can be named anything. It contains a list of the input image filenames and the 
-expected output values of the neural net's output neurons. A typical file contains 
-lines formatted like this:
+If you are inputting data from image files, you'll need to prepare a set of BMP image files
+and an input data config file. The config file (named inputData.txt by default) is a list
+of image filenames to use as inputs to the neural net, and optionally the target output
+values for each image. The format looks like this example:
 
     images/thumbnails/test-918.bmp -1 1 -1 -1 -1 -1 -1 -1 -1 -1
     images/thumbnails/test-919.bmp -1 -1 -1 -1 -1 -1 -1 -1 1 -1
     images/thumbnails/test-920.bmp -1 -1 -1 -1 -1 -1 1 -1 -1 -1
     images/thumbnails/test-921.bmp -1 -1 -1 -1 -1 1 -1 -1 -1 -1
 
-Then prepare the network topology config file, by default named "topology.txt." It contains
-lines that specify the number of layers, the number and arrangement of neurons in each layer,
-and the way the neurons are connected. A complete description of the format can be found
-in a later section. A typical topology config file looks something like this:
+The path and filename cannot contain any spaces.
+
+If you are not using image files for input, you'll need to prepare an input config file
+(named inputData.txt by default) similar to the above but with the literal input values
+inside curly braces. For example, for a net with eight inputs and two outputs, the format
+is like this:
+
+     { 0.32 0.98 0.12 0.44 0.98 1.2 1 -1 } -1 1 
+
+You'll also need a topology config file (named topology.txt by default). It
+contains a specification of the neural net topology (the number and arrangement of neurons 
+and connections). Its format is described in a later section. A typical one looks
+something like this:
 
     input size 32x32  
     layer1 size 32x32 from input radius 8x8  
@@ -411,6 +411,10 @@ If your firewall complains, you may need to allow access to TCP port 24080.
 Create your own directory of BMP images, and a config file that follows the same format as
 shown in the provided default inputData.txt. Then define a topology config file with the
 appropriate number of network inputs and outputs, then run the neural2d program.
+
+Or if you don't want to use image files for input, make an input config file containing
+all the literal input values and the target output values. The format is described
+in an earlier section.
 
 **How do I use a trained net on new data?**<a name="howTrained"></a>
 

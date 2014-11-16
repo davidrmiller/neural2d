@@ -64,9 +64,9 @@ float absd(float a) { return a < 0.0 ? -a : a; }
 //
 pair<uint32_t, uint32_t> extractTwoNums(const string &s)
 {
-    uint32_t sizeX;
-    uint32_t sizeY;
-    char delim;
+    uint32_t sizeX = 0;
+    uint32_t sizeY = 0;
+    char delim = '\0';
 
     istringstream ss(s);
 
@@ -525,22 +525,24 @@ void ReadBMP(const string &filename, vector<float> &dataContainer, ColorChannel_
     delete[] imageData;
 }
 
-// If this is the first time getData() is called for this sample, we'll open the image
-// file and cache the pixel data in memory. Returns a reference to the container of input data.
+// If the data is available, we'll return it. If this is the first time getData()
+// is called for inputs that come from an image, we'll open the image file and
+// cache the pixel data in memory. Returns a reference to the container of input data.
 //
 vector<float> &Sample::getData(ColorChannel_t colorChannel)
 {
-   if (data.size() == 0) {
+   if (data.size() == 0 && imageFilename != "") {
        ReadBMP(imageFilename, data, colorChannel);
    }
 
    // If we get here, we can assume there is something in the .data member
+   // To do: check that
 
    return data;
 }
 
 
-void Sample::clearPixelCache(void)
+void Sample::clearCache(void)
 {
     data.clear();
 }
@@ -549,6 +551,17 @@ void Sample::clearPixelCache(void)
 // Given the name of an input sample config file, open it and save the contents
 // in memory. For now, we'll just read the image filenames and, if available, the
 // target output values. We'll defer reading the image pixel data until it's needed.
+
+// Given the name of an input sample config file, open it and save the contents
+// in memory. For lines that specify an image filename, we'll just save the filename
+// for now and defer reading the pixel data until it's needed. For lines that
+// contain an explicit list of input values, we'll save the values. The syntax
+// for a line specifying a filename is of the form:
+//     filename t1 t2 t3...
+// where t1, t2, etc. are the target output values. The syntax for a line that
+// specifies explicit values is:
+//     { i1, i2, i3... } t1 t2 t3
+// where i1, i2... are the input values and t1, t2, etc. are the target output values.
 //
 void SampleSet::loadSamples(const string &inputFilename)
 {
@@ -571,12 +584,33 @@ void SampleSet::loadSamples(const string &inputFilename)
     while (getline(dataIn, line)) {
         ++lineNum;
         Sample sample; // Default ctor will clear all members
+        string token;
+        char delim;
 
         stringstream ss(line);
-        ss >> sample.imageFilename;
-        // Skip blank and comment lines:
-        if (sample.imageFilename.size() == 0 || sample.imageFilename[0] == '#') {
-            continue;
+        ss >> token;
+        if (token == "{") {
+            // This means we have literal values like "{ 0.2 0 -1.0}"
+            sample.imageFilename="";   // "" means we have immediate data
+
+            // Read from the char after the { up to but including the } char:
+            char args[1024]; // Review !!!
+            ss.get(args, sizeof args, '}');
+            stringstream inargs(args);
+            while (!inargs.eof()) {
+                float val;
+                if (!(inargs >> val).fail()) {
+                    sample.data.push_back(val);
+                }
+            }
+            ss >> delim;
+        } else {
+            ss >> sample.imageFilename;
+            sample.imageFilename = token + sample.imageFilename; // uugh - refactor this block
+            // Skip blank and comment lines:
+            if (sample.imageFilename.size() == 0 || sample.imageFilename[0] == '#') {
+                continue;
+            }
         }
 
         // If they exist, read the target values from the rest of the line:
@@ -605,10 +639,18 @@ void SampleSet::shuffle(void)
 // By clearing the cache, future image access will cause the pixel data to
 // be re-read and converted by whatever color conversion is in effect then.
 //
-void SampleSet::clearPixelCache(void)
+void SampleSet::clearCache(void)
 {
     for (auto &samp : samples) {
-        samp.clearPixelCache();
+        samp.clearCache();
+    }
+}
+
+void SampleSet::clearImageCache(void)
+{
+    for (auto &samp : samples) {
+        if (samp.imageFilename != "")
+        samp.clearCache();
     }
 }
 
@@ -649,7 +691,7 @@ Neuron::Neuron()
 //
 Neuron::Neuron(vector<Connection> *pConnectionsData, transferFunction_t tf, transferFunction_t tfDerivative)
 {
-    output = randomFloat() - 0.5;
+    //output = randomFloat() - 0.5;
     gradient = 0.0;
     pConnections = pConnectionsData; // Remember where the connections array is
     backConnectionsIndices.clear();
@@ -759,19 +801,24 @@ Net::Net(const string &topologyFilename)
     doneErrorThreshold = 0.001;
     eta = 0.01;                    // Initial overall net learning rate, [0.0..1.0]
     dynamicEtaAdjust = true;       // true enables automatic eta adjustment during training
-    recentAverageSmoothingFactor = 125.; // Average net errors over this many input samples
-    lastRecentAverageError = recentAverageError = 1.0;
     alpha = 0.1;                   // Momentum factor, multiplier of last deltaWeight, [0.0..1.0]
     lambda = 0.0;                  // Regularization parameter; disabled if 0.0
     projectRectangular = false;    // Use elliptical areas for sparse connections
     isRunning = true;              // Command line option -p overrides this
+    reportEveryNth = 1;
+    recentAverageSmoothingFactor = 125.; // Average net errors over this many input samples
+    repeatInputSamples = true;
+    shuffleInputSamples = true;
+    weightsFilename = "weights.txt";
+    inputSampleNumber = 0;         // Increments each time feedForward() is called
+    error = 1.0;
+    recentAverageError = 1.0;
+    connections.clear();
+    layers.clear();
+    lastRecentAverageError = 1.0;
     totalNumberConnections = 0;
     totalNumberNeurons = 0;
     sumWeights = 0.0;
-    weightsFilename = "weights.txt";
-    repeatInputSamples = true;
-    shuffleInputSamples = true;
-    inputSampleNumber = 0;         // Increments each time feedForward() is called
     enableWebServer = true;
     portNumber = 24080;
 
@@ -887,7 +934,7 @@ void Net::reportResults(const Sample &sample) const
         // and the output neurons are trained to be high to indicate a pattern match,
         // and low to indicate no match.
 
-        if (true) {
+        if (false) {
             //float maxOutput = (numeric_limits<float>::min)();
             float maxOutput = -1.e8;
             size_t maxIdx = 0;
@@ -984,7 +1031,7 @@ void Net::debugShowNet(bool details)
 
         for (auto const &n : l.neurons) {
             if (details) {
-                cout << "  neuron(" << &n << ")" << endl;
+                cout << "  neuron(" << &n << ")" << " output: " << n.output << endl;
             }
 
             numFwdConnections += n.forwardConnectionsIndices.size();
@@ -995,7 +1042,9 @@ void Net::debugShowNet(bool details)
                 for (auto idx : n.forwardConnectionsIndices) {
                     Connection const &pc = connections[idx];
                     cout << "      conn(" << &pc << ") pFrom=" << &pc.fromNeuron
-                         << ", pTo=" << &pc.toNeuron << endl;
+                         << ", pTo=" << &pc.toNeuron 
+                         << ", w,dw=" << pc.weight << ", " << pc.deltaWeight
+                         << endl;
                 }
             }
 
@@ -1245,10 +1294,10 @@ void Net::connectNeuron(Layer &layerTo, Layer &fromLayer, Neuron &neuron,
 
     // Calculate the rectangular window into the "from" layer:
 
-    int32_t xmin;
-    int32_t xmax;
-    int32_t ymin;
-    int32_t ymax;
+    int32_t xmin = 0;
+    int32_t xmax = 0;
+    int32_t ymin = 0;
+    int32_t ymax = 0;
 
     if (params.isConvolutionLayer) {
         assert(params.convolveMatrix.size() > 0);
@@ -1320,7 +1369,8 @@ void Net::connectNeuron(Layer &layerTo, Layer &fromLayer, Neuron &neuron,
                 if (params.isConvolutionLayer) {
                     connections.back().weight = params.convolveMatrix[x - xmin][y - ymin];
                 } else {
-                    connections.back().weight = (randomFloat() - 0.5) / maxNumSourceNeurons;
+                    //connections.back().weight = (randomFloat() - 0.5) / maxNumSourceNeurons;
+                    connections.back().weight = ((randomFloat() * 2) - 1.0) / sqrt(maxNumSourceNeurons);
                 }
 
                 // Record the back connection index at the destination neuron:
@@ -1352,6 +1402,7 @@ void Net::connectBias(Neuron &neuron)
     uint32_t connectionIdx = connections.size() - 1;
 
     Connection &c = connections.back();
+    c.weight = randomFloat() - 0.5; // Review this !!!
     c.deltaWeight = 0.0;
 
     // Record the back connection with the destination neuron:
@@ -1422,29 +1473,7 @@ void Net::createNeurons(Layer &layerTo, Layer &layerFrom, layerParams_t &params)
 Convoluation matrixExamples:
 {0, 1,2}
 { {0,1,2}, {1,2,1}, {0, 1, 0}}
-
-Parser state machine:
-Init: PL = x = y = 0 = upper left of matrix
-States: INIT, WHITESPACE, LEFTBRACE, RIGHTBRACE, COMMA, NUMBER
-Convention: increment y at end of a row
-
-Last       new==>     LEFTBRACE         RIGHTBRACE           COMMA             DIGIT          EOF
-vvvv
-
-INIT                  ++PL              ill                  ill               ill            ill
-
-LEFTBRACE             ++PL              ill                  ill               accum num      ill
-
-RIGHTBRACE            ill               --PL;                skip              ill            ill
-                                        assert PL==0;
-                                        exit
-
-COMMA                 ++PL              ill                  ill               accum num      ill
-
-DIGIT                 ill               *x=num; ++y; x=0;    *x++=num          accum num      ill
-                                        if (--PL==0) exit
 */
-
 convolveMatrix_t Net::parseMatrixSpec(istringstream &ss)
 {
     char c;
@@ -2058,7 +2087,7 @@ void Net::actOnMessageReceived(Message_t &msg)
     // Post processing
 
     if (newColorChannel != layers[0].params.channel) {
-        sampleSet.clearPixelCache();
+        sampleSet.clearImageCache();
         layers[0].params.channel = newColorChannel;
     }
 
