@@ -1,0 +1,6 @@
+# This topology works for training the neural net to perform an XOR function
+
+input size 2
+layer1 size 4 from input
+output size 1 from layer1
+

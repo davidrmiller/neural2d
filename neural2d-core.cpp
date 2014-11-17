@@ -605,8 +605,8 @@ void SampleSet::loadSamples(const string &inputFilename)
             }
             ss >> delim;
         } else {
-            ss >> sample.imageFilename;
-            sample.imageFilename = token + sample.imageFilename; // uugh - refactor this block
+            // We may have an image filename (instead of an explicit list of values):
+            sample.imageFilename = token;
             // Skip blank and comment lines:
             if (sample.imageFilename.size() == 0 || sample.imageFilename[0] == '#') {
                 continue;
@@ -1105,16 +1105,17 @@ void Net::backProp(const Sample &sample)
     for (uint32_t layerNum = layers.size() - 1; layerNum > 0; --layerNum) {
         Layer &layer = layers[layerNum];
 
-    // Optionally enable the following #pragma line to permit OpenMP to
-    // parallelize this loop. For gcc 4.x, add the option "-fopenmp" to
-    // the compiler command line. If the compiler does not understand
-    // OpenMP, the #pragma will be ignored.
+        if (!layer.params.isConvolutionLayer) {
+
+        // Optionally enable the following #pragma line to permit OpenMP to
+        // parallelize this loop. For gcc 4.x, add the option "-fopenmp" to
+        // the compiler command line. If the compiler does not understand
+        // OpenMP, the #pragma will be ignored.
 
 #pragma omp parallel for
 
-        for (size_t i = 0; i < layer.neurons.size(); ++i) {
-            Neuron &neuron = layer.neurons[i];
-            if (!layer.params.isConvolutionLayer) {
+            for (size_t i = 0; i < layer.neurons.size(); ++i) {
+                Neuron &neuron = layer.neurons[i];
                 neuron.updateInputWeights(eta, alpha);
             }
         }

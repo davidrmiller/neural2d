@@ -40,7 +40,11 @@ images/digits/test-1.bmp:
 	@false
 
 test: images/digits/test-1.bmp
-	./neural2d topology.txt inputData.txt weights.txt
+	./neural2d images/digits/topology.txt images/digits/inputData.txt images/digits/weights.txt
 
-.PHONY: all clean test
+test-xor: topology-xor.txt inputData-xor.txt
+	./neural2d topology-xor.txt inputData-xor.txt weights.txt
+
+.PHONY: all clean test test-xor
+
 

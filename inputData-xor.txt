@@ -1,0 +1,9 @@
+# These are the four possible inputs for the XOR problem set.
+# When training, configure the neural net to repeat the training samples.
+# Also enable shuffling the inputs for optimal learning.
+
+{ -1 -1 } -1
+{ -1  1 }  1
+{  1 -1 }  1
+{  1  1 } -1
+
