@@ -25,7 +25,8 @@ Document Contents
 -----------------
 
 [Requirements](#Requirements)  
-[How to run the demo](#Demo)  
+[How to run the digits demo](#Demo)  
+[How to run the XOR example](#XorExample)  
 [GUI interface](#GUI)  
 [How to use your own data](#YourOwnData)  
 [The 2D in neural2d](#2D)  
@@ -60,7 +61,7 @@ Requirements<a name="Requirements"></a>
 * Compiles and runs on Linux, Windows, and probably Mac
 
 
-How to run the demo<a name="Demo"></a>
+How to run the digits demo<a name="Demo"></a>
 -----------
 
 Place all the files, maintaining the relative directory structure, into a convenient directory.
@@ -90,6 +91,19 @@ neuron to a high level.
 
 Once the net is sufficiently trained, all the connection weights are saved in a file
 named "weights.txt".
+
+
+
+How to run the XOR example<a name="XorExample"></a>
+--------------------------
+
+In the top level directory where the Makefile lives, execute:
+
+     make test-xor
+
+For more information about the XOR example, see
+[this wiki page](https://github.com/davidrmiller/neural2d/wiki/XOR_Example).
+
 
 
 GUI interface (optional)<a name="GUI"></a>
