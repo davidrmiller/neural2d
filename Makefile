@@ -4,10 +4,11 @@
 #
 # This Makefile has the following targets:
 #
-#    make all    # same as make neural2d
-#    make        # defaults to make all
-#    make clean  # removes the neural2d object files
-#    make test   # execute neural2d on a test set of data
+#    make all        # same as make neural2d
+#    make            # defaults to make all
+#    make clean      # removes the neural2d object files
+#    make test       # execute neural2d on a test set of data (digits demo)
+#    make test-xor   # train neural2d to do the XOR function
 
 
 # Specify a compiler invocation that understands C++11 with whatever options it requires:
@@ -42,9 +43,29 @@ images/digits/test-1.bmp:
 test: images/digits/test-1.bmp
 	./neural2d images/digits/topology.txt images/digits/inputData.txt images/digits/weights.txt
 
+# XOR test:
+
 test-xor: topology-xor.txt inputData-xor.txt
 	./neural2d topology-xor.txt inputData-xor.txt weights.txt
 
+# MNIST handwritten digits test:
+
+images/mnist/topology-mnist.txt:
+	@echo "Missing images/mnist/topology-mnist.txt"
+	@false
+
+images/mnist/inputData-mnist.txt:
+	@echo "You must first create images/mnist/inputData-mnist.txt"
+	@echo "Attempting to do that automatically..."
+	cd images/mnist && ./makeTrainDataForNeural2d.py || python ./makeTrainDataForNeural2d.py
+
+images/mnist/train-data/0.bmp:
+	@echo "Before running the MNIST test, you must extract the BMP images into images/mnist/train-data/"
+	@echo "Attempting to do that automatically..."
+	cd images/mnist && ./makeTrainDataForNeural2d.py || python ./makeTrainDataForNeural2d.py
+
+test-mnist: images/mnist/topology-mnist.txt images/mnist/inputData-mnist.txt images/mnist/train-data/0.bmp
+	./neural2d images/mnist/topology-mnist.txt images/mnist/inputData-mnist.txt weights-mnist.txt
+
+
 .PHONY: all clean test test-xor
-
-

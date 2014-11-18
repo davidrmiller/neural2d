@@ -1,0 +1,7 @@
+# This is a rudimentary topology configuration for the MNIST handwritten digits.
+
+input size 28x28
+layer1 size 28x28 from input
+layer2 size 10x10 from layer1
+output size 10 from layer2
+

@@ -39,6 +39,7 @@ Document Contents
 * [How do I run the GUI interface?](#howGui)  
 * [How do I use my own data instead of the digits images?](#howOwnData)  
 * [How do I use a trained net on new data?](#howTrained)  
+* [How do I train on the MNIST handlwritten digits data set?](#MNIST)  
 * [How do I change the learning rate parameter?](#howEta)  
 * [Are the output neurons binary or floating point?](#howBinary)  
 * [How do I use a different transfer function?](#howTf)  
@@ -449,6 +450,10 @@ This is normally done in neural2d.cpp.
 You'll need to prepare a new input data config file (default name inputData.txt)
 that contains a list of only those new input data images that you want the net to
 process.
+
+**How do I train on the MNIST handlwritten digits data set?**<a name="MNIST"></a>
+
+See the [instructions in the wiki](https://github.com/davidrmiller/neural2d/wiki/MNIST_Handwritten_dataset).
 
 **How do I change the learning rate parameter?**<a name="howEta"></a>
 
