@@ -17,7 +17,7 @@ See https://github.com/davidrmiller/neural2d for more information.
  *    6. Adjustable or automatic training rate (eta)
  *    7. Optional momentum (alpha) and regularization (lambda)
  *    8. Standalone console program
- *    9. Heavily-commented code, < 2000 lines, suitable for prototyping, learning, and experimentation
+ *    9. Heavily-commented code, < 3000 lines, suitable for prototyping, learning, and experimentation
  *   10. Optional web GUI controller
  *   11. Tutorial video coming soon!
  *
@@ -77,11 +77,18 @@ See https://github.com/davidrmiller/neural2d for more information.
 #ifndef NNET_H
 #define NNET_H
 
+// The embedded webserver GUI can be disabled either by undefining ENABLE_WEBSERVER
+// here, or by defining DISABLE_WEBSERVER (e.g., on the g++ command line, add
+// -DDISABLE_WEBSERVER. I.e., to enable the webserver, ENABLE_WEBSERVER must be
+// defined and DISABLE_WEBSERVER must not be defined.
+
+#define ENABLE_WEBSERVER
+
+
 // ISO-standard C++ headers:
 
 #include <algorithm>
 #include <cassert>
-#include <condition_variable> // For mutex
 #include <cstdint>
 #include <cstdlib>
 #include <fstream>
@@ -90,30 +97,20 @@ See https://github.com/davidrmiller/neural2d for more information.
 #include <set>
 #include <sstream>
 #include <string>
-#include <thread>
-#include <utility> // For pair(), make_pair()
 #include <vector>
 
-using namespace std;
-
-// POSIX headers:
+#if defined(ENABLE_WEBSERVER) && !defined(DISABLE_WEBSERVER)
+    #include <condition_variable> // For mutex
+    #include <thread>
+    #include <sys/socket.h>  // POSIX sockets
+    #include <netinet/in.h>  // POSIX sockets
+    #include "webserver.h"
+#endif
 
 #include <unistd.h>    // For sleep()
 
-#if defined(__CYGWIN__)
-// On Windows, cygwin is missing to_string(), so we'll make one here:
-    template <typename T>
-    std::string to_string(T value)
-    {
-      std::ostringstream os;
-      os << value;
-      return os.str();
-    }
-#endif
 
-// For web server:
-#include <sys/socket.h>
-#include <netinet/in.h>
+using namespace std;
 
 
 // Everything we define in this file will be inside the NNet namespace. This keeps
@@ -122,67 +119,6 @@ using namespace std;
 //
 namespace NNet {
 
-//  ****************************  For the web server interface  *****************************
-
-// A Thread-safe FIFO; pushes to the back, pops from the front. Push and
-// pop are always non-blocking. If the queue is empty, pop() immediately
-// returns with s set to an empty string.
-
-struct Message_t
-{
-    Message_t(void) { text = ""; httpResponseFileDes = -1; };
-    string text;
-    int httpResponseFileDes;
-};
-
-class MessageQueue
-{
-public:
-    MessageQueue() { mqueue = { }; };
-    void push(Message_t &msg);
-    void pop(Message_t &msg);
-    MessageQueue(const MessageQueue &) = delete;            // No copying
-    MessageQueue &operator=(const MessageQueue &) = delete; // No assignment
-
-private:
-    queue<Message_t> mqueue;
-    mutex mmutex;
-};
-
-
-class WebServer
-{
-public:
-    WebServer(void);
-    ~WebServer(void);
-    void start(int portNumber, MessageQueue &messages);
-    void stopServer(void);
-    void sendHttpResponse(string parameterBlock, int httpResponseFileDes);
-    void webServerThread(int portNumber, MessageQueue &messageQueue);
-    int portNumber;
-    int socketFd;
-
-private:
-    void initializeHttpResponse(void);
-    void extractAndQueueMessage(string s, int httpConnectionFd, MessageQueue &messages);
-    void replyToUnknownRequest(int httpConnectionFd);
-
-    bool firstAccess;  // So that we can do something different on the first HTTP request
-    string firstPart;  // First part of the HTTP response
-    string secondPart; // Last part of the HTTP response
-};
-
-
-//  ***********************************  Input samples  ***********************************
-
-// Training samples, including the pixel data. Each sample consists of an input
-// filename and expected output values. When running a trained net on unlabeled
-// input data, the target values are not known and therefore not used.
-//
-// The code below is specific for samples derived from image files. The parameter
-// Net::colorChannel can be set to choose the function that converts the RGB pixel
-// value into a floating point number in the range 0.0..1.0.
-//
 
 enum ColorChannel_t { R, G, B, BW };
 
@@ -429,9 +365,6 @@ private:
                        uint32_t nx, uint32_t ny, layerParams_t &params);
     void connectBias(Neuron &neuron);
     int32_t getLayerNumberFromName(const string &name) const;
-
-    void doCommand(); // Handles incoming program command and control
-    void actOnMessageReceived(Message_t &msg);
     float adjustedEta(void);
 
     vector<Layer> layers;
@@ -441,16 +374,16 @@ private:
     uint32_t totalNumberNeurons;
     float sumWeights;               // For regularization calculation
 
-    // Stuff for the web interface:
-
+#if defined(ENABLE_WEBSERVER) && !defined(DISABLE_WEBSERVER)
+    void doCommand(); // Handles incoming program command and control
+    void actOnMessageReceived(Message_t &msg);
+    void makeParameterBlock(string &s);
     WebServer webServer;
-    bool enableWebServer;
     int portNumber;
     MessageQueue messages;
-    void makeParameterBlock(string &s);
+#endif
 };
 
 } // end namespace NNet
 
 #endif // end #ifndef NNET_H
-

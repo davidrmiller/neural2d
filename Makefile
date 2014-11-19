@@ -9,6 +9,7 @@
 #    make clean      # removes the neural2d object files
 #    make test       # execute neural2d on a test set of data (digits demo)
 #    make test-xor   # train neural2d to do the XOR function
+#    make test-mnist # train on the MNIST handwritten digits image set
 
 
 # Specify a compiler invocation that understands C++11 with whatever options it requires:
@@ -22,8 +23,8 @@ all: neural2d
 
 # The next rules make the neural2d program.
 
-neural2d: neural2d.o neural2d-core.o Makefile
-	$(COMPILER) $(EXTRACFLAGS) neural2d.o neural2d-core.o -o neural2d
+neural2d: neural2d.o neural2d-core.o webserver.o Makefile
+	$(COMPILER) $(EXTRACFLAGS) neural2d.o neural2d-core.o webserver.o -o neural2d
 
 neural2d.o: neural2d.cpp neural2d.h Makefile
 	$(COMPILER) $(EXTRACFLAGS) -c neural2d.cpp -o neural2d.o
@@ -31,10 +32,13 @@ neural2d.o: neural2d.cpp neural2d.h Makefile
 neural2d-core.o: neural2d-core.cpp neural2d.h Makefile
 	$(COMPILER) $(EXTRACFLAGS) -c neural2d-core.cpp -o neural2d-core.o
 
-clean:
-	rm neural2d neural2d.o neural2d-core.o
+webserver.o: webserver.cpp neural2d.h webserver.h Makefile
+	$(COMPILER) $(EXTRACFLAGS) -c webserver.cpp -o webserver.o
 
-# Run neural2d on a test set of images:
+clean:
+	rm neural2d neural2d.o neural2d-core.o webserver.o
+
+# Run neural2d on a test set of images (the easy digits demo):
 
 images/digits/test-1.bmp:
 	@echo "Before running the test, you must extract the archive of images in images/digits/"
@@ -68,4 +72,4 @@ test-mnist: images/mnist/topology-mnist.txt images/mnist/inputData-mnist.txt ima
 	./neural2d images/mnist/topology-mnist.txt images/mnist/inputData-mnist.txt weights-mnist.txt
 
 
-.PHONY: all clean test test-xor
+.PHONY: all clean test test-xor test-mnist

@@ -37,6 +37,7 @@ Document Contents
 * [How do I get, build, and install the command-line neural2d program?](#howInstall)  
 * [How do I run the command-line program?](#howConsole)  
 * [How do I run the GUI interface?](#howGui)  
+* [How do I disable the GUI interface?](#howDisableGui)  
 * [How do I use my own data instead of the digits images?](#howOwnData)  
 * [How do I use a trained net on new data?](#howTrained)  
 * [How do I train on the MNIST handlwritten digits data set?](#MNIST)  
@@ -420,6 +421,13 @@ First launch the neural2d program with the -p option:
 Then open a web browser and point it at [http://localhost:24080](http://localhost:24080) .
 
 If your firewall complains, you may need to allow access to TCP port 24080.
+
+**How do I disable the GUI interface?**<a name="howDisableGui"></a>
+
+The easiest way is to add -DDISABLE_WEBSERVER to the g++ command line in the Makefile.
+Alternatively, you can undefine the macro ENABLE_WEBSERVER in neural2d.h.
+
+When the web server is disabled, there is no remaining dependency on POSIX sockets.
 
 **How do I use my own data instead of the digits images?**<a name="howOwnData"></a>
 
