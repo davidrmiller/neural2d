@@ -3,7 +3,7 @@
 <p>Ver. 1.0</p>
 <h2 id="features">Features</h2>
 <ul>
-<li>Optimized for 2D image data -- input data is read from .bmp image files</li>
+<li>Optimized for 2D image data -- input data can be read from .bmp image files</li>
 <li>Neuron layers can be abstracted as 1D or 2D arrangements of neurons</li>
 <li>Network topology is defined in a text file</li>
 <li>Neurons in layers can be fully or sparsely connected</li>
@@ -16,23 +16,20 @@
 <li>Optional web-browser-based GUI controller</li>
 </ul>
 <h2 id="document-contents">Document Contents</h2>
-<p><a href="#Requirements">Requirements</a><br /><a href="#Demo">How to run the demo</a><br /><a href="#GUI">GUI interface</a><br /><a href="#YourOwnData">How to use your own data</a><br /><a href="#2D">The 2D in neural2d</a><br /><a href="#Convolution">Convolution filtering</a><br /><a href="#TopologyConfig">Topology config file format</a><br /><a href="#TopologyExamples">Topology config file examples</a><br /><a href="#HowDoI">How-do-I <em>X</em>?</a><br />* <a href="#howInstall">How do I get, build, and install the command-line neural2d program?</a><br />* <a href="#howConsole">How do I run the command-line program?</a><br />* <a href="#howGui">How do I run the GUI interface?</a><br />* <a href="#howOwnData">How do I use my own data instead of the digits images?</a><br />* <a href="#howTrained">How do I use a trained net on new data?</a><br />* <a href="#howEta">How do I change the learning rate parameter?</a><br />* <a href="#howBinary">Are the output neurons binary or floating point?</a><br />* <a href="#howTf">How do I use a different transfer function?</a><br />* <a href="#howConvolve">How do I define a convolution filter?</a><br />* <a href="#howRgb">How do the color image pixels get converted to floating point for the input layer?</a><br />* <a href="#howJpg">How can I use .jpg and .png images as inputs to the net?</a><br />* <a href="#howLearn">Why does the net error rate stay high? Why doesn't my net learn?</a><br />* <a href="#howParams">What other parameters do I need to know about?</a></p>
+<p><a href="#Requirements">Requirements</a><br /><a href="#Demo">How to run the digits demo</a><br /><a href="#XorExample">How to run the XOR example</a><br /><a href="#GUI">GUI interface</a><br /><a href="#YourOwnData">How to use your own data</a><br /><a href="#2D">The 2D in neural2d</a><br /><a href="#Convolution">Convolution filtering</a><br /><a href="#TopologyConfig">Topology config file format</a><br /><a href="#TopologyExamples">Topology config file examples</a><br /><a href="#HowDoI">How-do-I <em>X</em>?</a><br />* <a href="#howInstall">How do I get, build, and install the command-line neural2d program?</a><br />* <a href="#howConsole">How do I run the command-line program?</a><br />* <a href="#howGui">How do I run the GUI interface?</a><br />* <a href="#howOwnData">How do I use my own data instead of the digits images?</a><br />* <a href="#howTrained">How do I use a trained net on new data?</a><br />* <a href="#MNIST">How do I train on the MNIST handlwritten digits data set?</a><br />* <a href="#howEta">How do I change the learning rate parameter?</a><br />* <a href="#howBinary">Are the output neurons binary or floating point?</a><br />* <a href="#howTf">How do I use a different transfer function?</a><br />* <a href="#howConvolve">How do I define a convolution filter?</a><br />* <a href="#howRgb">How do the color image pixels get converted to floating point for the input layer?</a><br />* <a href="#howJpg">How can I use .jpg and .png images as inputs to the net?</a><br />* <a href="#howLearn">Why does the net error rate stay high? Why doesn't my net learn?</a><br />* <a href="#howParams">What other parameters do I need to know about?</a></p>
 <p><a href="#Licenses">Licenses</a></p>
 <p>Also see the <a href="https://github.com/davidrmiller/neural2d/wiki">wiki</a> for more information.</p>
 <h2 id="requirements">Requirements<a name="Requirements"></a></h2>
-<p>For the neural2d standalone console program:</p>
 <ul>
 <li>C++-11 compiler (e.g., g++ on Linux)</li>
-<li>POSIX sockets</li>
-<li>Runs on Linux, Windows, and probably Mac</li>
+<li>POSIX sockets (e.g., Cygwin on Windows)</li>
+<li>Compiles and runs on Linux, Windows, and probably Mac</li>
 </ul>
-<h2 id="how-to-run-the-demo">How to run the demo<a name="Demo"></a></h2>
+<h2 id="how-to-run-the-digits-demo">How to run the digits demo<a name="Demo"></a></h2>
 <p>Place all the files, maintaining the relative directory structure, into a convenient directory.</p>
 <p>In the images/digits/ subdirectory, extract the image files from the archive into the same directory.</p>
 <p>To compile neural2d, cd to the directory containing the Makefile and execute the default make target:</p>
 <pre><code>make</code></pre>
-<p>If using MinGW on Windows, depending on how it's installed, you may need to use:</p>
-<pre><code>mingw32-make</code></pre>
 <p>This will use g++ to compile neural2d.cpp and neural2d-core.cpp and result in an executable named neural2d.</p>
 <p>To run the demo, execute:</p>
 <pre><code>make test</code></pre>
@@ -42,6 +39,10 @@
 </div>
 <p>The images are 32x32 pixels each, stored in .bmp format. In this demo, the neural net is configured to have 32x32 input neurons, and 10 output neurons. The net is trained to classify the digits in the images and to indicate the answer by driving the corresponding output neuron to a high level.</p>
 <p>Once the net is sufficiently trained, all the connection weights are saved in a file named &quot;weights.txt&quot;.</p>
+<h2 id="how-to-run-the-xor-example">How to run the XOR example<a name="XorExample"></a></h2>
+<p>In the top level directory where the Makefile lives, execute:</p>
+<pre><code> make test-xor</code></pre>
+<p>For more information about the XOR example, see <a href="https://github.com/davidrmiller/neural2d/wiki/XOR_Example">this wiki page</a>.</p>
 <h2 id="gui-interface-optional">GUI interface (optional)<a name="GUI"></a></h2>
 <p>First, launch the neural2d console program in a command window with the -p option:</p>
 <pre><code> ./neural2d topology.txt inputData.txt weights.txt -p</code></pre>
@@ -57,14 +58,15 @@
 </div>
 <p>Press Resume to start the neural net training. It will automatically pause when the average error rate falls below a certain threshold (or when you press Pause). You now have a trained net. You can press Save Weights to save the weights for later use.</p>
 <h2 id="how-to-use-your-own-data">How to use your own data<a name="YourOwnData"></a></h2>
-<p>You'll need to prepare a set of image files and two configuration files. One config file (named inputData.txt by default) is a list of images to use as inputs to the neural net. The other config file (named topology.txt by default) contains a specification of the neural net topology (the number and arrangement of neurons and connections).</p>
-<p>First, prepare your set of input images. They need to be in .bmp format, and all must have the same dimensions. Put those in a convenient directory.</p>
-<p>Next, prepare the input data config file, by default named &quot;inputData.txt&quot; but can be named anything. It contains a list of the input image filenames and the expected output values of the neural net's output neurons. A typical file contains lines formatted like this:</p>
+<p>If you are inputting data from image files, you'll need to prepare a set of BMP image files and an input data config file. The config file (named inputData.txt by default) is a list of image filenames to use as inputs to the neural net, and optionally the target output values for each image. The format looks like this example:</p>
 <pre><code>images/thumbnails/test-918.bmp -1 1 -1 -1 -1 -1 -1 -1 -1 -1
 images/thumbnails/test-919.bmp -1 -1 -1 -1 -1 -1 -1 -1 1 -1
 images/thumbnails/test-920.bmp -1 -1 -1 -1 -1 -1 1 -1 -1 -1
 images/thumbnails/test-921.bmp -1 -1 -1 -1 -1 1 -1 -1 -1 -1</code></pre>
-<p>Then prepare the network topology config file, by default named &quot;topology.txt.&quot; It contains lines that specify the number of layers, the number and arrangement of neurons in each layer, and the way the neurons are connected. A complete description of the format can be found in a later section. A typical topology config file looks something like this:</p>
+<p>The path and filename cannot contain any spaces.</p>
+<p>If you are not using image files for input, you'll need to prepare an input config file (named inputData.txt by default) similar to the above but with the literal input values inside curly braces. For example, for a net with eight inputs and two outputs, the format is like this:</p>
+<pre><code> { 0.32 0.98 0.12 0.44 0.98 1.2 1 -1 } -1 1 </code></pre>
+<p>You'll also need a topology config file (named topology.txt by default). It contains a specification of the neural net topology (the number and arrangement of neurons and connections). Its format is described in a later section. A typical one looks something like this:</p>
 <pre><code>input size 32x32  
 layer1 size 32x32 from input radius 8x8  
 layer2 size 16x16 from layer1  
@@ -224,9 +226,11 @@ output size 2 from layerH3</code></pre>
 <p><strong>How do I run the GUI interface?</strong><a name="howGui"></a></p>
 <p>First launch the neural2d program with the -p option:</p>
 <pre><code> ./neural2d topology.txt inputData.txt weights.txt -p</code></pre>
-<p>Then open a web browser and point it at http://localhost:24080 .</p>
+<p>Then open a web browser and point it at <a href="http://localhost:24080">http://localhost:24080</a> .</p>
+<p>If your firewall complains, you may need to allow access to TCP port 24080.</p>
 <p><strong>How do I use my own data instead of the digits images?</strong><a name="howOwnData"></a></p>
 <p>Create your own directory of BMP images, and a config file that follows the same format as shown in the provided default inputData.txt. Then define a topology config file with the appropriate number of network inputs and outputs, then run the neural2d program.</p>
+<p>Or if you don't want to use image files for input, make an input config file containing all the literal input values and the target output values. The format is described in an earlier section.</p>
 <p><strong>How do I use a trained net on new data?</strong><a name="howTrained"></a></p>
 <p>It's all about the weights file. After the net has been successfully trained, save the internal connection weights in a weights file. That's typically done in neural2d.cpp by calling the member function saveWeights(filename).</p>
 <p>The weights you saved can be loaded back into a neural net of the same topology using the member function loadWeights(filename). Once the net has been loaded with weights, it can be used applied to new data by calling feedForward(). Prior to calling feedForward(), you'll want to set a couple of parameters:</p>
@@ -234,6 +238,8 @@ output size 2 from layerH3</code></pre>
  myNet.reportEveryNth = 1;</code></pre>
 <p>This is normally done in neural2d.cpp.</p>
 <p>You'll need to prepare a new input data config file (default name inputData.txt) that contains a list of only those new input data images that you want the net to process.</p>
+<p><strong>How do I train on the MNIST handlwritten digits data set?</strong><a name="MNIST"></a></p>
+<p>See the <a href="https://github.com/davidrmiller/neural2d/wiki/MNIST_Handwritten_dataset">instructions in the wiki</a>.</p>
 <p><strong>How do I change the learning rate parameter?</strong><a name="howEta"></a></p>
 <p>In the command-line program, you can set the eta parameter or change it by directly setting the eta member of the Net object, like this:</p>
 <pre><code> myNet.eta = 0.1;</code></pre>
