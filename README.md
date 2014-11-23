@@ -6,6 +6,8 @@ User Manual
 
 Ver. 1.0
 
+Intro video (11 min): [https://www.youtube.com/watch?v=yB43jj-wv8Q](https://www.youtube.com/watch?v=yB43jj-wv8Q)
+
 Features
 --------
 
