@@ -1,22 +1,12 @@
 # This is a rudimentary topology configuration for the MNIST handwritten digits.
 
 input size 28x28
+layer1 size 14x14 from input
 
-# From the input layer, we'll make three new layers: one with edges, and
-# one lower-resolution sparse layer connected with a gaussian transfer function,
-# and one fully connected layer with tanh transfer function:
+layer2 size 28x28 from input radius 7
 
-layerEdges size 28x28 from input convolve {{-1,-1,-1},{-1,8,-1},{-1,-1,-1}}
-layerG size 14x14 from input tf gaussian
-layer1 size 28x28 from input 
+layerCombined size 8x8 from layer1
+layerCombined size 8x8 from layer2
 
-# Here we combine the preceding layers:
-layer2 size 14x14 from layer1
-layer2 size 14x14 from layerEdges
-layer2 size 14x14 from layerG
-
-# and add a layer of depth for good measure:
-layer3 size 12x12 from layer2
-
-output size 10 from layer3
+output size 10 from layerCombined
 
