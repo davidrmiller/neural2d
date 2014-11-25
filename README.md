@@ -304,15 +304,15 @@ Rules:
 1. The same layer name can be defined multiple times with different "from" parameters.
 This allows source neurons from more than one layer to be combined in one 
 destination layer. The source layers can be any size. When a destination layer is 
-defined more than once, each line must have  an identical size parameter. In the 
-following example, layerCombined correctly appears twice with the same size 
-specification:
+defined more than once, the first definition must have a *size* parameter. The size parameter
+is optional on the repeated lines; if it appears, it must be the same size as defined
+initially. For example, in the following, layerCombined is size 8x8:
 
      input size 128x128  
      layerVertical size 32x32 from input radius 1x8  
      layerHorizontal size 16x16 from input radius 8x1  
-     **layerCombined** size **8x8** from layerVertical   
-     **layerCombined**  size **8x8** from layerHorizontal  
+     **layerCombined** **size 8x8** from layerVertical   
+     **layerCombined** from layerHorizontal  
      output size 1 from layerCombined  
 
 1. The *size-spec* can specify two dimensions, or one. Spaces are not allowed in the size spec. 

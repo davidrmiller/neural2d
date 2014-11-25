@@ -705,7 +705,7 @@ void Net::reportResults(const Sample &sample) const
         // and the output neurons are trained to be high to indicate a pattern match,
         // and low to indicate no match.
 
-        if (false) {
+        if (true) {
             //float maxOutput = (numeric_limits<float>::min)();
             float maxOutput = -1.e8;
             size_t maxIdx = 0;
@@ -1546,6 +1546,15 @@ void Net::parseConfigFile(const string &configFilename)
                 // "input" layer will never take this path.
 
                 Layer &layerToRef = layers[previouslyDefinedLayerNumSameName]; // A more convenient name
+
+                // If the size parameter was not specified on this line, use the size
+                // specified previously for the layer of the same name:
+
+                if (params.sizeX == 0 && params.sizeY == 0) {
+                    params.sizeX = layerToRef.params.sizeX;
+                    params.sizeY = layerToRef.params.sizeY;
+                }
+
                 if (layerToRef.params.sizeX != params.sizeX || layerToRef.params.sizeY != params.sizeY) {
                     cerr << "Error: Config(" << lineNum << "): layer '" << params.layerName
                          << "' already exists, but different size" << endl;
@@ -1908,10 +1917,10 @@ void Net::doCommand()
 //
 float Net::adjustedEta(void)
 {
-    const float thresholdUp = 0.01;       // Ignore error increases less than this magnitude
-    const float thresholdDown = 0.01;     // Ignore error decreases less than this magnitude
-    const float factorUp = 1.01;          // Factor to incrementally increase eta
-    const float factorDown = 0.99;        // Factor to incrementally decrease eta
+    const float thresholdUp = 0.001;       // Ignore error increases less than this magnitude
+    const float thresholdDown = 0.01;      // Ignore error decreases less than this magnitude
+    const float factorUp = 1.005;          // Factor to incrementally increase eta
+    const float factorDown = 0.999;        // Factor to incrementally decrease eta
 
     if (!dynamicEtaAdjust) {
         return eta;
