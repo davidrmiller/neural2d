@@ -588,7 +588,6 @@ Net::Net(const string &topologyFilename)
     lastRecentAverageError = 1.0;
     totalNumberConnections = 0;
     totalNumberNeurons = 0;
-    sumWeights = 0.0;
 
 #if defined(ENABLE_WEBSERVER) && !defined(DISABLE_WEBSERVER)
     portNumber = 24080;
@@ -990,27 +989,20 @@ void Net::calculateOverallNetError(const Sample &sample)
 
     error /= 2.0 * outputLayer.neurons.size();
 
-    // Regularization calculations -- if this experiment works, calculate the sum of weights on the fly
-    // during backprop for performance reasons:
+    // Regularization calculations -- if this experiment works, calculate the sum of weights
+    // on the fly during backprop to see if that is better performance.
+    // This adds an error term calculated from the sum of squared weights. This encourages
+    // the net to find a solution using small weight values, which can be helpful for
+    // multiple reasons.
 
-    float sumWeightsSquared = 0.0;
+    float sumWeightsSquared_ = 0.0;
     if (lambda != 0.0) {
-        // For all layers except the input layer, sum all the weights. These are in
-        // the back-connection records:
-        for (uint32_t layerIdx = 1; layerIdx < layers.size(); ++layerIdx) {
-            Layer &layer = layers[layerIdx];
-            for (auto const &neuron : layer.neurons) {
-                // To do: skip the bias connection correctly;
-                for (uint32_t idx = 0; idx < neuron.backConnectionsIndices.size() - 1; ++idx) {
-                    Connection &conn = (*neuron.pConnections)[neuron.backConnectionsIndices[idx]];
-                    sumWeightsSquared += conn.weight * conn.weight;
-                }
-            }
+#pragma omp parallel for reduction(+:sumWeightsSquared_)
+        for (size_t i = 0; i < connections.size(); ++i) {
+            sumWeightsSquared_ += connections[i].weight;
         }
 
-        float sumWeights = (sumWeightsSquared * lambda)
-                          / (2.0 * (totalNumberConnections - totalNumberNeurons));
-        error += sumWeights;
+        error += (sumWeightsSquared_ * lambda) / (2.0 * (totalNumberConnections - totalNumberNeurons));
     }
 
     // Implement a recent average measurement -- average the net errors over N samples:
@@ -1817,8 +1809,8 @@ void Net::actOnMessageReceived(Message_t &msg)
         cout << "dynamicEtaAdjust=" << dynamicEtaAdjust << endl;
     }
 
-    else if (token.find("lambda") == 0) {
-        lambda = strtod(token.substr(6).c_str(), NULL);
+    else if (token.find("lambda=") == 0) {
+        lambda = strtod(token.substr(7).c_str(), NULL);
         cout << "Set lambda=" << lambda << endl;
     }
 

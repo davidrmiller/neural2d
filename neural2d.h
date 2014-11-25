@@ -369,10 +369,9 @@ private:
 
     vector<Layer> layers;
 
-    float lastRecentAverageError;   // Used for dynamically adjusting eta
+    float lastRecentAverageError;    // Used for dynamically adjusting eta
     uint32_t totalNumberConnections; // Including 1 bias connection per neuron
     uint32_t totalNumberNeurons;
-    float sumWeights;               // For regularization calculation
 
 #if defined(ENABLE_WEBSERVER) && !defined(DISABLE_WEBSERVER)
     void doCommand(); // Handles incoming program command and control
