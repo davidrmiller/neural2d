@@ -1,6 +1,6 @@
 /*
-neural-net.cpp
-David R. Miller, 2014
+neural2d-core.cpp
+David R. Miller, 2014, 2015
 https://github.com/davidrmiller/neural2d
 
 See neural2d.h for more information.
@@ -317,10 +317,6 @@ void Sample::clearCache(void)
     data.clear();
 }
 
-
-// Given the name of an input sample config file, open it and save the contents
-// in memory. For now, we'll just read the image filenames and, if available, the
-// target output values. We'll defer reading the image pixel data until it's needed.
 
 // Given the name of an input sample config file, open it and save the contents
 // in memory. For lines that specify an image filename, we'll just save the filename
@@ -812,7 +808,7 @@ void Net::debugShowNet(bool details)
                 for (auto idx : n.forwardConnectionsIndices) {
                     Connection const &pc = connections[idx];
                     cout << "      conn(" << &pc << ") pFrom=" << &pc.fromNeuron
-                         << ", pTo=" << &pc.toNeuron 
+                         << ", pTo=" << &pc.toNeuron
                          << ", w,dw=" << pc.weight << ", " << pc.deltaWeight
                          << endl;
                 }
@@ -921,7 +917,6 @@ void Net::feedForward(Sample &sample)
 
     // Rather than make it a fatal error if the number of input neurons != number
     // of input data values, we'll use whatever we can and skip the rest:
-    // To do: report a mismatch in number of inputs neurons and size of input sample!!!
 
     for (uint32_t i = 0; i < (uint32_t)min(inputLayer.neurons.size(), data.size()); ++i) {
         inputLayer.neurons[i].output = data[i];
@@ -989,7 +984,8 @@ void Net::calculateOverallNetError(const Sample &sample)
 
     error /= 2.0 * outputLayer.neurons.size();
 
-    // Regularization calculations -- if this experiment works, calculate the sum of weights
+    // Regularization calculations -- this is an experimental implementaiton.
+    // If this experiment works, we should instead calculate the sum of weights
     // on the fly during backprop to see if that is better performance.
     // This adds an error term calculated from the sum of squared weights. This encourages
     // the net to find a solution using small weight values, which can be helpful for
@@ -1235,7 +1231,7 @@ void Net::createNeurons(Layer &layerTo, Layer &layerFrom, layerParams_t &params)
 
 
 /*
-Convoluation matrixExamples:
+Convolution matrix example formats:
 {0, 1,2}
 { {0,1,2}, {1,2,1}, {0, 1, 0}}
 */
@@ -1471,11 +1467,12 @@ void Net::parseConfigFile(const string &configFilename)
             // If this is the first layer, check that it is called "input" and that there
             // is no convolution matrix defined:
 
-            if (layers.size() == 0 && params.layerName != "input") {
-                cerr << "Error in " << configFilename << ": the first layer must be named 'input'" << endl;
-                throw("Topology config file syntax error");
-
-                if (params.convolveMatrix.size() > 0) {
+            if (layers.size() == 0){
+                if (params.layerName != "input") {
+                    cerr << "Error in " << configFilename << ": the first layer must be named 'input'" << endl;
+                    throw("Topology config file syntax error");
+                }
+                else if (params.convolveMatrix.size() > 0) {
                     cerr << "Error in " << configFilename << ": input layer cannot be a convolution layer" << endl;
                     throw("Topology config file syntax error");
                 }
