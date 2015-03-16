@@ -46,7 +46,7 @@ struct Message_t
 class MessageQueue
 {
 public:
-    MessageQueue() { mqueue = { }; };
+    MessageQueue() { };
     void push(Message_t &msg);
     void pop(Message_t &msg);
     MessageQueue(const MessageQueue &) = delete;            // No copying
