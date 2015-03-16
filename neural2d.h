@@ -40,7 +40,7 @@ See https://github.com/davidrmiller/neural2d for more information.
  * make subsequent reads faster (because we may want to input the training samples
  * multiple times during training).
  *
- * There are three common modes of operation:
+ * There are three conceptual modes of operation, or use-cases:
  *
  *     TRAINING: input samples are labeled with target output values, and
  *               weights are adjusted during training. For this mode,
@@ -290,7 +290,7 @@ public:
     bool projectRectangular;
 
     bool isRunning;     // If true, start processing without waiting for a "resume" command
-    
+
     // To reduce screen clutter during training, reportEveryNth can be set > 1. When
     // in VALIDATE or TRAINED mode, you'll want to set this to 1 so you can see every
     // result:
@@ -360,8 +360,8 @@ private:
     convolveMatrix_t parseMatrixSpec(istringstream &ss);
     Layer &createLayer(const layerParams_t &params);
     bool addToLayer(Layer &layerTo, Layer &layerFrom, layerParams_t &params);
-    void createNeurons(Layer &layerFrom, Layer &layerTo, layerParams_t &params);
-    void connectNeuron(Layer &layerFrom, Layer &layerTo, Neuron &neuron,
+    void createNeurons(Layer &layerTo, Layer &layerFrom, layerParams_t &params);
+    void connectNeuron(Layer &layerTo, Layer &layerFrom, Neuron &neuron,
                        uint32_t nx, uint32_t ny, layerParams_t &params);
     void connectBias(Neuron &neuron);
     int32_t getLayerNumberFromName(const string &name) const;
