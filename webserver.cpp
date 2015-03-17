@@ -1,6 +1,6 @@
 /*
 webserver.cpp -- embedded web server for the GUI for the neural2d program.
-David R. Miller, 2014
+David R. Miller, 2014, 2015
 For more information, see neural2d.h and https://github.com/davidrmiller/neural2d .
 */
 
@@ -13,7 +13,9 @@ For more information, see neural2d.h and https://github.com/davidrmiller/neural2
 #include <sstream>
 #include <string>
 #include <thread>
-#include <unistd.h>  // POSIX, for read(), write(), close()
+#include <unistd.h>     // POSIX, for read(), write(), close()
+#include <sys/types.h>  // For setsockopt() and SO_REUSEADDR
+#include <sys/socket.h> // For setsockopt() and SO_REUSEADDR
 
 #include "webserver.h"
 
@@ -216,6 +218,13 @@ void WebServer::webServerThread(int portNumber, MessageQueue &messages)
     stSockAddr.sin_family = AF_INET;
     stSockAddr.sin_port = htons(portNumber);
     stSockAddr.sin_addr.s_addr = htonl(INADDR_ANY);
+
+    // Set SO_REUSEADDR so we can bind the port even if there are
+    // connections in the TIME_WAIT state, thus allowing the webserver
+    // to be restarted without waiting for the TIME_WAIT to expire.
+
+    int optval = 1;
+    setsockopt(socketFd, SOL_SOCKET, SO_REUSEADDR, &optval, sizeof(optval));
 
     if (-1 == bind(socketFd, (struct sockaddr *)&stSockAddr, sizeof(stSockAddr))) {
         cerr << "Cannot bind socket for the web server interface\n\n" << endl;
