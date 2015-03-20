@@ -1513,7 +1513,14 @@ void Net::parseConfigFile(const string &configFilename)
             previouslyDefinedLayerNumSameName = getLayerNumberFromName(params.layerName);
             if (previouslyDefinedLayerNumSameName == -1) {
 
-                // To do: Add range check for sizeX, sizeY, radiusX, radiusY, convolveMatrix params !!!
+                // To do: Add range check for radiusX, radiusY, convolveMatrix params !!!
+
+                // Check for missing or illegal size parameter:
+                if (params.sizeX == 0 || params.sizeY == 0) {
+                    cerr << "Error: Config(" << lineNum << "): "
+                         << " missing size parameter" << endl;
+                    throw("Topology config file missing size parameter");
+                }
 
                 // Create a new layer of this name.
                 // "input" layer will always take this path.
