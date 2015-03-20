@@ -1335,14 +1335,15 @@ convolveMatrix_t Net::parseMatrixSpec(istringstream &ss)
     for (unsigned x = 0; x < mat.size(); ++x) {
         if (x == 0) {
             firstRowSize = mat[x].size(); // Remember the first row size
-        }
-        convMat.push_back(vector<float>());
-        for (unsigned y = 0; y < mat[x].size(); ++y) {
-            convMat.back().push_back(mat[x][y]);
-        }
-        if (convMat.back().size() != firstRowSize) {
-            cout << "Warning: in convolution matrix in topology config file, inconsistent matrix row size" << endl;
+        } else if (mat[x].size() != firstRowSize) {
+            cout << "Error: in convolution matrix in topology config file, inconsistent matrix row size" << endl;
             throw("Error in topology config file: inconsistent row size in convolve matrix spec");
+        }
+    }
+    for (unsigned y = 0; y < firstRowSize; ++y) {
+        convMat.push_back(vector<float>());
+        for (unsigned x = 0; x < mat.size(); ++x) {
+            convMat.back().push_back(mat[x][y]);
         }
     }
 
