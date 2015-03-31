@@ -8,6 +8,7 @@ See neural2d.h for more information.
 
 #include <cctype>
 #include <utility>  // for pair()
+#include <unistd.h> // For sleep() or usleep()
 
 #include "neural2d.h"
 
@@ -18,6 +19,7 @@ See neural2d.h for more information.
 
 namespace NNet {
 
+using namespace std;
 
 //  ***********************************  Utility functions  ***********************************
 
@@ -457,7 +459,7 @@ Neuron::Neuron()
 //
 Neuron::Neuron(vector<Connection> *pConnectionsData, transferFunction_t tf, transferFunction_t tfDerivative)
 {
-    //output = randomFloat() - 0.5;
+    output = randomFloat() - 0.5;
     gradient = 0.0;
     pConnections = pConnectionsData; // Remember where the connections array is
     backConnectionsIndices.clear();
@@ -865,7 +867,7 @@ void Net::backProp(const Sample &sample)
     }
 
     // For all layers from outputs to first hidden layer, in reverse order,
-    // update connection weights for regular neurons. Skip the udpate in
+    // update connection weights for regular neurons. Skip the update in
     // convolution layers.
 
     for (uint32_t layerNum = layers.size() - 1; layerNum > 0; --layerNum) {
@@ -874,7 +876,7 @@ void Net::backProp(const Sample &sample)
         if (!layer.params.isConvolutionLayer) {
 
         // Optionally enable the following #pragma line to permit OpenMP to
-        // parallelize this loop. For gcc 4.x, add the option "-fopenmp" to
+        // parallelize this loop. For clang or gcc, add the option "-fopenmp" to
         // the compiler command line. If the compiler does not understand
         // OpenMP, the #pragma will be ignored.
 
@@ -928,7 +930,7 @@ void Net::feedForward(Sample &sample)
         Layer &layer = layers[layerIdx];
 
         // Optionally enable the following #pragma line to permit OpenMP to
-        // parallelize this loop. For gcc 4.x, add the option "-fopenmp" to
+        // parallelize this loop. For clang or gcc, add the option "-fopenmp" to
         // the compiler command line. If the compiler does not understand
         // OpenMP, the #pragma will be ignored. This is shown as an example.
         // There are probably other loops in the program that could be
@@ -984,7 +986,7 @@ void Net::calculateOverallNetError(const Sample &sample)
 
     error /= 2.0 * outputLayer.neurons.size();
 
-    // Regularization calculations -- this is an experimental implementaiton.
+    // Regularization calculations -- this is an experimental implementation.
     // If this experiment works, we should instead calculate the sum of weights
     // on the fly during backprop to see if that is better performance.
     // This adds an error term calculated from the sum of squared weights. This encourages
@@ -1828,7 +1830,6 @@ void Net::actOnMessageReceived(Message_t &msg)
     else if (token.find("pause") == 0) {
         isRunning = false;
         cout << "Pause" << endl;
-        sleep(0.5);
     }
 
     else if (token.find("reportEveryNth=") == 0) {
@@ -1893,7 +1894,6 @@ void Net::actOnMessageReceived(Message_t &msg)
 #if defined(ENABLE_WEBSERVER) && !defined(DISABLE_WEBSERVER)
 void Net::doCommand()
 {
-#if defined(ENABLE_WEBSERVER) && !defined(DISABLE_WEBSERVER)
     // Check the web interface:
     do {
         Message_t msg;
@@ -1902,10 +1902,9 @@ void Net::doCommand()
             actOnMessageReceived(msg);
         }
         if (!isRunning) {
-            sleep(0.5);
+            usleep(100000); // Slow the polling
         }
     } while (!isRunning);
-#endif
 }
 #endif
 

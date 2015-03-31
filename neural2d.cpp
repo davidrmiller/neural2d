@@ -55,7 +55,6 @@ int main(int argc, char **argv)
             if (myNet.recentAverageError < myNet.doneErrorThreshold) {
                 cout << "Solved!   -- Saving weights..." << endl;
                 myNet.saveWeights(weightsFilename);
-                sleep(2); // Do whatever else needs to be done here
                 exit(0);
             }
         }

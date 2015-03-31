@@ -16,7 +16,7 @@
 COMPILER=g++ -std=c++11 -pthread
 
 # Non-essential options:
-EXTRACFLAGS=-g -O1 -Wall -Wextra -pedantic -Wno-missing-field-initializers -fopenmp
+EXTRACFLAGS=-g -O2 -Wall -Wextra -pedantic -Wno-missing-field-initializers -fopenmp
 
 
 all: neural2d

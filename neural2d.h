@@ -107,11 +107,6 @@ See https://github.com/davidrmiller/neural2d for more information.
     #include "webserver.h"
 #endif
 
-#include <unistd.h>    // For sleep()
-
-
-using namespace std;
-
 
 // Everything we define in this file will be inside the NNet namespace. This keeps
 // all of our definitions out of the global namespace. (You can indent all the source
@@ -119,6 +114,7 @@ using namespace std;
 //
 namespace NNet {
 
+using namespace std;
 
 enum ColorChannel_t { R, G, B, BW };
 
