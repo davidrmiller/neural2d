@@ -517,7 +517,18 @@ void Neuron::updateInputWeights(float eta, float alpha)
     // The weights to be updated are the weights from the neurons in the
     // preceding layer (the source layer) to this neuron:
 
-    for (auto idx : backConnectionsIndices) {
+    // Optionally enable the following #pragma line to permit OpenMP to
+    // parallelize this loop. For clang or gcc, add the option "-fopenmp" to
+    // the compiler command line. If the compiler does not understand OpenMP,
+    // the #pragma will be ignored. This particular parallelization does not
+    // gain much performance, perhaps because the memory accesses during
+    // backprop are so randomly distributed, thwarting the cache mechanisms.
+    // The memory layout favors optimization of the feedForward() loops more
+    // than the backprop loops.
+
+//#pragma omp parallel for
+    for (size_t i = 0; i < backConnectionsIndices.size(); ++i) {
+        size_t idx = backConnectionsIndices[i];
         Connection &conn = (*pConnections)[idx];
 
         const Neuron &fromNeuron = conn.fromNeuron;
@@ -874,16 +885,7 @@ void Net::backProp(const Sample &sample)
         Layer &layer = layers[layerNum];
 
         if (!layer.params.isConvolutionLayer) {
-
-        // Optionally enable the following #pragma line to permit OpenMP to
-        // parallelize this loop. For clang or gcc, add the option "-fopenmp" to
-        // the compiler command line. If the compiler does not understand
-        // OpenMP, the #pragma will be ignored.
-
-#pragma omp parallel for
-
-            for (size_t i = 0; i < layer.neurons.size(); ++i) {
-                Neuron &neuron = layer.neurons[i];
+            for (auto &neuron : layer.neurons) {
                 neuron.updateInputWeights(eta, alpha);
             }
         }
@@ -932,12 +934,9 @@ void Net::feedForward(Sample &sample)
         // Optionally enable the following #pragma line to permit OpenMP to
         // parallelize this loop. For clang or gcc, add the option "-fopenmp" to
         // the compiler command line. If the compiler does not understand
-        // OpenMP, the #pragma will be ignored. This is shown as an example.
-        // There are probably other loops in the program that could be
-        // parallelized to get even better performance.
+        // OpenMP, the #pragma will be safely ignored.
 
-#pragma omp parallel for
-
+//#pragma omp parallel for
         for (uint32_t i = 0; i < layer.neurons.size(); ++i) {
             layer.neurons[i].feedForward();
         }
@@ -995,7 +994,6 @@ void Net::calculateOverallNetError(const Sample &sample)
 
     float sumWeightsSquared_ = 0.0;
     if (lambda != 0.0) {
-#pragma omp parallel for reduction(+:sumWeightsSquared_)
         for (size_t i = 0; i < connections.size(); ++i) {
             sumWeightsSquared_ += connections[i].weight;
         }

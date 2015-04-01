@@ -15,8 +15,8 @@
 # Specify a compiler invocation that understands C++11 with whatever options it requires:
 COMPILER=g++ -std=c++11 -pthread
 
-# Non-essential options:
-EXTRACFLAGS=-g -O2 -Wall -Wextra -pedantic -Wno-missing-field-initializers -fopenmp
+# Non-essential options, e.g., add -fopenmp to enable OpenMP
+EXTRACFLAGS=-g -O2 -Wall -Wextra -pedantic -Wno-missing-field-initializers
 
 
 all: neural2d
