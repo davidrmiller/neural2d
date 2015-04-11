@@ -23,8 +23,8 @@ all: neural2d
 
 # The next rules make the neural2d program.
 
-neural2d: neural2d.o neural2d-core.o webserver.o Makefile
-	$(COMPILER) $(EXTRACFLAGS) neural2d.o neural2d-core.o webserver.o -o neural2d
+neural2d: neural2d.o neural2d-core.o messagequeue.o webserver.o Makefile
+	$(COMPILER) $(EXTRACFLAGS) neural2d.o neural2d-core.o messagequeue.o webserver.o -o neural2d
 
 neural2d.o: neural2d.cpp neural2d.h Makefile
 	$(COMPILER) $(EXTRACFLAGS) -c neural2d.cpp -o neural2d.o
@@ -32,11 +32,14 @@ neural2d.o: neural2d.cpp neural2d.h Makefile
 neural2d-core.o: neural2d-core.cpp neural2d.h Makefile
 	$(COMPILER) $(EXTRACFLAGS) -c neural2d-core.cpp -o neural2d-core.o
 
+messagequeue.o: messagequeue.cpp messagequeue.h Makefile
+	$(COMPILER) $(EXTRACFLAGS) -c messagequeue.cpp -o messagequeue.o
+
 webserver.o: webserver.cpp neural2d.h webserver.h Makefile
 	$(COMPILER) $(EXTRACFLAGS) -c webserver.cpp -o webserver.o
 
 clean:
-	rm neural2d neural2d.o neural2d-core.o webserver.o
+	rm neural2d neural2d.o neural2d-core.o messagequeue.o webserver.o
 
 # Run neural2d on a test set of images (the easy digits demo):
 

@@ -25,38 +25,13 @@ For more info, see neural2d.h and https://github.com/davidrmiller/neural2d
 
 using namespace std;
 
-
 // For web server:
 #include <sys/socket.h>
 #include <netinet/in.h>
 
+#include "messagequeue.h"
+
 namespace NNet {
-
-// A Thread-safe FIFO; pushes to the back, pops from the front. Push and
-// pop are always non-blocking. If the queue is empty, pop() immediately
-// returns with s set to an empty string.
-
-struct Message_t
-{
-    Message_t(void) { text = ""; httpResponseFileDes = -1; };
-    string text;
-    int httpResponseFileDes;
-};
-
-class MessageQueue
-{
-public:
-    MessageQueue() { };
-    void push(Message_t &msg);
-    void pop(Message_t &msg);
-    MessageQueue(const MessageQueue &) = delete;            // No copying
-    MessageQueue &operator=(const MessageQueue &) = delete; // No assignment
-
-private:
-    queue<Message_t> mqueue;
-    mutex mmutex;
-};
-
 
 class WebServer
 {
