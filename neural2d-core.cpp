@@ -7,6 +7,7 @@ See neural2d.h for more information.
 */
 
 #include <cctype>
+#include <cmath>
 #include <utility>  // for pair()
 #include <unistd.h> // For sleep() or usleep()
 

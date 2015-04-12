@@ -203,7 +203,7 @@ void WebServer::webServerThread(int portNumber, MessageQueue &messages)
     int optval = 1;
     setsockopt(socketFd, SOL_SOCKET, SO_REUSEADDR, &optval, sizeof(optval));
 
-    if (-1 == bind(socketFd, (struct sockaddr *)&stSockAddr, sizeof(stSockAddr))) {
+    if (-1 == ::bind(socketFd, (struct sockaddr *)&stSockAddr, sizeof(stSockAddr))) {
         cerr << "Cannot bind socket for the web server interface\n\n" << endl;
         close(socketFd);
         exit(1);
