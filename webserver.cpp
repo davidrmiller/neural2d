@@ -22,29 +22,6 @@ For more information, see neural2d.h and https://github.com/davidrmiller/neural2
 
 namespace NNet {
 
-// Message queue
-// A Thread-safe non-blocking FIFO; pushes to the back, pops from the front.
-// If the queue is empty, pop() immediately returns with msg set to an empty string.
-
-void MessageQueue::push(Message_t &msg)
-{
-    unique_lock<mutex> locker(mmutex);
-    mqueue.push(msg);
-}
-
-void MessageQueue::pop(Message_t &msg)
-{
-    unique_lock<std::mutex> locker(mmutex);
-    if (mqueue.empty()) {
-        msg.text = "";
-        msg.httpResponseFileDes = -1;
-    } else {
-        msg = mqueue.front();
-        mqueue.pop();
-    }
-}
-
-
 //  ***********************************  Web server  ***********************************
 
 WebServer::WebServer(void)
