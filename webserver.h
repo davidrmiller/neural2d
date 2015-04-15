@@ -19,11 +19,7 @@ For more info, see neural2d.h and https://github.com/davidrmiller/neural2d
     }
 #endif
 
-#include <condition_variable> // For mutex
-#include <queue>
 #include <string>
-
-using namespace std;
 
 // For web server:
 #include <sys/socket.h>
@@ -40,19 +36,19 @@ public:
     ~WebServer(void);
     void start(int portNumber, MessageQueue &messages);
     void stopServer(void);
-    void sendHttpResponse(string parameterBlock, int httpResponseFileDes);
+    void sendHttpResponse(std::string parameterBlock, int httpResponseFileDes);
     void webServerThread(int portNumber, MessageQueue &messageQueue);
     int portNumber;
     int socketFd;
 
 private:
     void initializeHttpResponse(void);
-    void extractAndQueueMessage(string s, int httpConnectionFd, MessageQueue &messages);
+    void extractAndQueueMessage(std::string s, int httpConnectionFd, MessageQueue &messages);
     void replyToUnknownRequest(int httpConnectionFd);
 
     bool firstAccess;  // So that we can do something different on the first HTTP request
-    string firstPart;  // First part of the HTTP response
-    string secondPart; // Last part of the HTTP response
+    std::string firstPart;  // First part of the HTTP response
+    std::string secondPart; // Last part of the HTTP response
 };
 
 }

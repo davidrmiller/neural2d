@@ -4,18 +4,22 @@ David R. Miller, 2014, 2015
 For more information, see neural2d.h and https://github.com/davidrmiller/neural2d .
 */
 
+// C Standard includes
 #include <cassert>
-#include <condition_variable> // For mutex
 #include <cstdint>
 #include <cstdlib>
+
+// C++ Standard includes
 #include <fstream>
 #include <iostream>
 #include <sstream>
 #include <string>
 #include <thread>
+#include <functional>
+
+// POSIX Includes
 #include <unistd.h>     // POSIX, for read(), write(), close()
 #include <sys/types.h>  // For setsockopt() and SO_REUSEADDR
-#include <sys/socket.h> // For setsockopt() and SO_REUSEADDR
 
 #include "webserver.h"
 
@@ -39,7 +43,7 @@ WebServer::~WebServer(void)
 void WebServer::stopServer(void)
 {
     if (socketFd != -1) {
-        cout << "Closing webserver socket..." << endl;
+        std::cout << "Closing webserver socket..." << std::endl;
         shutdown(socketFd, SHUT_RDWR);
         close(socketFd);
         socketFd = -1;
@@ -56,7 +60,7 @@ void WebServer::stopServer(void)
 void WebServer::initializeHttpResponse(void)
 {
     // Keep appending lines to firstPart until we get the line with the sentinel:
-    ifstream httpTemplate("http-response-template.txt");
+    std::ifstream httpTemplate("http-response-template.txt");
     if (!httpTemplate.is_open()) {
         firstPart = "Cannot open file \"http-response-template.txt\"; web server is disabled.\r\n";
         return;
@@ -68,8 +72,8 @@ void WebServer::initializeHttpResponse(void)
     int part = 1; // The lines before the sentinel goes into firstPart
 
     while (httpTemplate.good()) {
-        string line;
-        getline(httpTemplate, line);
+        std::string line;
+        std::getline(httpTemplate, line);
 
         // Add \r\n; the \r may already be there:
 
@@ -89,7 +93,7 @@ void WebServer::initializeHttpResponse(void)
 
         // If this is the line with the sentinel, we'll change to secondPart for the rest:
 
-        if (line.find("Parameter block") != string::npos) {
+        if (line.find("Parameter block") != std::string::npos) {
             part = 2;
         }
     }
@@ -100,7 +104,7 @@ void WebServer::initializeHttpResponse(void)
 //
 void WebServer::replyToUnknownRequest(int httpConnectionFd)
 {
-    string response = "HTTP/1.1 404 Not Found\r\nContent-Type: text/html\r\nConnection: close\r\n\r\n";
+    std::string response = "HTTP/1.1 404 Not Found\r\nContent-Type: text/html\r\nConnection: close\r\n\r\n";
 
     send(httpConnectionFd, response.c_str(), response.length(), 0);
 
@@ -112,7 +116,7 @@ void WebServer::replyToUnknownRequest(int httpConnectionFd)
 // If this is the first GET or POST we receive, we'll treat it as if it were
 // "GET / " of the root document.
 //
-void WebServer::extractAndQueueMessage(string s, int httpConnectionFd, MessageQueue &messages)
+void WebServer::extractAndQueueMessage(std::string s, int httpConnectionFd, MessageQueue &messages)
 {
     struct Message_t msg;
     size_t pos;
@@ -120,18 +124,18 @@ void WebServer::extractAndQueueMessage(string s, int httpConnectionFd, MessageQu
     if (firstAccess) {
         msg.text = ""; // Causes a default web form html page to be sent back
         firstAccess = false;
-    } else if ((pos = s.find("POST /")) != string::npos) {
+    } else if ((pos = s.find("POST /")) != std::string::npos) {
         // POST
         pos = s.find("\r\n\r\n");
-        assert(pos != string::npos);
+        assert(pos != std::string::npos);
         msg.text = s.substr(pos + 4);
-    } else if ((pos = s.find("GET /?")) != string::npos) {
+    } else if ((pos = s.find("GET /?")) != std::string::npos) {
         // GET with an argument
-        string rawMsg = s.substr(pos + 6);
+        std::string rawMsg = s.substr(pos + 6);
         pos = rawMsg.find(" ");
-        assert(pos != string::npos);
+        assert(pos != std::string::npos);
         msg.text = rawMsg.substr(0, pos);
-    } else if ((pos = s.find("GET /")) != string::npos) {
+    } else if ((pos = s.find("GET /")) != std::string::npos) {
         // GET without an argument
         msg.text = "";
     } else {
@@ -140,7 +144,7 @@ void WebServer::extractAndQueueMessage(string s, int httpConnectionFd, MessageQu
         return;
     }
 
-    //cout << "msg.text = " << msg.text << endl;
+    //std::cout << "msg.text = " << msg.text << std::endl;
 
     msg.httpResponseFileDes = httpConnectionFd;
     messages.push(msg);
@@ -150,7 +154,7 @@ void WebServer::extractAndQueueMessage(string s, int httpConnectionFd, MessageQu
 void WebServer::start(int portNumber_, MessageQueue &messages)
 {
     portNumber = portNumber_;
-    thread webThread(&WebServer::webServerThread, this, portNumber, ref(messages));
+    std::thread webThread(&WebServer::webServerThread, this, portNumber, std::ref(messages));
     webThread.detach();
 }
 
@@ -158,9 +162,9 @@ void WebServer::start(int portNumber_, MessageQueue &messages)
 // The argument parameterBlock needs to be passed by value because it comes from
 // a different thread:
 //
-void WebServer::sendHttpResponse(string parameterBlock, int httpResponseFileDes)
+void WebServer::sendHttpResponse(std::string parameterBlock, int httpResponseFileDes)
 {
-    string response = firstPart + parameterBlock + secondPart;
+    std::string response = firstPart + parameterBlock + secondPart;
     const char *buf = response.c_str();
 
     size_t lenToSend = response.length();
@@ -187,7 +191,7 @@ void WebServer::webServerThread(int portNumber, MessageQueue &messages)
     socketFd = socket(PF_INET, SOCK_STREAM, IPPROTO_TCP);
 
     if (-1 == socketFd) {
-        cerr << "Cannot create socket for the web server interface" << endl;
+        std::cerr << "Cannot create socket for the web server interface" << std::endl;
         //exit(1);
         return;
     }
@@ -203,27 +207,27 @@ void WebServer::webServerThread(int portNumber, MessageQueue &messages)
     int optval = 1;
     setsockopt(socketFd, SOL_SOCKET, SO_REUSEADDR, &optval, sizeof(optval));
 
-    if (-1 == ::bind(socketFd, (struct sockaddr *)&stSockAddr, sizeof(stSockAddr))) {
-        cerr << "Cannot bind socket for the web server interface\n\n" << endl;
+    if (-1 == bind(socketFd, (struct sockaddr *)&stSockAddr, sizeof(stSockAddr))) {
+        std::cerr << "Cannot bind socket for the web server interface\n\n" << std::endl;
         close(socketFd);
         exit(1);
         return;
     }
 
     if (-1 == listen(socketFd, 10)) {
-        cerr << "Web server network failure" << endl;
+        std::cerr << "Web server network failure" << std::endl;
         close(socketFd);
         //exit(1);
         return;
     }
 
-    cout << "Web server started." << endl;
+    std::cout << "Web server started." << std::endl;
 
     while (true) {
         int httpConnectionFd = accept(socketFd, NULL, NULL);
 
         if (0 > httpConnectionFd) {
-            cerr << "Webserver failed to accept connection" << endl;
+            std::cerr << "Webserver failed to accept connection" << std::endl;
             close(socketFd);
             //exit(1);
             return;
