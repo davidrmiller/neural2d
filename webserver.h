@@ -7,18 +7,6 @@ For more info, see neural2d.h and https://github.com/davidrmiller/neural2d
 #ifndef NEURAL_WEBSERVER
 #define NEURAL_WEBSERVER
 
-#if defined(__CYGWIN__)
-// On Windows, cygwin is missing to_string(), so we'll make one here:
-#include <sstream>
-    template <typename T>
-    std::string to_string(T value)
-    {
-      std::ostringstream os;
-      os << value;
-      return os.str();
-    }
-#endif
-
 #include <string>
 
 // For web server:
