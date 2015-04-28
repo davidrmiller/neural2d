@@ -16,8 +16,7 @@
 COMPILER=g++ -std=c++11 -pthread
 
 # Non-essential options, e.g., add -fopenmp to enable OpenMP
-#EXTRACFLAGS=-g -O2 -Wall -Wextra -pedantic -Wno-missing-field-initializers
-EXTRACFLAGS=-g -O2 -Wall -Wextra -pedantic -Wno-missing-field-initializers -DDISABLE_WEBSERVER
+EXTRACFLAGS=-g -O2 -Wall -Wextra -pedantic -Wno-missing-field-initializers
 
 
 all: neural2d
