@@ -35,4 +35,9 @@ images/digits/inputData.txt
 neural2d
 neural2d.cbp
 neural2d.layout
+inputDataUnitTest.txt
+topologyUnitTest.txt
+unitTest
+unitTestOutputRedirect
+unitTestTempOutput
 
