@@ -15,6 +15,7 @@ using namespace std;
 namespace NNet {
 
 class unitTestException : std::exception { };
+extern float pixelToNetworkInputRange(unsigned val);
 
 // Unit tests use the following macros to log information and report problems.
 // The only console output from a unit test should be the result of invoking
@@ -729,17 +730,10 @@ int unitTestImages()
         auto data = myNet.sampleSet.samples[0].getData(NNet::R);
         ASSERT_EQ(data.size(), 8*8);
 
-        // Use these tests if pixel data is converted to the range -1..1:
-        ASSERT_EQ(data[0],  30/128. - 1);
-        ASSERT_EQ(data[1], 101/128. - 1);
-        ASSERT_EQ(data[7],  40/128. - 1);
-        ASSERT_EQ(data[63], 20/128. - 1);
-
-        // Use these tests if pixel data is converted to the range 0..1:
-//        ASSERT_EQ(data[0],  30/256. - 0.5);
-//        ASSERT_EQ(data[1], 101/256. - 0.5);
-//        ASSERT_EQ(data[7],  40/256. - 0.5);
-//        ASSERT_EQ(data[63], 20/256. - 0.5);
+        ASSERT_EQ(data[0],   pixelToNetworkInputRange(30));
+        ASSERT_EQ(data[1],   pixelToNetworkInputRange(101));
+        ASSERT_EQ(data[7],   pixelToNetworkInputRange(40));
+        ASSERT_EQ(data[63],  pixelToNetworkInputRange(20));
     }
 
     {
@@ -771,35 +765,37 @@ int unitTestImages()
         myNet.sampleSet.loadSamples(inputDataConfigFilename);
         auto data = myNet.sampleSet.samples[0].getData(NNet::R);
 
-        // Use these tests if pixel data is converted to the range -1..1:
-        ASSERT_EQ(data[0],  8/128. - 1);
-        ASSERT_EQ(data[1],  8/128. - 1);
-        ASSERT_EQ(data[8],  7/128. - 1);
-        ASSERT_EQ(data[63], 1/128. - 1);
+        ASSERT_EQ(data[0],  pixelToNetworkInputRange(8));
+        ASSERT_EQ(data[1],  pixelToNetworkInputRange(8));
+        ASSERT_EQ(data[8],  pixelToNetworkInputRange(7));
+        ASSERT_EQ(data[63], pixelToNetworkInputRange(1));
 
         myNet.feedForward(myNet.sampleSet.samples[0]);
-        ASSERT_EQ(myNet.layers.back().neurons[0].output, 64 * (((1+8)/2.) / 128. - 1) + 1);
+        // Output should be the sum of 64 input values of pixels with values from 1..8.
+        //   plus a bias input of 1.0:
+        float avgInputVal = (pixelToNetworkInputRange(1) + pixelToNetworkInputRange(8)) / 2.0;
+        ASSERT_EQ(myNet.layers.back().neurons[0].output, 64 * avgInputVal + 1.0);
 
         myNet.sampleSet.clearImageCache();
         data = myNet.sampleSet.samples[0].getData(NNet::R);
-        ASSERT_EQ(data[0],  8/128. - 1);
-        ASSERT_EQ(data[1],  8/128. - 1);
-        ASSERT_EQ(data[8],  7/128. - 1);
-        ASSERT_EQ(data[63], 1/128. - 1);
+        ASSERT_EQ(data[0],  pixelToNetworkInputRange(8));
+        ASSERT_EQ(data[1],  pixelToNetworkInputRange(8));
+        ASSERT_EQ(data[8],  pixelToNetworkInputRange(7));
+        ASSERT_EQ(data[63], pixelToNetworkInputRange(1));
 
         myNet.sampleSet.clearImageCache();
         data = myNet.sampleSet.samples[0].getData(NNet::G);
-        ASSERT_EQ(data[0],  1/128. - 1);
-        ASSERT_EQ(data[1],  2/128. - 1);
-        ASSERT_EQ(data[8],  1/128. - 1);
-        ASSERT_EQ(data[63], 8/128. - 1);
+        ASSERT_EQ(data[0],  pixelToNetworkInputRange(1));
+        ASSERT_EQ(data[1],  pixelToNetworkInputRange(2));
+        ASSERT_EQ(data[8],  pixelToNetworkInputRange(1));
+        ASSERT_EQ(data[63], pixelToNetworkInputRange(8));
 
         myNet.sampleSet.clearImageCache();
         data = myNet.sampleSet.samples[0].getData(NNet::B);
-        ASSERT_EQ(data[0], 127/128. - 1);
-        ASSERT_EQ(data[1], 127/128. - 1);
-        ASSERT_EQ(data[8], 127/128. - 1);
-        ASSERT_EQ(data[63],127/128. - 1);
+        ASSERT_EQ(data[0], pixelToNetworkInputRange(127));
+        ASSERT_EQ(data[1], pixelToNetworkInputRange(127));
+        ASSERT_EQ(data[8], pixelToNetworkInputRange(127));
+        ASSERT_EQ(data[63],pixelToNetworkInputRange(127));
     }
 
     return 0;

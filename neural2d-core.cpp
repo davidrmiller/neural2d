@@ -183,6 +183,23 @@ void layerParams_t::clear(void)
 
 // ***********************************  Input samples  ***********************************
 
+// Given an integer 8=bit pixel value in the range 0..255, convert that into
+// a floating point value that can be input directly into the input layer of
+// the neural net.
+//
+float pixelToNetworkInputRange(unsigned val)
+{
+    // Return a value in the range -1..1:
+    return val / 128.0 - 1.0;
+
+    // Alternatively, return a value in the range 0..1:
+    //return val / 256.0;
+
+    // Alternatively, return a value in the range -0.5..0.5:
+    //return val / 256.0 - 0.5;
+}
+
+
 // Given an image filename and a data container, fill the container with
 // data extracted from the image, using the conversion function specified
 // in colorChannel:
@@ -259,10 +276,9 @@ void ReadBMP(const string &filename, vector<float> &dataContainer, ColorChannel_
             throw exceptionImageFile();
         }
 
-        // BMP pixels are arranged in memory in the order (B, G, R). We'll convert
-        // the pixel to a float using one of the conversions below:
+        // BMP pixels are arranged in memory in the order (B, G, R):
 
-        float val = 0.0;
+        unsigned val = 0.0;
 
         for (uint32_t x = 0; x < width; ++x) {
             if (colorChannel == NNet::R) {
@@ -280,13 +296,9 @@ void ReadBMP(const string &filename, vector<float> &dataContainer, ColorChannel_
                 throw exceptionImageFile();
             }
 
-            // Convert the pixel value to the range -1.0..1.0:
-            // This value will be the input to an input neuron:
-            dataContainer.push_back(val / 128.0 - 1.0);
-
-            // Alternatively:
-            // Convert the pixel value to the range 0.0..1.0:
-            //dataContainer.push_back(val / 256.0);
+            // Convert the pixel from the range 0..256 to a smaller
+            // range that we can input into the neural net:
+            dataContainer.push_back(pixelToNetworkInputRange(val));
         }
     }
 
