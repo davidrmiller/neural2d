@@ -14,6 +14,9 @@ using namespace std;
 
 namespace NNet {
 
+// Define to skip exception testing:
+//#define SKIP_TEST_EXCEPTIONS
+
 class unitTestException : std::exception { };
 extern float pixelToNetworkInputRange(unsigned val);
 
@@ -501,6 +504,7 @@ int unitTestConfigParser()
         ASSERT_EQ(spec->layerParams.convolveMatrix[0][0].size(), 4);
     }
 
+#ifndef SKIP_TEST_EXCEPTIONS
     {
         LOG("convolve filter matrix spec unequal rows");
 
@@ -513,6 +517,7 @@ int unitTestConfigParser()
 
         ASSERT_THROWS(myNet.parseTopologyConfig(ss), exceptionConfigFile);
     }
+#endif
 
     {
         LOG("pool param");
@@ -591,6 +596,14 @@ int unitTestNet()
 
         ASSERT_EQ(myNet.connections.size(), 8*6*10*10 + 8*6);
     }
+
+    return 0;
+}
+
+
+int unitTestConvolutionFilter()
+{
+    LOG("unitTestConvolutionFilter()");
 
     {
         LOG("radius parameter");
@@ -673,6 +686,80 @@ int unitTestNet()
         myNet.projectRectangular = true;
         myNet.configureNetwork(myNet.parseTopologyConfig(ss));
         ASSERT_EQ(myNet.connections.size(), 9 + 1); // Assumes elliptical projection
+    }
+
+    {
+        LOG("Convolution kernel radius 1x0");
+
+        string topologyConfig =
+            "input size 8x8 channel R\n"
+            "output size 8x8 from input radius 1x0 tf linear\n"; // 3 cols, one row
+
+        string inputDataConfig =
+            "images/8x8-test11.bmp\n";
+
+        const string topologyConfigFilename = "./topologyUnitTest.txt";
+        const string inputDataConfigFilename = "./inputDataUnitTest.txt";
+
+        std::ofstream topologyConfigFile(topologyConfigFilename);
+        topologyConfigFile << topologyConfig;
+        topologyConfigFile.close();
+
+        std::ofstream inputDataConfigFile(inputDataConfigFilename);
+        inputDataConfigFile << inputDataConfig;
+        inputDataConfigFile.close();
+
+        Net myNet(topologyConfigFilename);
+        setAllWeights(myNet, 1.0);
+
+        myNet.sampleSet.loadSamples(inputDataConfigFilename);
+        auto data = myNet.sampleSet.samples[0].getData(NNet::R);
+        ASSERT_EQ(data[3], pixelToNetworkInputRange(8));
+        ASSERT_EQ(data[4], pixelToNetworkInputRange(8));
+        ASSERT_EQ(data[5], pixelToNetworkInputRange(8));
+
+        myNet.feedForward(myNet.sampleSet.samples[0]);
+        auto &outputLayer = myNet.layers.back();
+        // Neuron 4 is on a row of all 8's, so its output should be the sum
+        // of three pixels of value 8 plus a bias:
+        ASSERT_EQ(outputLayer.neurons[4].output, 3 * pixelToNetworkInputRange(8) + 1.0);
+    }
+
+    {
+        LOG("Convolution kernel radius 0x1");
+
+        string topologyConfig =
+            "input size 8x8 channel G\n"
+            "output size 8x8 from input radius 0x1 tf linear\n"; // One col, 3 rows
+
+        string inputDataConfig =
+            "images/8x8-test11.bmp\n";
+
+        const string topologyConfigFilename = "./topologyUnitTest.txt";
+        const string inputDataConfigFilename = "./inputDataUnitTest.txt";
+
+        std::ofstream topologyConfigFile(topologyConfigFilename);
+        topologyConfigFile << topologyConfig;
+        topologyConfigFile.close();
+
+        std::ofstream inputDataConfigFile(inputDataConfigFilename);
+        inputDataConfigFile << inputDataConfig;
+        inputDataConfigFile.close();
+
+        Net myNet(topologyConfigFilename);
+        setAllWeights(myNet, 1.0);
+
+        myNet.sampleSet.loadSamples(inputDataConfigFilename);
+        auto data = myNet.sampleSet.samples[0].getData(NNet::G);
+        myNet.feedForward(myNet.sampleSet.samples[0]);
+
+        // Neuron 8 is on a col of all 1's, so its output should be the sum
+        // of three pixels of value 1 plus a bias:
+        ASSERT_EQ(myNet.layers.back().neurons[8].output, 3 * pixelToNetworkInputRange(1) + 1.0);
+
+        // Neuron 15 is on a col of all 8's, so its output should be the sum
+        // of three pixels of value 8 plus a bias:
+        ASSERT_EQ(myNet.layers.back().neurons[15].output, 3 * pixelToNetworkInputRange(8) + 1.0);
     }
 
     return 0;
@@ -868,6 +955,7 @@ int main()
     try {
         NNet::unitTestConfigParser();
         NNet::unitTestNet();
+        NNet::unitTestConvolutionFilter();
         NNet::unitTestImages();
         NNet::unitTestMisc();
     } catch (...) {

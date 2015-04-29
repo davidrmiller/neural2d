@@ -183,7 +183,7 @@ void layerParams_t::clear(void)
 
 // ***********************************  Input samples  ***********************************
 
-// Given an integer 8=bit pixel value in the range 0..255, convert that into
+// Given an integer 8-bit pixel value in the range 0..255, convert that into
 // a floating point value that can be input directly into the input layer of
 // the neural net.
 //
