@@ -7,17 +7,15 @@ For more info, see neural2d.h.
 
 #include "neural2d.h"
 
-using namespace std;
-
 int main(int argc, char **argv)
 {
     // We need two or three filenames -- we can define them here, or get them from
     // the command line. If they are specified on the command line, they must be in
     // the order: topology, input-data, and optionally, weights.
 
-    string topologyFilename = "topology.txt";   // Always needed
-    string inputDataFilename = "inputData.txt"; // Always needed
-    string weightsFilename = "weights.txt";     // Needed only if saving or restoring weights
+    std::string topologyFilename = "topology.txt";   // Always needed
+    std::string inputDataFilename = "inputData.txt"; // Always needed
+    std::string weightsFilename = "weights.txt";     // Needed only if saving or restoring weights
 
     if (argc > 1) topologyFilename  = argv[1];
     if (argc > 2) inputDataFilename = argv[2];
@@ -53,14 +51,14 @@ int main(int argc, char **argv)
             myNet.backProp(sample);
             myNet.reportResults(sample);
             if (myNet.recentAverageError < myNet.doneErrorThreshold) {
-                cout << "Solved!   -- Saving weights..." << endl;
+                std::cout << "Solved!   -- Saving weights..." << std::endl;
                 myNet.saveWeights(weightsFilename);
                 exit(0);
             }
         }
     } while (myNet.repeatInputSamples);
 
-    cout << "Done." << endl;
+    std::cout << "Done." << std::endl;
 
     return 0;
 }
