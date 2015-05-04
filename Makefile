@@ -42,7 +42,7 @@ parseTopologyConfig.o: parseTopologyConfig.cpp neural2d.h Makefile
 	$(COMPILER) $(EXTRACFLAGS) -c parseTopologyConfig.cpp -o parseTopologyConfig.o
 
 clean:
-	rm neural2d neural2d.o neural2d-core.o messagequeue.o webserver.o parseTopologyConfig.o
+	rm neural2d neural2d.o neural2d-core.o messagequeue.o webserver.o parseTopologyConfig.o unitTest.o
 
 # Run neural2d on a test set of images (the easy digits demo):
 

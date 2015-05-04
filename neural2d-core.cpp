@@ -755,19 +755,22 @@ void Net::reportResults(const Sample &sample) const
 // connections. This happens when a layer specification is repeated in
 // the config file, thus creating connections to source neurons from
 // multiple layers. This applies to regular neurons and neurons in a
-// convolution layer. Returns false for any error, true if successful.
+// convolution filter or convolution network layer. Returns false for
+// any error, true if successful.
 //
 bool Net::addToLayer(Layer &layerTo, Layer &layerFrom)
 {
-    for (uint32_t ny = 0; ny < layerTo.params.size.y; ++ny) {
-        info << "\r" << ny << std::flush; // Progress indicator
+    for (uint32_t depth = 0; depth < layerTo.params.size.depth; ++depth) {
+        for (uint32_t ny = 0; ny < layerTo.params.size.y; ++ny) {
+            info << "\r" << ny << std::flush; // Progress indicator
 
-        for (uint32_t nx = 0; nx < layerTo.params.size.x; ++nx) {
-            //info << "connect to neuron " << nx << "," << ny << endl;
-            connectNeuron(layerTo, layerFrom,
-                          layerTo.neurons[flattenDXY(0, nx, ny, layerTo.params.size)],
-                          nx, ny);
-            // n.b. Bias connections were already made when the neurons were first created.
+            for (uint32_t nx = 0; nx < layerTo.params.size.x; ++nx) {
+                //info << "connect to neuron " << nx << "," << ny << endl;
+                    connectNeuron(layerTo, layerFrom,
+                                  layerTo.neurons[flattenDXY(depth, nx, ny, layerTo.params.size)],
+                                  nx, ny);
+                    // n.b. Bias connections were already made when the neurons were first created.
+            }
         }
     }
 
@@ -806,7 +809,8 @@ void Net::debugShowNet(bool details)
         numFwdConnections = 0;
         numBackConnections = 0;
         info << "Layer '" << l.params.layerName << "' has " << l.neurons.size()
-             << " neurons arranged in " << l.params.size.x << "x" << l.params.size.y << ":" << endl;
+             << " neurons arranged in " << l.params.size.x << "x" << l.params.size.y
+             << " depth " << l.params.size.depth << ":" << endl;
 
         for (auto const &n : l.neurons) {
             if (details) {
@@ -878,13 +882,18 @@ void Net::backProp(const Sample &sample)
     }
 
     // For all layers from outputs to first hidden layer, in reverse order,
-    // update connection weights for regular neurons. Skip the update in
-    // convolution layers.
+    // update connection weights. Skip the update in convolution filter layers.
 
     for (uint32_t layerNum = layers.size() - 1; layerNum > 0; --layerNum) {
         Layer &layer = layers[layerNum];
 
-        if (!layer.params.isConvolutionFilterLayer) {
+        if (layer.params.isConvolutionNetworkLayer) {
+            for (uint32_t depth = 0; depth < layer.params.size.depth; ++depth) {
+                // To be implemented. See Issue #14.
+                err << "Sorry, convolution networking is not yet implemented. Workingonit." << endl;
+                exit(1); // Temporary.
+            }
+        } else if (!layer.params.isConvolutionFilterLayer) {
             for (auto &neuron : layer.neurons) {
                 neuron.updateInputWeights(eta, alpha);
             }
@@ -1092,54 +1101,58 @@ void Net::connectNeuron(Layer &layerTo, Layer &fromLayer, Neuron &neuron,
     float ycenter = ((float)ymin + (float)ymax) / 2.0;
     uint32_t maxNumSourceNeurons = ((xmax - xmin) + 1) * ((ymax - ymin) + 1);
 
-    for (int32_t y = ymin; y <= ymax; ++y) {
-        for (int32_t x = xmin; x <= xmax; ++x) {
-            if (!params.isConvolutionFilterLayer && !projectRectangular && elliptDist(xcenter - x, ycenter - y,
-                                                  params.radius.x, params.radius.y) >= 1.0) {
-                continue; // Skip this location, it's outside the ellipse
-            }
-
-            if (params.isConvolutionFilterLayer && params.convolveMatrix[0][x - xmin][y - ymin] == 0.0) {
-                // Skip this connection because the convolve matrix weight is zero:
-                continue;
-            }
-
-            Neuron &fromNeuron = fromLayer.neurons[flattenDXY(0, x, y, fromLayer.params.size)];
-
-            bool duplicate = false;
-            if (neuron.sourceNeurons.find(&fromNeuron) != neuron.sourceNeurons.end()) {
-                duplicate = true;
-                break; // Skip this connection, proceed to the next
-            }
-
-            if (!duplicate) {
-                // Add a new Connection record to the main container of connections:
-                connections.push_back(Connection(fromNeuron, neuron));
-                int connectionIdx = connections.size() - 1;  //    and get its index,
-                ++totalNumberConnections;
-
-                // Initialize the weight of the connection:
-                if (params.isConvolutionFilterLayer) {
-                    connections.back().weight = params.convolveMatrix[0][x - xmin][y - ymin];
-                } else {
-                    //connections.back().weight = (randomFloat() - 0.5) / maxNumSourceNeurons;
-                    connections.back().weight = ((randomFloat() * 2) - 1.0) / sqrt(maxNumSourceNeurons);
+    for (uint32_t depth = 0; depth < params.size.depth; ++depth) {
+        for (int32_t y = ymin; y <= ymax; ++y) {
+            for (int32_t x = xmin; x <= xmax; ++x) {
+                if (!params.isConvolutionFilterLayer && !params.isConvolutionNetworkLayer && !projectRectangular
+                                && elliptDist(xcenter - x, ycenter - y,
+                                            params.radius.x, params.radius.y) >= 1.0) {
+                    continue; // Skip this location, it's outside the ellipse
                 }
 
-                // Record the back connection index at the destination neuron:
-                neuron.backConnectionsIndices.push_back(connectionIdx);
+                // For convolution filter layers, there's no need to make a connection for any
+                // kernel weight that is zero:
+                if (params.isConvolutionFilterLayer && params.convolveMatrix[0][x - xmin][y - ymin] == 0.0) {
+                    continue;
+                }
 
-                // Remember the source neuron for detecting duplicate connections:
-                neuron.sourceNeurons.insert(&fromNeuron);
+                Neuron &fromNeuron = fromLayer.neurons[flattenDXY(depth, x, y, fromLayer.params.size)];
 
-                // Record the Connection index at the source neuron:
-                uint32_t flatIdxFrom = flattenDXY(0, x, y, fromLayer.params.size);
-                fromLayer.neurons[flatIdxFrom].forwardConnectionsIndices.push_back(
-                           connectionIdx);
+                bool duplicate = false;
+                if (neuron.sourceNeurons.find(&fromNeuron) != neuron.sourceNeurons.end()) {
+                    duplicate = true;
+                    break; // Skip this connection, proceed to the next
+                }
 
-//                info << "    connect from layer " << fromLayer.params.layerName
-//                     << " at " << x << "," << y
-//                     << " to " << nx << "," << ny << endl;
+                if (!duplicate) {
+                    // Add a new Connection record to the main container of connections:
+                    connections.push_back(Connection(fromNeuron, neuron));
+                    int connectionIdx = connections.size() - 1;  //    and get its index,
+                    ++totalNumberConnections;
+
+                    // Initialize the weight of the connection:
+                    if (params.isConvolutionFilterLayer) {
+                        connections.back().weight = params.convolveMatrix[0][x - xmin][y - ymin];
+                    } else {
+                        //connections.back().weight = (randomFloat() - 0.5) / maxNumSourceNeurons;
+                        connections.back().weight = ((randomFloat() * 2) - 1.0) / sqrt(maxNumSourceNeurons);
+                    }
+
+                    // Record the back connection index at the destination neuron:
+                    neuron.backConnectionsIndices.push_back(connectionIdx);
+
+                    // Remember the source neuron for detecting duplicate connections:
+                    neuron.sourceNeurons.insert(&fromNeuron);
+
+                    // Record the Connection index at the source neuron:
+                    uint32_t flatIdxFrom = flattenDXY(depth, x, y, fromLayer.params.size);
+                    fromLayer.neurons[flatIdxFrom].forwardConnectionsIndices.push_back(
+                               connectionIdx);
+
+    //                info << "    connect from layer " << fromLayer.params.layerName
+    //                     << " at " << x << "," << y
+    //                     << " to " << nx << "," << ny << endl;
+                }
             }
         }
     }
@@ -1188,27 +1201,26 @@ void Net::createNeurons(Layer &layerTo, Layer &layerFrom)
     // Reserve enough space in layer.neurons to prevent reallocation (so that
     // we can form stable references to neurons):
 
-    layerTo.neurons.reserve(layerTo.params.size.x * layerTo.params.size.y);
+    layerTo.neurons.reserve(layerTo.params.size.depth * layerTo.params.size.x * layerTo.params.size.y);
 
-    for (uint32_t ny = 0; ny < layerTo.params.size.y; ++ny) {
+    for (uint32_t depth = 0; depth < layerTo.params.size.depth; ++depth) {
+        for (uint32_t ny = 0; ny < layerTo.params.size.y; ++ny) {
+            info << "\r" << ny << "/" << layerTo.params.size.y << std::flush; // Progress indicator
 
-        info << "\r" << ny << "/" << layerTo.params.size.y << std::flush; // Progress indicator
+            for (uint32_t nx = 0; nx < layerTo.params.size.x; ++nx) {
+                layerTo.neurons.push_back(&layerTo); // This creates a neuron and saves it
+                Neuron &neuron = layerTo.neurons.back(); // Make a more convenient name for it
+                ++totalNumberNeurons;
 
-        for (uint32_t nx = 0; nx < layerTo.params.size.x; ++nx) {
-            // When we create a neuron, we have to give it a pointer to the
-            // start of the array of Connection objects:
-            layerTo.neurons.push_back(&layerTo);
-            Neuron &neuron = layerTo.neurons.back(); // Make a more convenient name
-            ++totalNumberNeurons;
+                // If layerFrom is layerTo, it means we're making input neurons
+                // that have no input connections to the neurons. Else, we must make connections
+                // to the source neurons and, for classic neurons, to a bias input:
 
-            // If layerFrom is layerTo, it means we're making input neurons
-            // that have no input connections to the neurons. Else, we must make connections
-            // to the source neurons and, for classic neurons, to a bias input:
-
-            if (&layerFrom != &layerTo) {
-                connectNeuron(layerTo, layerFrom, neuron, nx, ny);
-                if (!layerTo.params.isConvolutionFilterLayer) {
-                    connectBias(neuron);
+                if (&layerFrom != &layerTo) {
+                    connectNeuron(layerTo, layerFrom, neuron, nx, ny);
+                    if (!layerTo.params.isConvolutionFilterLayer) {
+                        connectBias(neuron);
+                    }
                 }
             }
         }

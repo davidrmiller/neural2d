@@ -29,17 +29,20 @@ extern float pixelToNetworkInputRange(unsigned val);
 #define ASSERT_EQ(c, v) { if (!((c)==(v))) { \
     cerr << "FAIL: in " << __FILE__ << "(" << __LINE__ << "), expected " \
     << (v) << ", got " << (c) << endl; \
-    throw unitTestException(); } }
+    throw unitTestException(); \
+    } }
 
 #define ASSERT_NE(c, v) { if (!((c)!=(v))) { \
     cerr << "FAIL: in " << __FILE__ << "(" << __LINE__ << "), got unexpected " \
     << (v) << endl; \
-    throw unitTestException(); } }
+    throw unitTestException(); \
+    } }
 
 #define ASSERT_GE(c, v) { if (!((c)>=(v))) { \
     cerr << "FAIL: in " << __FILE__ << "(" << __LINE__ << "), expected >=" \
     << (v) << ", got " << (c) << endl; \
-    throw unitTestException(); } }
+    throw unitTestException(); \
+    } }
 
 // This macro verifies that evaluating the expression triggers the specified
 // exception. We guarantee to evaluate the condition c exactly once.
@@ -597,6 +600,94 @@ int unitTestNet()
         ASSERT_EQ(myNet.connections.size(), 8*6*10*10 + 8*6);
     }
 
+    {
+        LOG("neuron connections");
+
+        string topologyConfig =
+            "input size 1\n"
+            "output size 1 from input radius 0x0 tf linear\n"; // One-to-one
+
+        const string topologyConfigFilename = "./topologyUnitTest.txt";
+
+        std::ofstream topologyConfigFile(topologyConfigFilename);
+        topologyConfigFile << topologyConfig;
+        topologyConfigFile.close();
+
+        Net myNet(topologyConfigFilename);
+
+        ASSERT_EQ(myNet.layers.size(), 2);
+        ASSERT_EQ(myNet.layers[0].neurons.size(), 1);
+        ASSERT_EQ(myNet.layers[1].neurons.size(), 1);
+
+        ASSERT_EQ(myNet.layers[0].params.isConvolutionFilterLayer, false);
+        ASSERT_EQ(myNet.layers[0].params.isConvolutionNetworkLayer, false);
+        ASSERT_EQ(myNet.layers[1].params.isConvolutionFilterLayer, false);
+        ASSERT_EQ(myNet.layers[1].params.isConvolutionNetworkLayer, false);
+
+        ASSERT_EQ(myNet.layers[0].params.size.depth, 1);
+        ASSERT_EQ(myNet.layers[0].params.size.x, 1);
+        ASSERT_EQ(myNet.layers[0].params.size.y, 1);
+
+        ASSERT_EQ(myNet.layers[1].params.size.depth, 1);
+        ASSERT_EQ(myNet.layers[1].params.size.x, 1);
+        ASSERT_EQ(myNet.layers[1].params.size.y, 1);
+
+        ASSERT_EQ(myNet.connections.size(), 1+1); // one plus bias
+        ASSERT_EQ(myNet.layers[0].neurons[0].backConnectionsIndices.size(), 0);
+        ASSERT_EQ(myNet.layers[0].neurons[0].forwardConnectionsIndices.size(), 1);
+        ASSERT_EQ(myNet.layers[1].neurons[0].backConnectionsIndices.size(), 2); // Source plus bias
+        ASSERT_EQ(myNet.layers[1].neurons[0].forwardConnectionsIndices.size(), 0);
+
+        ASSERT_EQ(myNet.bias.backConnectionsIndices.size(), 0);
+        ASSERT_EQ(myNet.bias.forwardConnectionsIndices.size(), 1);
+
+        auto const &l0n0 = myNet.layers[0].neurons[0];
+        auto const &l1n0 = myNet.layers[1].neurons[0];
+        auto backIdx = l1n0.backConnectionsIndices[0];
+        auto forwardIdx = l0n0.forwardConnectionsIndices[0];
+        ASSERT_EQ(backIdx, forwardIdx); // Should refer to the same connection record
+
+        auto const &conn = myNet.connections[backIdx];
+        ASSERT_EQ(&conn.fromNeuron, &l0n0);
+        ASSERT_EQ(&conn.toNeuron, &l1n0);
+
+        ASSERT_EQ(&myNet.connections[myNet.bias.forwardConnectionsIndices[0]].toNeuron, &l1n0);
+        ASSERT_EQ(&myNet.connections[l1n0.backConnectionsIndices[1]].fromNeuron, &myNet.bias);
+    }
+
+    {
+        LOG("neuron layer construction and depth");
+
+        string topologyConfig =
+            "input size 8x8 channel G\n"
+            "output size 8x8 from input radius 0x1 tf linear\n"; // One col, 3 rows
+
+        const string topologyConfigFilename = "./topologyUnitTest.txt";
+
+        std::ofstream topologyConfigFile(topologyConfigFilename);
+        topologyConfigFile << topologyConfig;
+        topologyConfigFile.close();
+
+        Net myNet(topologyConfigFilename);
+
+        ASSERT_EQ(myNet.layers.size(), 2);
+        ASSERT_EQ(myNet.layers[0].neurons.size(), 8*8);
+        ASSERT_EQ(myNet.layers[1].neurons.size(), 8*8);
+
+        ASSERT_EQ(myNet.layers[0].params.isConvolutionFilterLayer, false);
+        ASSERT_EQ(myNet.layers[0].params.isConvolutionNetworkLayer, false);
+        ASSERT_EQ(myNet.layers[1].params.isConvolutionFilterLayer, false);
+        ASSERT_EQ(myNet.layers[1].params.isConvolutionNetworkLayer, false);
+
+        ASSERT_EQ(myNet.layers[0].params.size.depth, 1);
+        ASSERT_EQ(myNet.layers[0].params.size.x, 8);
+        ASSERT_EQ(myNet.layers[0].params.size.y, 8);
+
+        ASSERT_EQ(myNet.layers[1].params.size.depth, 1);
+        ASSERT_EQ(myNet.layers[1].params.size.x, 8);
+        ASSERT_EQ(myNet.layers[1].params.size.y, 8);
+    }
+
     return 0;
 }
 
@@ -719,9 +810,14 @@ int unitTestConvolutionFilter()
         ASSERT_EQ(data[5], pixelToNetworkInputRange(8));
 
         myNet.feedForward(myNet.sampleSet.samples[0]);
+        auto &inputLayer = myNet.layers[0];
         auto &outputLayer = myNet.layers.back();
+
         // Neuron 4 is on a row of all 8's, so its output should be the sum
         // of three pixels of value 8 plus a bias:
+        ASSERT_EQ(inputLayer.neurons[3].output, pixelToNetworkInputRange(8));
+        ASSERT_EQ(inputLayer.neurons[4].output, pixelToNetworkInputRange(8));
+        ASSERT_EQ(inputLayer.neurons[5].output, pixelToNetworkInputRange(8));
         ASSERT_EQ(outputLayer.neurons[4].output, 3 * pixelToNetworkInputRange(8) + 1.0);
     }
 

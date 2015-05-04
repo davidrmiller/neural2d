@@ -287,7 +287,7 @@ struct Layer
     // For each layer, before any references are made to its members, the .neurons
     // member must be initialized with sufficient capacity to prevent reallocation.
     // This allows us to form stable pointers, iterators, or references to neurons.
-    vector<Neuron> neurons;  // 2D array, flattened index = depth*(sizeX*sizeY) + y * sizeX + x
+    vector<Neuron> neurons;  // 3D array, flattened index = depth*(sizeX*sizeY) + y * sizeX + x
 };
 
 
