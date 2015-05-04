@@ -27,17 +27,20 @@
 *.out
 *.app
 *.project
+
+# Individual neural2d files:
+# (Please list editor temp files, IDE project files, etc. in your
+# user-specific .gitignore file. The git command is something like
+# git config --global core.excludesfile ~/.gitignore)
 images/digits/*.bmp
-weights.txt
+images/digits/inputData.txt
 images/digits/LICENSE
 images/digits/topology.txt
-images/digits/inputData.txt
-neural2d
-neural2d.cbp
-neural2d.layout
 inputDataUnitTest.txt
+neural2d
 topologyUnitTest.txt
 unitTest
 unitTestOutputRedirect
 unitTestTempOutput
+weights.txt
 
