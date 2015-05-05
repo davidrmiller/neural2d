@@ -996,7 +996,7 @@ void Net::calculateOverallNetError(const Sample &sample)
     float sumWeightsSquared_ = 0.0;
     if (lambda != 0.0) {
         for (size_t i = 0; i < connections.size(); ++i) {
-            sumWeightsSquared_ += connections[i].weight;
+            sumWeightsSquared_ += connections[i].weight * connections[i].weight;
         }
 
         error += (sumWeightsSquared_ * lambda) / (2.0 * (totalNumberConnections - totalNumberNeurons));
