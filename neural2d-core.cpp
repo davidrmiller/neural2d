@@ -119,6 +119,10 @@ float transferFunctionDerivativeRamp(float x) { return (x < -1.0 || x > 1.0) ? 0
 float transferFunctionGaussian(float x) { return exp(-((x * x) / 2.0)); }
 float transferFunctionDerivativeGaussian(float x) { return -x * exp(-(x * x) / 2.0); }
 
+// ReLU:
+float transferFunctionReLU(float x) { return exp(-((x * x) / 2.0)); }
+float transferFunctionDerivativeReLU(float x) { return -x * exp(-(x * x) / 2.0); }
+
 float transferFunctionIdentity(float x) { return x; } // Used only in convolution layers
 float transferFunctionIdentityDerivative(float x) { return (void)x, 1.0; }
 
@@ -421,6 +425,9 @@ void Layer::resolveTransferFunctionName(string const &transferFunctionName)
     } else if (transferFunctionName == "gaussian") {
         tf = transferFunctionGaussian;
         tfDerivative = transferFunctionDerivativeGaussian;
+    } else if (transferFunctionName == "relu" || transferFunctionName == "ReLU") {
+        tf = transferFunctionReLU;
+        tfDerivative = transferFunctionDerivativeReLU;
     } else if (transferFunctionName == "identity") {
         tf = transferFunctionIdentity;
         tfDerivative = transferFunctionIdentityDerivative;
@@ -619,8 +626,8 @@ LayerConvolutionFilter::LayerConvolutionFilter(const topologyConfigSpec_t &param
 void LayerConvolutionFilter::debugShow(bool)
 {
     info << layerName << ": 1*" << size.x << "x" << size.y
-    	 << " = " << neurons.size() * neurons[0].size() << " neurons"
-		 << " convolution filter " << kernelSize.x << "x" << kernelSize.y << endl;
+         << " = " << neurons.size() * neurons[0].size() << " neurons"
+         << " convolution filter " << kernelSize.x << "x" << kernelSize.y << endl;
 }
 
 LayerConvolutionNetwork::LayerConvolutionNetwork(const topologyConfigSpec_t &params) : LayerConvolution(params)
@@ -681,8 +688,8 @@ void LayerConvolutionNetwork::loadWeights(std::ifstream &file)
 void LayerConvolutionNetwork::debugShow(bool)
 {
     info << layerName << ": " << size.depth << "*" << size.x << "x" << size.y
-    	 << " = " << neurons.size() * neurons[0].size() << " neurons, convolution network "
-		 << kernelSize.x << "x" << kernelSize.y << " kernels" << endl;
+         << " = " << neurons.size() * neurons[0].size() << " neurons, convolution network "
+         << kernelSize.x << "x" << kernelSize.y << " kernels" << endl;
 }
 
 LayerPooling::LayerPooling(const topologyConfigSpec_t &params) : Layer(params)
@@ -772,9 +779,9 @@ void LayerPooling::updateWeights(float, float)
 void LayerPooling::debugShow(bool)
 {
     info << layerName << ": " << size.depth << "*" << size.x << "x" << size.y
-    	 << " = " << neurons.size() * neurons[0].size() << " neurons, pool "
-		 << (poolMethod == POOL_MAX ? "max" : "avg")
-		 << " " << kernelSize.x << "x" << kernelSize.y << endl;
+         << " = " << neurons.size() * neurons[0].size() << " neurons, pool "
+         << (poolMethod == POOL_MAX ? "max" : "avg")
+         << " " << kernelSize.x << "x" << kernelSize.y << endl;
 }
 
 LayerRegular::LayerRegular(const topologyConfigSpec_t &params) : Layer(params)
@@ -917,7 +924,7 @@ void LayerRegular::debugShow(bool details)
 //         << " depth " << l.size.depth << ":" << endl;
 
     info << l.layerName << ": 1*" << l.size.x << "x" << l.size.y
-    	 << " = " << l.neurons.size() * l.neurons[0].size() << " neurons";
+         << " = " << l.neurons.size() * l.neurons[0].size() << " neurons";
 
     for (size_t depth = 0; depth < l.size.depth; ++depth) {
         numFwdConnections = 0;
