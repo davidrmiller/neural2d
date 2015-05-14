@@ -4,7 +4,8 @@ Neural2d - Neural Net Simulator
 User Manual
 ===========
 
-Ver. 1.0
+Ver. 1.0  
+Updated 13-May-2015
 
 Intro video (11 min): [https://www.youtube.com/watch?v=yB43jj-wv8Q](https://www.youtube.com/watch?v=yB43jj-wv8Q)
 
@@ -18,10 +19,11 @@ Features
 *     Selectable transfer function per layer
 *     Adjustable or automatic training rate (eta)
 *     Optional momentum (alpha) and regularization (lambda)
-*     Any layer(s) can be configured as convolution filters
+*     Convolution filtering and convolution networking
 *     Standalone console program
-*     Simple, heavily-commented code, < 3000 lines, suitable for prototyping, learning, and experimentation
+*     Simple, heavily-commented code, suitable for prototyping, learning, and experimentation
 *     Optional web-browser-based GUI controller
+*     No dependencies! Just C++11 (and POSIX networking for the optional webserver interface)
 
 Document Contents
 -----------------
@@ -32,7 +34,8 @@ Document Contents
 [GUI interface](#GUI)  
 [How to use your own data](#YourOwnData)  
 [The 2D in neural2d](#2D)  
-[Convolution filtering](#Convolution)  
+[Convolution filtering](#ConvolutionFiltering)  
+[Convolution networking and pooling](#ConvolutionNetworking)  
 [Topology config file format](#TopologyConfig)  
 [Topology config file examples](#TopologyExamples)  
 [How-do-I *X*?](#HowDoI)  
@@ -47,6 +50,7 @@ Document Contents
 * [Are the output neurons binary or floating point?](#howBinary)  
 * [How do I use a different transfer function?](#howTf)  
 * [How do I define a convolution filter?](#howConvolve)  
+* [How do I define convolution networking and pooling?](#howConvolveNetworking)  
 * [How do the color image pixels get converted to floating point for the input layer?](#howRgb)  
 * [How can I use .jpg and .png images as inputs to the net?](#howJpg)  
 * [Why does the net error rate stay high? Why doesn't my net learn?](#howLearn)  
@@ -215,7 +219,7 @@ radius 3x1
 ![](https://raw.github.com/davidrmiller/neural2d/master/images/radius-3x1.png)
 
 
-Convolution filtering<a name="Convolution"></a>
+Convolution filtering<a name="ConvolutionFiltering"></a>
 ---------------------
 
 Any layer other than the input layer can be configured as a convolution filter layer by
@@ -266,24 +270,75 @@ convolution connections; the green connections are regular neural connections:
 
 
 
+Convolution networking and pooling<a name="ConvolutionNetworking"></a>
+---------------------
+
+A **[convolution network layer](http://en.wikipedia.org/wiki/Convolutional_neural_network)** is like 
+a convolution filter layer, except that the kernel participates in backprop training, and everything 
+inside the layer is replicated *N* times to train *N* separate kernels. A convolution network layer 
+is said to have depth *N*. A convolution network layer has *depth* \* *X* \* *Y* neurons.
+
+Any layer other than the input or output layer can be configured as a convolution networking layer by 
+specifying a layer size with a depth > 1, and specifying the kernel size with a convolve parameter. 
+For example, to train 40 kernels of size 7x7 on an input image of 64x64 pixels:
+
+      input size 64x64
+      layerConv size 40*64x64 from input convolve 7x7
+      . . .
+
+A **[pooling layer](http://en.wikipedia.org/wiki/Convolutional_neural_network#Pooling_layer)** 
+down-samples the previous layer by finding the average or maximum in patches of source neurons. 
+A pooling layer is defined in the topology config file by specifying a pool parameter on a layer. 
+Pooling layers can take their input from any other kind of layer of equal depth.
+
+In the topology config syntax, the pool parameter requires the argument "avg" or "max" followed by 
+the operator size, For example, in a convolution network pipeline of depth 10, you might have 
+these layers:
+
+      input size 64x64
+      layerConv size 20*64x64 from input convolve 5x5
+      layerPool size 20*16x16 from layerConv pool max 4x4
+      . . .
+
+
 Topology config file format<a name="TopologyConfig"></a>
 ---------------------------
 
-The topology config file contains lines of the following format:
+Here is the grammar of the topology config file:
 
-> *layer-definition-line* := *layer-name* size *size-spec* [from *layer-name*] [channel *channel-name*] [radius *size-spec*] [tf *transfer-function*] [convolve *convolve-matrix*] 
+> *layer-name* *parameters* := *parameter* [ *parameters* ]
 
-where
+> *parameters* := *parameter* [ *parameters* ]
 
- > *layer-name* := "input", "output", or a string that begins with "layer"
-    
- > *size-spec* := *integer* ["x" *integer*]
+> *parameter* :=
+
+> &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;input | output | layer*name*
+
+> &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;size *dxy-spec*
+
+> &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;from *layer-name*
+
+> &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;channel *channel-spec*
+
+> &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;radius *xy-spec*
+
+> &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;tf *transfer-function-spec*
+
+> &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;convolve *filter-spec*
+
+> &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;convolve *xy-spec*
+
+> &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;pool { max | avg } *xy-spec*
+
+> *dxy-spec* := [ *integer* \* ] *integer* [ x *integer* ]
+
+> *xy-spec* := *integer* [ x *integer* ]
  
- > *channel-name* := R, G, B, or BW
-    
- > *transfer-function* := "tanh", "logistic", "linear", "ramp", or "gaussian"
+> *channel-spec* := R | G | B | BW
+
+> *transfer-function-spec* := tanh | logistic | linear | ramp | gaussian
  
- > *convolve-matrix* := same {{,},{,}} syntax used for array initialization in C, C#, VB, Java, etc.
+> *filter-spec* := same {{,},{,}} syntax used for array initialization in C, C#, VB, Java, etc.
 
 Rules:
 
@@ -299,7 +354,14 @@ Rules:
 
 1. The color channel parameter can be specified only on the input layer.
 
-1. A convolution matrix specification cannot appear on the same layer with a *radius* or *tf* spec.
+1. If a size parameter is omitted, the size is copied from the layer specified in the from parameter.
+
+1. A radius parameter cannot be used on the same line with a convolve or pool parameter.
+
+1. Pooling layers and convolution networking layers (which have depth > 1) can feed into a 
+pooling or convolution layer of the same depth, or into a regular layer. A pooling layer 
+fed into a regular layer will be fully connected to all the neurons in the entire depth of
+the layer, or sparsely 2D-connected at all depths if a radius parameter is specified.
 
 1. The same layer name can be defined multiple times with different "from" parameters.
 This allows source neurons from more than one layer to be combined in one 
@@ -315,8 +377,9 @@ initially. For example, in the following, layerCombined is size 8x8:
      **layerCombined** from layerHorizontal  
      output size 1 from layerCombined  
 
-1. The *size-spec* can specify two dimensions, or one. Spaces are not allowed in the size spec. 
-If only one dimension is given, the other is assumed to be 1. For example:
+1. In the *xy-spec*  and in the X,Y part of the *dxy-spec*, you may specify one or two dimensions.
+Spaces are not allowed in the size spec. If only one dimension is given, the other is assumed to be 1. 
+For example:
 
  * "8x8" means 64 neurons in an 8 x 8 arrangement.  
  * "8x1" means a row of 8 neurons
@@ -509,10 +572,27 @@ for class Neuron and add a new else-if clause there, following the examples.
 
 **How do I define a convolution filter?**<a name="howConvolve"></a>  
 
-In the topology config file, any layer defined with a *convolve* parameter will
-operate as a convolution filter applied to the source layer. The syntax is of the form:
+In the topology config file, any layer defined with a *convolve* parameter and a list
+of constant weights will operate as a convolution filter applied to the source layer. 
+The syntax is of the form:
 
      layer2 size 64x64 from input convolve {{1,0,-1},{0,0,0},{-1,0,1}}
+
+**How do I define convolution networking and pooling?**<a name="howConvolveNetworking"></a>  
+
+In the topology config file, define a layer with an X,Y size and a depth (number of kernels
+to train), and add a convolve parameter to specify the kernel size. For example, to train 40 
+kernels of size 7x7 on an input image of 64x64 pixels:
+
+     input size 64x64  
+     layerConv size 40*64x64 from input convolve 7x7
+
+Pooling layers can take their input from any other kind of layer of equal depth. To define
+a pooling layer, add a pool parameter, followed by the argument "avg" or "max," followed by
+the operator size, e.g.:
+
+     layerConv size 10*32x32 ...
+     layerPool size 10*8x8 from layerConv pool max 4x4
 
 **How do the color image pixels get converted to floating point for the input layer?**<a name="howRgb"></a>
 

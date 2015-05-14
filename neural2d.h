@@ -19,6 +19,8 @@ See https://github.com/davidrmiller/neural2d for more information.
  *    8. Standalone console program
  *    9. Heavily-commented code, < 3000 lines, suitable for prototyping, learning, and experimentation
  *   10. Optional web GUI controller
+ *   11. Convolution filtering
+ *   12. Convolution networking
  *
  * This program is written in the C++-11 dialect. It uses mostly ISO-standard C++
  * features and a few POSIX features that should be widely available on any
@@ -72,10 +74,11 @@ See https://github.com/davidrmiller/neural2d for more information.
  * the input samples that are presented to the neural net when the
  * feedForward() member is called.
  *
- * There are three kinds of layers of neurons: regular layers, convolution filter
- * layers, and convolution network layers. All layers have a depth. Regular layers
- * and convolution filter layers have a depth of 1. Convolution network layers
- * have a depth > 1.
+ * There are four kinds of layers of neurons: regular layers, convolution filter
+ * layers, convolution network layers, and pooling layers. All layers have a depth:
+ * regular layers and convolution filter layers have a depth of 1; convolution
+ * network layers and pooling layers have a depth > 1 (where depth is the number
+ * of convolution kernels to train).
  */
 
 #ifndef NNET_H
@@ -98,6 +101,7 @@ See https://github.com/davidrmiller/neural2d for more information.
 #include <exception>
 #include <fstream>
 #include <iostream>
+#include <memory>   // for unique_ptr
 #include <queue>
 #include <set>
 #include <sstream>
@@ -114,8 +118,7 @@ See https://github.com/davidrmiller/neural2d for more information.
 
 
 // Everything we define in this file will be inside the NNet namespace. This keeps
-// all of our definitions out of the global namespace. (You can indent all the source
-// lines inside the namespace below if you're an indenting purist.)
+// all of our definitions out of the global namespace.
 //
 namespace NNet {
 
@@ -174,7 +177,7 @@ class exceptionWeightsFile      : public std::exception { };
 class exceptionRuntime          : public std::exception { };
 
 
-enum ColorChannel_t { R, G, B, BW };
+enum ColorChannel_t { COLOR_NONE, R, G, B, BW };
 enum poolMethod_t { POOL_NONE, POOL_MAX, POOL_AVG };
 
 
@@ -225,41 +228,17 @@ struct xySize {
 class Neuron;     // Forward references
 class Connection;
 
-
 typedef vector<float> matColumn_t;
-typedef vector<matColumn_t> convolveMatrix_t; // Allows access as convolveMatrix[x][y]
+typedef vector<matColumn_t> mat2D_t; // Allows access as mat[x][y]
 
 typedef float (*transferFunction_t)(float); // Also used for the derivative function
-
-
-// Layer-specific meta-information:
-//
-struct layerParams_t {
-    layerParams_t(void);
-    void resolveTransferFunctionName(void);
-    void clear(void);
-
-    string layerName;                  // Can be input, output, or layer*
-    bool isConvolutionFilterLayer;     // Equivalent to (convolveMatrix.size() == 1)
-    bool isConvolutionNetworkLayer;    // Equivalent to (convolveMatrix.size() > 1)
-    dxySize size;                      // layer depth, X, Y dimensions
-    ColorChannel_t channel;            // Applies only to the input layer
-    xySize radius;                     // Always used, so set high to fully connect layers
-    string transferFunctionName;
-    transferFunction_t tf;
-    transferFunction_t tfDerivative;
-    xySize kernelSize;                 // Used only for convolution network layers
-    vector<convolveMatrix_t> convolveMatrix;   // zero, one, or multiple kernels depending on layer type
-    enum poolMethod_t poolMethod;      // Used only for convolution network layers
-    xySize poolSize;                   // Used only for convolution network layers
-};
 
 
 // This structure holds the information extracted from a single line in
 // the topology config file. The topology file parser creates one of these
 // objects for each line in the config file. The parser fills in as much
-// of the layerParams fields as it can. Net::parseConfigFile() is responsible
-// for converting a container of topologyConfigSpec_t into layers of neurons.
+// of the data as it can. Net::parseConfigFile() is responsible for
+// converting a container of topologyConfigSpec_t into layers of neurons.
 //
 struct topologyConfigSpec_t {
     topologyConfigSpec_t(void);
@@ -270,28 +249,128 @@ struct topologyConfigSpec_t {
     bool colorChannelSpecified;
     bool radiusSpecified;
     bool tfSpecified;
-    layerParams_t layerParams;
+
+    string layerName;                  // Can be input, output, or layer*
+    bool isConvolutionFilterLayer;     // Equivalent to (convolveMatrix.size() == 1)
+    bool isConvolutionNetworkLayer;    // Equivalent to (convolveMatrix.size() > 1)
+    bool isPoolingLayer;               // Equivalent to (poolSize.x != 0)
+    dxySize size;                      // layer depth, X, Y dimensions
+    ColorChannel_t channel;            // Applies only to the input layer
+    xySize radius;                     // Always used, so set high to fully connect layers
+    string transferFunctionName;
+
+    // The rest of the members below are used by convolution and pooling layers only:
+
+    enum poolMethod_t poolMethod;      // Used only for pooling layers
+    xySize poolSize;
+
+    // In the flatConvolveMatrix container, the size of the outer container equals
+    // the layer depth, and the inner container contains the convolution kernel
+    // flattened into a 1D array:
+
+    vector<vector<float>> flatConvolveMatrix;  // Inner index = x*szY + y
+    xySize kernelSize;                 // Used only for convolution layers
 };
 
 
 //  ***********************************  class Layer  ***********************************
 
-// Each layer is conceptually a bag of neurons in a 2D arrangement, stored
+// Each layer conceptually manages a bag of neurons in a 2D arrangement, stored
 // flattened in a 1D container:
 //
-struct Layer
+class Layer
 {
-    layerParams_t params;
-    vector<Connection> *pConnections;   // Pointer to the container of all Connection records
+public: // New
+    Layer(const topologyConfigSpec_t &params);
+    vector<vector<Neuron>> neurons;    // neurons[depth][i], where i = flattened 2D index
+    string layerName;                  // Can be input, output, or layer*
+    dxySize size;                      // layer depth, X, Y dimensions (number of neurons)
+    bool isConvolutionFilterLayer;     // Equivalent to (convolveMatrix.size() == 1)
+    bool isConvolutionNetworkLayer;    // Equivalent to (convolveMatrix.size() > 1)
+    bool isPoolingLayer;               // Equivalent to (poolSize.x != 0)
+    ColorChannel_t channel;            // Applies only to the input layer
+    xySize radius;                     // Always used in regular layers, so set high to fully connect layers
+    transferFunction_t tf;             // Ignored by convolution filter layers
+    transferFunction_t tfDerivative;   // Ignored by convolution filter layers
+    vector<Connection> *pConnections;  // Pointer to the container of all Connection records
+    uint32_t totalNumberBackConnections;
+    bool projectRectangular = false;   // Defines shape when radius parameter is used
 
-    // For each layer, before any references are made to its members, the .neurons
-    // member must be initialized with sufficient capacity to prevent reallocation.
-    // This allows us to form stable pointers, iterators, or references to neurons.
-    vector<Neuron> neurons;  // 3D array, flattened index = depth*(sizeX*sizeY) + y * sizeX + x
+    // In these containers, the size of the outer container equals the layer depth,
+    // and the inner container contains the convolution kernel flattened into a 1D array:
+    vector<vector<float>> flatConvolveMatrix;  // Inner index = x*szY + y
+    vector<vector<float>> flatConvolveGradients;
+    vector<vector<float>> flatDeltaWeights;
+    xySize kernelSize;                 // Used only for convolution layers
+
+    enum poolMethod_t poolMethod;      // Used only for pooling layers
+    xySize poolSize;                   // Used only for pooling layers
+
+    static void clipToBounds(int32_t &xmin, int32_t &xmax, int32_t &ymin, int32_t &ymax, dxySize &size);
+    uint32_t recordConnectionIndices(uint32_t sourceDepthMin, uint32_t sourceDepthMax,
+            Layer &fromLayer, Neuron &toNeuron, uint32_t srcx, uint32_t srcy, uint32_t maxNumSourceNeurons);
+    virtual void saveWeights(std::ofstream &);
+    virtual void loadWeights(std::ifstream &);
+    virtual void connectNeuron(Layer &fromLayer, Neuron &neuron,
+            uint32_t depth, uint32_t nx, uint32_t ny);
+    void resolveTransferFunctionName(string const &transferFunctionName);
+    virtual void debugShow(bool details);
+    virtual void calcGradients(const vector<float> &targetVals);
+    virtual void updateWeights(float eta, float alpha);
+    virtual void feedForward() = 0;
+};
+
+class LayerRegular : public Layer
+{
+public:
+    LayerRegular(const topologyConfigSpec_t &params);
+    void feedForward();
+    void saveWeights(std::ofstream &);
+    void loadWeights(std::ifstream &);
+    void updateWeights(float eta, float alpha);
+    void connectNeuron(Layer &fromLayer, Neuron &neuron, uint32_t depth, uint32_t nx, uint32_t ny);
+    void debugShow(bool details);
+};
+
+class LayerConvolution : public Layer
+{
+public:
+    LayerConvolution(const topologyConfigSpec_t &params);
+    void feedForward();
+    void connectNeuron(Layer &fromLayer, Neuron &neuron, uint32_t depth, uint32_t nx, uint32_t ny);
+};
+
+class LayerConvolutionFilter : public LayerConvolution
+{
+public:
+    LayerConvolutionFilter(const topologyConfigSpec_t &params);
+    void debugShow(bool details);
+};
+
+class LayerConvolutionNetwork : public LayerConvolution
+{
+public:
+    LayerConvolutionNetwork(const topologyConfigSpec_t &params);
+    void calcGradients(const vector<float> &targetVals);
+    void updateWeights(float eta, float alpha);
+    void saveWeights(std::ofstream &);
+    void loadWeights(std::ifstream &);
+    void debugShow(bool details);
+};
+
+class LayerPooling : public Layer
+{
+public:
+    LayerPooling(const topologyConfigSpec_t &params);
+    void feedForward();
+    void connectNeuron(Layer &fromLayer, Neuron &neuron, uint32_t depth, uint32_t nx, uint32_t ny);
+    void updateWeights(float eta, float alpha);
+    void debugShow(bool details);
 };
 
 
 // ***********************************  class Connection  ***********************************
+
 
 // If neurons are considered as nodes in a directed graph, the edges would be the
 // "connections". Each connection goes from one neuron to any other neuron in any
@@ -299,25 +378,26 @@ struct Layer
 // member is what it's all about -- once a net is trained, we only need to save
 // the weights of all the connections. The set of all weights plus the network
 // topology defines the neural net's function. The .deltaWeight member is used
-// only for the momentum calculation.
+// only for the momentum calculation. For convolution layers, the weights are
+// stored in the Layer class, not here.
 //
 struct Connection
 {
     Connection(Neuron &from, Neuron &to);
     Neuron &fromNeuron;
     Neuron &toNeuron;
-    float weight;
-    float deltaWeight;  // The weight change from the previous training iteration
+    float weight;       // Used only by regular neuron layers
+    float deltaWeight;  // The weight change from the previous training iteration,
 };
 
 
 // ***********************************  class Neuron  ***********************************
 
+
 class Neuron
 {
 public:
     Neuron();
-    Neuron(const Layer *pMyLayer);
     float output;
     float gradient;
 
@@ -331,29 +411,36 @@ public:
     vector<uint32_t> backConnectionsIndices; // My back connections
     vector<uint32_t> forwardConnectionsIndices; // My forward connections
 
-    void feedForward(void);                     // Propagate the net inputs to the outputs
-    void updateInputWeights(float eta, float alpha);  // For backprop training
-    void calcOutputGradients(float targetVal);        // For backprop training
-    void calcHiddenGradients(void);                   // For backprop training
+    void feedForward(Layer *pMyLayer);          // Propagate the net inputs to the outputs
+    void feedForwardConvolution(uint32_t depth, Layer *pMyLayer); // Special for conv. network layers
+    void feedForwardPooling(Layer *pMyLayer);   // Special for pooling layers
+    void updateInputWeights(float eta, float alpha, vector<Connection> *pConnections); // For backprop training
+    void updateInputWeightsConvolution(uint32_t depth, float eta, float alpha, Layer &myLayer);
+    void calcOutputGradients(float targetVal, transferFunction_t tfDerivative); // For backprop training
+    void calcHiddenGradients(Layer &myLayer);   // For backprop training
+    void calcHiddenGradientsConvolution(uint32_t depth, Layer &myLayer); // Special for convolution network layers
 
     // The only reason for the .sourceNeurons member is to make it easy to
     // find and report any unconnected neurons. For everything else, we'll use
     // the backConnectionIndices to find the neuron's inputs. This container
     // holds pointers to all the source neurons that feed this neuron:
-
     std::set<Neuron *> sourceNeurons;
 
+    // Used only by convolution layers, this is an index into the flattened convolve
+    // matrix container and the associated gradient container:
+    int convolveMatrixIndex;  // Used only by convolution network layers
+
 private:
-    const Layer *pMyLayer;  // Used to get the transfer function pointers
-    float sumDOW_nextLayer(void) const;        // Used in hidden layer backprop training
+    float sumDOW_nextLayer(vector<Connection> *pConnections) const; // Used in hidden layer backprop training
 };
 
 
 // ***********************************  class Net  ***********************************
 
+
 class Net
 {
-public: // This section exposes the complete public API for class Net
+public: // This public section exposes the complete public API for class Net
 
     // Parameters that affect overall network operation. These can be set by
     // directly accessing the data members:
@@ -392,7 +479,6 @@ public: // This section exposes the complete public API for class Net
     bool repeatInputSamples;
     bool shuffleInputSamples;
 
-
     Net(const string &topologyFilename);          // ctor
     ~Net(void);
 
@@ -415,38 +501,39 @@ public: // This section exposes the complete public API for class Net
     void reportResults(const Sample &sample) const;
     void debugShowNet(bool details = false);      // Display details of net topology
 
-public: // These members are public only for convenience of unit testing.
+public: // These members are public only for convenience of unit testing:
     uint32_t inputSampleNumber; // Increments each time feedForward() is called
     SampleSet sampleSet;     // List of input images and access to their data
     static const uint32_t HUGE_RADIUS = 1e9; // Magic value
 
     // Here is where we store all the weighted connections. The container can get
     // reallocated, so we'll only refer to elements by indices, not by pointers or
-    // references. This also allows us to hack on the connections container during
-    // training if we want to, by dynamically adding or deleting connections without
-    // invalidating references.
+    // references.
 
     vector<Connection> connections;
-    vector<Layer> layers;
+    vector<std::unique_ptr<Layer>> layers; // Polymorphic
+
     Neuron bias;  // Fake neuron with constant output 1.0
     float lastRecentAverageError;    // Used for dynamically adjusting eta
-    uint32_t totalNumberConnections; // Including 1 bias connection per neuron
+    uint32_t totalNumberBackConnections; // Including 1 bias connection per neuron
     uint32_t totalNumberNeurons;
     vector<topologyConfigSpec_t> parseTopologyConfig(std::istream &cfg);
+    void configureNetwork(vector<topologyConfigSpec_t> configSpecs, const string configFilename = "");
     void reportUnconnectedNeurons(void);
     float adjustedEta(void);
-    void configureNetwork(vector<topologyConfigSpec_t> configSpecs, const string configFilename = "");
 
 private:
     void parseConfigFile(const string &configFilename); // Creates layer metadata from a config file
-    convolveMatrix_t parseMatrixSpec(std::istringstream &ss);
-    Layer &createLayer(const layerParams_t &params);
+    mat2D_t parseMatrixSpec(std::istringstream &ss);
+    Layer &createLayer(const topologyConfigSpec_t &params);
     bool addToLayer(Layer &layerTo, Layer &layerFrom);
     void createNeurons(Layer &layerTo, Layer &layerFrom);
     void connectNeuron(Layer &layerTo, Layer &layerFrom, Neuron &neuron,
-                       uint32_t nx, uint32_t ny);
+                       uint32_t depth, uint32_t nx, uint32_t ny);
+    void connectConvolutionNeuron(Layer &layerTo, Layer &layerFrom, Neuron &neuron,
+                       uint32_t depth, uint32_t nx, uint32_t ny);
     void connectBias(Neuron &neuron);
-    int32_t getLayerNumberFromName(const string &name) const;
+    int32_t getLayerNumberFromName(string &name) const;
 
 #if defined(ENABLE_WEBSERVER) && !defined(DISABLE_WEBSERVER)
     void doCommand(); // Handles incoming program command and control
@@ -458,10 +545,8 @@ private:
 #endif
 };
 
-extern uint32_t flattenDXY(uint32_t depth, uint32_t x, uint32_t y, uint32_t xSize, uint32_t ySize);
-extern uint32_t flattenDXY(uint32_t depth, uint32_t x, uint32_t y, dxySize size);
-extern uint32_t flattenDXY(dxySize coord3d, xySize size);
-
+extern uint32_t flattenXY(uint32_t x, uint32_t y, uint32_t ySize);
+extern uint32_t flattenXY(uint32_t x, uint32_t y, dxySize size);
 
 } // end namespace NNet
 

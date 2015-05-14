@@ -8,7 +8,6 @@ See neural2d.h for more information.
 
 #include <cctype>
 #include <cmath>
-#include <memory>   // for unique_ptr
 #include <unistd.h> // For sleep() or usleep()
 
 #include "neural2d.h"
@@ -41,19 +40,14 @@ float randomFloat(void)
 // There's nothing magic here; we use a function to do this so that we
 // always flatten it the same way each time:
 //
-uint32_t flattenDXY(uint32_t depth, uint32_t x, uint32_t y, uint32_t xSize, uint32_t ySize)
+uint32_t flattenXY(uint32_t x, uint32_t y, uint32_t ySize)
 {
-    return depth * (xSize*ySize) + y * xSize + x;
+    return x * ySize + y;
 }
 
-uint32_t flattenDXY(uint32_t depth, uint32_t x, uint32_t y, dxySize size)
+uint32_t flattenXY(uint32_t x, uint32_t y, dxySize size)
 {
-    return flattenDXY(depth, x, y, size.x, size.y);
-}
-
-uint32_t flattenDXY(dxySize coord3d, dxySize size)
-{
-    return flattenDXY(coord3d.depth, coord3d.x, coord3d.y, size.x, size.y);
+    return flattenXY(x, y, size.y);
 }
 
 
@@ -129,59 +123,8 @@ float transferFunctionIdentity(float x) { return x; } // Used only in convolutio
 float transferFunctionIdentityDerivative(float x) { return (void)x, 1.0; }
 
 
-void layerParams_t::resolveTransferFunctionName(void)
-{
-    if (transferFunctionName == "" || transferFunctionName == "tanh") {
-        // This is the default transfer function:
-        tf = transferFunctionTanh;
-        tfDerivative = transferFunctionDerivativeTanh;
-    } else if (transferFunctionName == "logistic") {
-        tf = transferFunctionLogistic;
-        tfDerivative = transferFunctionDerivativeLogistic;
-    } else if (transferFunctionName == "linear") {
-        tf = transferFunctionLinear;
-        tfDerivative = transferFunctionDerivativeLinear;
-    } else if (transferFunctionName == "ramp") {
-        tf = transferFunctionRamp;
-        tfDerivative = transferFunctionDerivativeRamp;
-    } else if (transferFunctionName == "gaussian") {
-        tf = transferFunctionGaussian;
-        tfDerivative = transferFunctionDerivativeGaussian;
-    } else if (transferFunctionName == "identity") {
-        tf = transferFunctionIdentity;
-        tfDerivative = transferFunctionIdentityDerivative;
-    } else {
-        err << "Undefined transfer function: \'" << transferFunctionName << "\'" << endl;
-        throw exceptionConfigFile();
-    }
-}
-
-
-layerParams_t::layerParams_t(void)
-{
-    clear();
-}
-
-void layerParams_t::clear(void)
-{
-    size.depth = size.x = size.y = 0;
-    channel = NNet::BW;
-    radius.x = Net::HUGE_RADIUS;
-    radius.y = Net::HUGE_RADIUS;
-    transferFunctionName.clear();
-    transferFunctionName = "tanh";
-    tf = transferFunctionTanh;
-    tfDerivative = transferFunctionDerivativeTanh;
-    convolveMatrix.clear();
-    isConvolutionFilterLayer = false;   // Equivalent to (convolveMatrix.size() == 1)
-    isConvolutionNetworkLayer = false;  // Equivalent to (convolveMatrix.size() > 1)
-    kernelSize.x = kernelSize.y = 0;    // Used only for convolution network layers
-    poolSize.x = poolSize.y = 0;        // Used only for convolution network layers
-    poolMethod = POOL_NONE;
-}
-
-
 // ***********************************  Input samples  ***********************************
+
 
 // Given an integer 8-bit pixel value in the range 0..255, convert that into
 // a floating point value that can be input directly into the input layer of
@@ -202,7 +145,7 @@ float pixelToNetworkInputRange(unsigned val)
 
 // Given an image filename and a data container, fill the container with
 // data extracted from the image, using the conversion function specified
-// in colorChannel:
+// in colorChannel: This version is for a 24-bit BMP format.
 //
 void ReadBMP(const string &filename, vector<float> &dataContainer, ColorChannel_t colorChannel)
 {
@@ -238,7 +181,7 @@ void ReadBMP(const string &filename, vector<float> &dataContainer, ColorChannel_
 
     int pixelDepth = (info[29] << 8) + info[28];
     if (pixelDepth != 24) {
-        err << "Error: BMP file is not 24 bits per pixel" << endl;
+        err << "Error: Sorry we only support 24-bit BMP format" << endl;
         throw exceptionImageFile();
     }
 
@@ -266,6 +209,7 @@ void ReadBMP(const string &filename, vector<float> &dataContainer, ColorChannel_
     std::unique_ptr<unsigned char[]> imageData {new unsigned char[rowLen_padded]};
 
     dataContainer.clear();
+    dataContainer.assign(width * height, 0); // Pre-allocate to make random access easy
 
     // Fill the data container with 8-bit data taken from the image data:
 
@@ -298,7 +242,9 @@ void ReadBMP(const string &filename, vector<float> &dataContainer, ColorChannel_
 
             // Convert the pixel from the range 0..256 to a smaller
             // range that we can input into the neural net:
-            dataContainer.push_back(pixelToNetworkInputRange(val));
+            // Also we'll invert the rows so that the origin is the upper left at 0,0:
+
+            dataContainer[flattenXY(x, (height - y) - 1, height)] = pixelToNetworkInputRange(val);
         }
     }
 
@@ -317,7 +263,6 @@ vector<float> &Sample::getData(ColorChannel_t colorChannel)
    }
 
    // If we get here, we can assume there is something in the .data member
-   // To do: check that
 
    return data;
 }
@@ -438,43 +383,600 @@ void SampleSet::clearImageCache(void)
 Connection::Connection(Neuron &from, Neuron &to)
      : fromNeuron(from), toNeuron(to)
 {
+    weight = randomFloat() / 2.0 - 1.0;  // Range -0.25..0.25
     deltaWeight = 0.0;
+}
+
+
+// *****************************  class Layer  *****************************
+
+
+Layer::Layer(const topologyConfigSpec_t &params)
+{
+    layerName = params.layerName;
+    size = params.size;
+    isConvolutionFilterLayer = params.isConvolutionFilterLayer;   // Equivalent to (convolveMatrix.size() == 1)
+    isConvolutionNetworkLayer = params.isConvolutionNetworkLayer; // Equivalent to (convolveMatrix.size() > 1)
+    isPoolingLayer = params.isPoolingLayer;                       // Equivalent to (poolSize.x != 0)
+    resolveTransferFunctionName(params.transferFunctionName);
+    totalNumberBackConnections = 0;
+    projectRectangular = false;
+}
+
+void Layer::resolveTransferFunctionName(string const &transferFunctionName)
+{
+    if (transferFunctionName == "" || transferFunctionName == "tanh") {
+        // This is the default transfer function:
+        tf = transferFunctionTanh;
+        tfDerivative = transferFunctionDerivativeTanh;
+    } else if (transferFunctionName == "logistic") {
+        tf = transferFunctionLogistic;
+        tfDerivative = transferFunctionDerivativeLogistic;
+    } else if (transferFunctionName == "linear") {
+        tf = transferFunctionLinear;
+        tfDerivative = transferFunctionDerivativeLinear;
+    } else if (transferFunctionName == "ramp") {
+        tf = transferFunctionRamp;
+        tfDerivative = transferFunctionDerivativeRamp;
+    } else if (transferFunctionName == "gaussian") {
+        tf = transferFunctionGaussian;
+        tfDerivative = transferFunctionDerivativeGaussian;
+    } else if (transferFunctionName == "identity") {
+        tf = transferFunctionIdentity;
+        tfDerivative = transferFunctionIdentityDerivative;
+    } else {
+        err << "Undefined transfer function: \'" << transferFunctionName << "\'" << endl;
+        throw exceptionConfigFile();
+    }
+}
+
+void Layer::clipToBounds(int32_t &xmin, int32_t &xmax, int32_t &ymin, int32_t &ymax, dxySize &size)
+{
+    if (xmin < 0) xmin = 0;
+    if (xmin >= (int32_t)size.x) xmin = size.x - 1;
+    if (ymin < 0) ymin = 0;
+    if (ymin >= (int32_t)size.y) ymin = size.y - 1;
+    if (xmax < 0) xmax = 0;
+    if (xmax >= (int32_t)size.x) xmax = size.x - 1;
+    if (ymax < 0) ymax = 0;
+    if (ymax >= (int32_t)size.y) ymax = size.y - 1;
+}
+
+void Layer::saveWeights(std::ofstream &) { }
+
+void Layer::loadWeights(std::ifstream &) { }
+
+void Layer::calcGradients(const vector<float> &targetVals)
+{
+    if (layerName == "output") {
+        for (uint32_t n = 0; n < neurons[0].size(); ++n) {
+            neurons[0][n].calcOutputGradients(targetVals[n], tfDerivative);
+        }
+    } else {
+        assert(layerName != "input");
+        for (auto &plane : neurons) {
+            for (auto &neuron : plane) {
+                neuron.calcHiddenGradients(*this);
+            }
+        }
+    }
+}
+
+void Layer::updateWeights(float eta, float alpha)
+{
+    for (auto &plane : neurons) {
+        for (auto &neuron : plane) {
+            neuron.updateInputWeights(eta, alpha, pConnections);
+        }
+    }
+}
+
+void Layer::connectNeuron(Layer &fromLayer, Neuron &neuron,
+            uint32_t depth, uint32_t nx, uint32_t ny)
+{
+    (void)fromLayer;
+    (void)neuron;
+    (void)depth;
+    (void)nx;
+    (void)ny;
+
+    assert(false);
+}
+
+uint32_t Layer::recordConnectionIndices(uint32_t sourceDepthMin, uint32_t sourceDepthMax,
+            Layer &fromLayer, Neuron &toNeuron, uint32_t srcx, uint32_t srcy, uint32_t maxNumSourceNeurons)
+{
+    totalNumberBackConnections = 0;
+
+    for (uint32_t sourceDepth = sourceDepthMin; sourceDepth <= sourceDepthMax; ++sourceDepth) {
+        Neuron &fromNeuron = fromLayer.neurons[sourceDepth][flattenXY(srcx, srcy, fromLayer.size)];
+
+        if (toNeuron.sourceNeurons.find(&fromNeuron) == toNeuron.sourceNeurons.end()) {
+            // Add a new Connection record to the main container of connections:
+            (*pConnections).push_back(Connection(fromNeuron, toNeuron));
+            int connectionIdx = (*pConnections).size() - 1;  //  and get its index
+            ++totalNumberBackConnections;
+
+            // Initialize the weight of the connection: it was already given a random value
+            // when constructed, but we can adjust or replace that here given our more
+            // complete knowledge of the layer topology:
+            (*pConnections).back().weight = ((randomFloat() * 2) - 1.0) / sqrt(maxNumSourceNeurons);
+
+            // Record the back connection index at the destination neuron:
+            toNeuron.backConnectionsIndices.push_back(connectionIdx);
+
+            // Remember the source neuron for detecting duplicate connections:
+            toNeuron.sourceNeurons.insert(&fromNeuron);
+
+            // Record the Connection index at the source neuron:
+            fromNeuron.forwardConnectionsIndices.push_back(connectionIdx);
+        }
+    }
+
+    return totalNumberBackConnections;
+}
+
+void Layer::debugShow(bool)
+{
+}
+
+LayerConvolution::LayerConvolution(const topologyConfigSpec_t &params) : Layer(params)
+{
+    kernelSize = params.kernelSize;
+    flatConvolveMatrix.clear();
+    flatConvolveMatrix = params.flatConvolveMatrix;
+    flatConvolveGradients.clear();
+    flatConvolveGradients.assign(size.depth, vector<float>(kernelSize.x * kernelSize.y));
+    flatDeltaWeights.clear();
+    flatDeltaWeights.assign(size.depth, vector<float>(kernelSize.x * kernelSize.y));
+}
+
+void LayerConvolution::feedForward()
+{
+    for (uint32_t depthIdx = 0; depthIdx < size.depth; ++depthIdx) {
+        for (uint32_t x = 0; x < size.x; ++x) {
+            for (uint32_t y = 0; y < size.y; ++y) {
+                auto &neuron = neurons[depthIdx][flattenXY(x, y, size)];
+                neuron.feedForwardConvolution(depthIdx, this);
+            }
+        }
+    }
+}
+
+void LayerConvolution::connectNeuron(Layer &fromLayer, Neuron &toNeuron,
+            uint32_t depth, uint32_t nx, uint32_t ny)
+{
+    auto &layerTo = *this;
+    assert(size.x > 0 && size.y > 0);
+
+    // Calculate the normalized [0..1] coordinates of our neuron:
+    float normalizedX = ((float)nx / size.x) + (1.0 / (2 * size.x));
+    float normalizedY = ((float)ny / size.y) + (1.0 / (2 * size.y));
+
+    // Calculate the coords of the nearest neuron in the "from" layer.
+    // The calculated coords are relative to the "from" layer:
+    uint32_t lfromX = uint32_t(normalizedX * fromLayer.size.x); // should we round off instead of round down?
+    uint32_t lfromY = uint32_t(normalizedY * fromLayer.size.y);
+
+//    info << "our neuron at " << nx << "," << ny << " covers neuron at "
+//         << lfromX << "," << lfromY << endl;
+
+    // Calculate the rectangular window into the "from" layer:
+
+    int32_t xmin = lfromX - layerTo.kernelSize.x / 2;
+    int32_t xmax = xmin   + layerTo.kernelSize.x - 1;
+    int32_t ymin = lfromY - layerTo.kernelSize.y / 2;
+    int32_t ymax = ymin   + layerTo.kernelSize.y - 1;
+
+    // Now (xmin,xmax,ymin,ymax) defines a rectangular subset of neurons in a previous layer.
+    // We'll make a connection from each of those neurons in the previous layer to our
+    // neuron in the current layer. As we do so, we'll record in each neuron its corresponding
+    // index into the convolution kernel container.
+
+    clipToBounds(xmin, xmax, ymin, ymax, fromLayer.size);
+    uint32_t maxNumSourceNeurons = ((xmax - xmin) + 1) * ((ymax - ymin) + 1);
+
+    // The way we connect to the source layer depends on the depth of the source layer:
+    //
+    //       src depth = 1          -- connect only to source depth 0
+    //   1 < src depth < my depth   -- unsupported
+    //       src depth == my depth  -- connect only to same depth in source (but for what purpose?)
+    //       src depth > my depth   -- unsupported
+
+    uint32_t sourceDepthMin = 0;
+    uint32_t sourceDepthMax = 0;
+
+    if (fromLayer.size.depth == 1) {
+        sourceDepthMin = sourceDepthMax = 0;
+    } else if (fromLayer.size.depth == layerTo.size.depth) {
+        sourceDepthMin = sourceDepthMax = depth;
+    } else {
+        err << "Internal error: This topology should have been rejected due to incompatible layer depths" << endl;
+        exit(1);
+    }
+
+    for (int32_t y = ymin; y <= ymax; ++y) {
+        for (int32_t x = xmin; x <= xmax; ++x) {
+            // For convolution filter layers, there's no need to make a connection for any
+            // kernel weight that is zero:
+            auto idx = flattenXY(x-xmin, y-ymin, layerTo.kernelSize.y);
+            if (layerTo.isConvolutionFilterLayer && layerTo.flatConvolveMatrix[0][idx] == 0.0) {
+                continue;
+            }
+
+            totalNumberBackConnections +=
+                    recordConnectionIndices(sourceDepthMin, sourceDepthMax,
+                            fromLayer, toNeuron, x, y, maxNumSourceNeurons);
+        }
+    }
+}
+
+LayerConvolutionFilter::LayerConvolutionFilter(const topologyConfigSpec_t &params) : LayerConvolution(params)
+{
+
+}
+
+void LayerConvolutionFilter::debugShow(bool)
+{
+    info << layerName << ": 1*" << size.x << "x" << size.y
+    	 << " = " << neurons.size() * neurons[0].size() << " neurons"
+		 << " convolution filter " << kernelSize.x << "x" << kernelSize.y << endl;
+}
+
+LayerConvolutionNetwork::LayerConvolutionNetwork(const topologyConfigSpec_t &params) : LayerConvolution(params)
+{
+
+}
+
+void LayerConvolutionNetwork::calcGradients(const vector<float> &targetVals)
+{
+    (void)targetVals;
+
+    assert(flatConvolveGradients[0][0] == 0.0);
+
+    for (uint32_t depth = 0; depth < size.depth; ++depth) {
+        for (auto &neuron : neurons[depth]) {
+            neuron.calcHiddenGradientsConvolution(depth, *this);
+        }
+    }
+}
+
+void LayerConvolutionNetwork::updateWeights(float eta, float alpha)
+{
+    for (uint32_t depth = 0; depth < size.depth; ++depth) {
+        auto &plane = neurons[depth];
+        for (auto &neuron : plane) {
+            neuron.updateInputWeightsConvolution(depth, eta, alpha, *this);
+        }
+
+        for (size_t wIdx = 0; wIdx < flatConvolveMatrix[depth].size(); ++wIdx) {
+            flatConvolveMatrix[depth][wIdx] += flatDeltaWeights[depth][wIdx];
+            // We can clear the flatDeltaWeights and flatConvolveGradients items now,
+            // we're done with them, then we don't have to make a special loop to clear
+            // them at the beginning of backProp:
+            flatDeltaWeights[depth][wIdx] = 0;
+            flatConvolveGradients[depth][wIdx] = 0;
+        }
+    }
+}
+
+void LayerConvolutionNetwork::saveWeights(std::ofstream &file)
+{
+    for (auto const &kernelInstance : flatConvolveMatrix) {
+        for (auto weight : kernelInstance) {
+            file << weight << endl;
+        }
+    }
+}
+
+void LayerConvolutionNetwork::loadWeights(std::ifstream &file)
+{
+    for (auto &kernelInstance : flatConvolveMatrix) {
+        for (auto &weight : kernelInstance) {
+            file >> weight;
+        }
+    }
+}
+
+void LayerConvolutionNetwork::debugShow(bool)
+{
+    info << layerName << ": " << size.depth << "*" << size.x << "x" << size.y
+    	 << " = " << neurons.size() * neurons[0].size() << " neurons, convolution network "
+		 << kernelSize.x << "x" << kernelSize.y << " kernels" << endl;
+}
+
+LayerPooling::LayerPooling(const topologyConfigSpec_t &params) : Layer(params)
+{
+    poolMethod = params.poolMethod;
+    poolSize = params.poolSize;
+}
+
+void LayerPooling::feedForward()
+{
+    for (auto &plane : neurons) {
+        for (auto &neuron : plane) {
+            neuron.feedForwardPooling(this);
+        }
+    }
+}
+
+void LayerPooling::connectNeuron(Layer &fromLayer, Neuron &toNeuron,
+            uint32_t depth, uint32_t nx, uint32_t ny)
+{
+    auto &layerTo = *this;
+    assert(size.x > 0 && size.y > 0);
+
+    // Calculate the normalized [0..1] coordinates of our neuron:
+    float normalizedX = ((float)nx / size.x) + (1.0 / (2 * size.x));
+    float normalizedY = ((float)ny / size.y) + (1.0 / (2 * size.y));
+
+    // Calculate the coords of the nearest neuron in the "from" layer.
+    // The calculated coords are relative to the "from" layer:
+    uint32_t lfromX = uint32_t(normalizedX * fromLayer.size.x); // should we round off instead of round down?
+    uint32_t lfromY = uint32_t(normalizedY * fromLayer.size.y);
+
+//    info << "our neuron at " << nx << "," << ny << " covers neuron at "
+//         << lfromX << "," << lfromY << endl;
+
+    // Calculate the rectangular window into the "from" layer:
+
+    int32_t ymin = lfromY - layerTo.poolSize.y / 2;
+    int32_t ymax = ymin   + layerTo.poolSize.y - 1;
+    int32_t xmin = lfromX - layerTo.poolSize.x / 2;
+    int32_t xmax = xmin   + layerTo.poolSize.x - 1;
+
+    // Clip to the layer boundaries:
+
+    clipToBounds(xmin, xmax, ymin, ymax, fromLayer.size);
+    uint32_t maxNumSourceNeurons = ((xmax - xmin) + 1) * ((ymax - ymin) + 1);
+
+    // Now (xmin,xmax,ymin,ymax) defines a rectangular subset of neurons in a previous layer.
+    // We'll make a connection from each of those neurons in the previous layer to our
+    // neuron in the current layer.
+
+    // The way we connect to the source layer depends on the depth of the source layer:
+    //
+    //       src depth = 1          -- connect only to source depth 0
+    //   1 < src depth < my depth   -- unsupported
+    //       src depth == my depth  -- connect only to same depth in source
+    //       src depth > my depth   -- fully connect to all depths
+
+    uint32_t sourceDepthMin = 0;
+    uint32_t sourceDepthMax = 0;
+
+    if (fromLayer.size.depth == 1) {
+        sourceDepthMin = sourceDepthMax = 0;
+    } else if (fromLayer.size.depth == layerTo.size.depth) {
+        sourceDepthMin = sourceDepthMax = depth;
+    } else if (fromLayer.size.depth > layerTo.size.depth) {
+        sourceDepthMin = 0;
+        sourceDepthMax = fromLayer.size.depth - 1;
+    } else {
+        err << "Internal error: This topology should have been rejected due to incompatible layer depths" << endl;
+        exit(1);
+    }
+
+    for (int32_t y = ymin; y <= ymax; ++y) {
+        for (int32_t x = xmin; x <= xmax; ++x) {
+            totalNumberBackConnections +=
+                    recordConnectionIndices(sourceDepthMin, sourceDepthMax,
+                            fromLayer, toNeuron, x, y, maxNumSourceNeurons);
+        }
+    }
+}
+
+void LayerPooling::updateWeights(float, float)
+{
+}
+
+void LayerPooling::debugShow(bool)
+{
+    info << layerName << ": " << size.depth << "*" << size.x << "x" << size.y
+    	 << " = " << neurons.size() * neurons[0].size() << " neurons, pool "
+		 << (poolMethod == POOL_MAX ? "max" : "avg")
+		 << " " << kernelSize.x << "x" << kernelSize.y << endl;
+}
+
+LayerRegular::LayerRegular(const topologyConfigSpec_t &params) : Layer(params)
+{
+    channel = params.channel;
+
+    if (params.radiusSpecified) {
+        radius = params.radius;
+    } else {
+        radius.x = radius.y = 1e9;
+    }
+}
+
+void LayerRegular::feedForward()
+{
+    for (auto &plane : neurons) {
+        for (auto &neuron : plane) {
+            neuron.feedForward(this);
+        }
+    }
+}
+
+void LayerRegular::saveWeights(std::ofstream &file)
+{
+    for (auto const &plane : neurons) {
+        for (auto const &neuron : plane) {
+            for (auto idx : neuron.backConnectionsIndices) {
+                const Connection &conn = (*pConnections)[idx];
+                file << conn.weight << endl;
+            }
+        }
+    }
+}
+
+void LayerRegular::loadWeights(std::ifstream &file)
+{
+    for (auto const &plane : neurons) {
+        for (auto const &neuron : plane) {
+            for (auto idx : neuron.backConnectionsIndices) {
+                Connection &conn = (*pConnections)[idx];
+                file >> conn.weight;
+            }
+        }
+    }
+}
+
+void LayerRegular::updateWeights(float eta, float alpha)
+{
+    assert(size.depth == 1);
+    for (auto &neuron : neurons[0]) {
+        neuron.updateInputWeights(eta, alpha, pConnections);
+    }
+}
+
+void LayerRegular::connectNeuron(Layer &fromLayer, Neuron &toNeuron,
+            uint32_t depth, uint32_t nx, uint32_t ny)
+{
+    auto &layerTo = *this;
+    assert(size.x > 0 && size.y > 0);
+
+    // Calculate the normalized [0..1] coordinates of our neuron:
+    float normalizedX = ((float)nx / size.x) + (1.0 / (2 * size.x));
+    float normalizedY = ((float)ny / size.y) + (1.0 / (2 * size.y));
+
+    // Calculate the coords of the nearest neuron in the "from" layer.
+    // The calculated coords are relative to the "from" layer:
+    uint32_t lfromX = uint32_t(normalizedX * fromLayer.size.x); // should we round off instead of round down?
+    uint32_t lfromY = uint32_t(normalizedY * fromLayer.size.y);
+
+//    info << "our neuron at " << nx << "," << ny << " covers neuron at "
+//         << lfromX << "," << lfromY << endl;
+
+    // Calculate the rectangular window into the "from" layer:
+
+    int32_t xmin = lfromX - layerTo.radius.x;
+    int32_t xmax = lfromX + layerTo.radius.x;
+    int32_t ymin = lfromY - layerTo.radius.y;
+    int32_t ymax = lfromY + layerTo.radius.y;
+
+    // Clip to the layer boundaries:
+
+    clipToBounds(xmin, xmax, ymin, ymax, fromLayer.size);
+
+    // Now (xmin,xmax,ymin,ymax) defines a rectangular subset of neurons in a previous layer.
+    // We'll make a connection from each of those neurons in the previous layer to our
+    // neuron in the current layer.
+
+    // We will also check for and avoid duplicate connections. Duplicates are mostly harmless,
+    // but unnecessary. Duplicate connections can be formed when the same layer name appears
+    // more than once in the topology config file with the same "from" layer if the projected
+    // rectangular or elliptical areas on the source layer overlap.
+
+    float xcenter = ((float)xmin + (float)xmax) / 2.0;
+    float ycenter = ((float)ymin + (float)ymax) / 2.0;
+    uint32_t maxNumSourceNeurons = ((xmax - xmin) + 1) * ((ymax - ymin) + 1);
+
+    // The way we connect to the source layer depends on the depth of the source layer:
+    //
+    //       src depth = 1          -- connect only to source depth 0
+    //   1 < src depth < my depth   -- unsupported
+    //       src depth == my depth  -- connect only to same depth in source
+    //       src depth > my depth   -- fully connect to all depths
+
+    uint32_t sourceDepthMin = 0;
+    uint32_t sourceDepthMax = 0;
+
+    if (fromLayer.size.depth == 1) {
+        sourceDepthMin = sourceDepthMax = 0;
+    } else if (fromLayer.size.depth == layerTo.size.depth) {
+        sourceDepthMin = sourceDepthMax = depth;
+    } else if (fromLayer.size.depth > layerTo.size.depth) {
+        sourceDepthMin = 0;
+        sourceDepthMax = fromLayer.size.depth - 1;
+    } else {
+        err << "Internal error: This topology should have been rejected due to incompatible layer depths" << endl;
+        exit(1);
+    }
+
+    for (int32_t y = ymin; y <= ymax; ++y) {
+        for (int32_t x = xmin; x <= xmax; ++x) {
+            if (!projectRectangular
+                    && elliptDist(xcenter - x, ycenter - y, layerTo.radius.x, layerTo.radius.y) >= 1.0) {
+                continue; // Skip this location, it's outside the ellipse
+            }
+
+            totalNumberBackConnections +=
+                    recordConnectionIndices(sourceDepthMin, sourceDepthMax, fromLayer, toNeuron, x, y, maxNumSourceNeurons);
+        }
+    }
+}
+
+void LayerRegular::debugShow(bool details)
+{
+    uint32_t numFwdConnections;
+    uint32_t numBackConnections;
+    auto const &l = *this; // A more convenient name
+
+//    info << "Layer '" << l.layerName << "' has " << l.neurons.size() * l.neurons[0].size()
+//         << " neurons arranged in " << l.size.x << "x" << l.size.y
+//         << " depth " << l.size.depth << ":" << endl;
+
+    info << l.layerName << ": 1*" << l.size.x << "x" << l.size.y
+    	 << " = " << l.neurons.size() * l.neurons[0].size() << " neurons";
+
+    for (size_t depth = 0; depth < l.size.depth; ++depth) {
+        numFwdConnections = 0;
+        numBackConnections = 0;
+
+        for (auto const &n : l.neurons[depth]) {
+            if (details) {
+                info << "  neuron(" << &n << ")" << " output: " << n.output << endl;
+            }
+
+            numFwdConnections += n.forwardConnectionsIndices.size();
+            numBackConnections += n.backConnectionsIndices.size(); // Includes the bias connection
+
+            if (details && n.forwardConnectionsIndices.size() > 0) {
+                info << "    Fwd connections:" << endl;
+                for (auto idx : n.forwardConnectionsIndices) {
+                    Connection const &pc = (*pConnections)[idx];
+                    info << "      conn(" << &pc << ") pFrom=" << &pc.fromNeuron
+                         << ", pTo=" << &pc.toNeuron
+                         << ", w,dw=" << pc.weight << ", " << pc.deltaWeight
+                         << endl;
+                }
+            }
+
+            if (details && n.backConnectionsIndices.size() > 0) {
+                info << "    Back connections (incl. bias):" << endl;
+                for (auto idx : n.backConnectionsIndices) {
+                    Connection const &c = (*pConnections)[idx];
+                    info << "      conn(" << &c << ") pFrom=" << &c.fromNeuron
+                         << ", pTo=" << &c.toNeuron
+                         << ", w=" << c.weight
+
+                         << endl;
+                    assert(&c.toNeuron == &n);
+                }
+            }
+        }
+
+        if (!details) {
+            info << ", " << numBackConnections << " back, "
+                 << numFwdConnections << " forward connections";
+        }
+
+        info << endl;
+    }
 }
 
 
 // ***********************************  class Neuron  ***********************************
 
 
-// This default ctor is used only when defining the special bias neuron in the
-// Net class. The bias neuron only feeds forward a constant value of 1.0,
-// so it doesn't use a transfer function, and it doesn't need access to the
-// connections container because there are no back connections.
-// Alternatively, the bias neuron could have been defined as a subclass of
-// class Neuron.
-//
 Neuron::Neuron()
-{
-    output = 1.0;
-    gradient = 0.0;
-    backConnectionsIndices.clear();
-    forwardConnectionsIndices.clear();
-    sourceNeurons.clear();
-}
-
-
-// All neurons (except the special bias neuron in the Net class) use this ctor
-// to construct new neurons. The transfer function is a required ctor parameter
-// because once a transfer function is selected, it shouldn't be changed (if it
-// were to change, all the weights would suddenly be wrong).
-//
-Neuron::Neuron(const Layer *pMyLayer_)
-    : pMyLayer(pMyLayer_)
 {
     output = randomFloat() - 0.5;
     gradient = 0.0;
     backConnectionsIndices.clear();
     forwardConnectionsIndices.clear();
     sourceNeurons.clear();
+    convolveMatrixIndex = 0;
 }
 
 
@@ -482,10 +984,10 @@ Neuron::Neuron(const Layer *pMyLayer_)
 // value minus the computed output value, times the derivative of
 // the output-layer activation function evaluated at the computed output value.
 //
-void Neuron::calcOutputGradients(float targetVal)
+void Neuron::calcOutputGradients(float targetVal, transferFunction_t tfDerivative)
 {
     float delta = targetVal - output;
-    gradient = delta * pMyLayer->params.tfDerivative(output);
+    gradient = delta * tfDerivative(output);
 }
 
 
@@ -494,23 +996,49 @@ void Neuron::calcOutputGradients(float targetVal)
 // local output of the neuron times the sum of the product of
 // the primary outputs times their associated hidden-to-output weights.
 //
-void Neuron::calcHiddenGradients(void)
+void Neuron::calcHiddenGradients(Layer &myLayer)
 {
-    float dow = sumDOW_nextLayer();
-    gradient = dow * pMyLayer->params.tfDerivative(output);
+    float dow = sumDOW_nextLayer(myLayer.pConnections);
+    gradient = dow * myLayer.tfDerivative(output);
 }
 
 
-// To do: add commentary!!!
+// Special for convolution layers where the weights are stored in the Layer
+// object instead of in the Connection records:
 //
-float Neuron::sumDOW_nextLayer(void) const
+void Neuron::calcHiddenGradientsConvolution(uint32_t depth, Layer &myLayer)
 {
     float sum = 0.0;
 
     // Sum our contributions of the errors at the nodes we feed.
 
     for (auto idx : forwardConnectionsIndices) {
-        const Connection &conn = (*pMyLayer->pConnections)[idx];
+        auto const &conn = (*myLayer.pConnections)[idx];
+
+        // Is the following correct? !!!
+        sum += myLayer.flatConvolveMatrix[depth][convolveMatrixIndex]
+             * conn.toNeuron.gradient
+             * myLayer.flatConvolveGradients[depth][convolveMatrixIndex];
+    }
+
+    // The individual neuron's gradient:
+    gradient = sum * myLayer.tfDerivative(output);
+
+    // Sum this neuron's gradient with all the others for this kernel element:
+    myLayer.flatConvolveGradients[depth][this->convolveMatrixIndex] += gradient;
+}
+
+
+// To do: add commentary!!!
+//
+float Neuron::sumDOW_nextLayer(vector<Connection> *pConnections) const
+{
+    float sum = 0.0;
+
+    // Sum our contributions of the errors at the nodes we feed.
+
+    for (auto idx : forwardConnectionsIndices) {
+        const Connection &conn = (*pConnections)[idx];
 
         sum += conn.weight * conn.toNeuron.gradient;
     }
@@ -519,22 +1047,15 @@ float Neuron::sumDOW_nextLayer(void) const
 }
 
 
-void Neuron::updateInputWeights(float eta, float alpha)
+void Neuron::updateInputWeights(float eta, float alpha, vector<Connection> *pConnections)
 {
     // The weights to be updated are the weights from the neurons in the
     // preceding layer (the source layer) to this neuron:
 
-    // Optionally enable the following #pragma line to permit OpenMP to
-    // parallelize this loop. For clang or gcc, add the option "-fopenmp" to
-    // the compiler command line. If the compiler does not understand OpenMP,
-    // the #pragma will be ignored. This particular parallelization does not
-    // gain much performance, perhaps because the memory accesses during
-    // backprop are so randomly distributed, thwarting the cache mechanisms.
-
 //#pragma omp parallel for
     for (size_t i = 0; i < backConnectionsIndices.size(); ++i) {
         auto idx = backConnectionsIndices[i];
-        Connection &conn = (*pMyLayer->pConnections)[idx];
+        Connection &conn = (*pConnections)[idx];
 
         const Neuron &fromNeuron = conn.fromNeuron;
         float oldDeltaWeight = conn.deltaWeight;
@@ -553,11 +1074,40 @@ void Neuron::updateInputWeights(float eta, float alpha)
     }
 }
 
+void Neuron::updateInputWeightsConvolution(uint32_t depth, float eta, float alpha, Layer &myLayer)
+{
+    // For convolution network layers, the weights to be updated are stored in
+    // the Layer object, not the Connection records.
+
+    for (size_t i = 0; i < backConnectionsIndices.size(); ++i) {
+        auto idx = backConnectionsIndices[i];
+        auto const &conn = (*myLayer.pConnections)[idx];
+        auto const &fromNeuron = conn.fromNeuron;
+        //auto &weight      = myLayer.flatConvolveMatrix[depth][this->convolveMatrixIndex];
+        auto &deltaWeight = myLayer.flatDeltaWeights[depth][this->convolveMatrixIndex];
+        auto &gradient    = myLayer.flatConvolveGradients[depth][this->convolveMatrixIndex];
+
+        float oldDeltaWeight = deltaWeight;
+
+        float newDeltaWeight =
+                // Individual input, magnified by the gradient and train rate:
+                eta
+                * fromNeuron.output
+                * gradient
+                // Add momentum = a fraction of the previous delta weight;
+                + alpha
+                * oldDeltaWeight;
+
+        deltaWeight += newDeltaWeight; // Just accumulate for now
+    }
+}
+
 
 // To feed forward an individual neuron, we'll sum the weighted inputs, then pass that
-// sum through the transfer function.
+// sum through the transfer function. This version is for regular layers where the
+// weights are stored in the Connection records.
 //
-void Neuron::feedForward(void)
+void Neuron::feedForward(Layer *pMyLayer)
 {
     float sum = 0.0;
 
@@ -570,7 +1120,57 @@ void Neuron::feedForward(void)
     }
 
     // Shape the output by passing it through the transfer function:
-    this->output = pMyLayer->params.tf(sum);
+    this->output = pMyLayer->tf(sum);
+}
+
+// This version is for convolution network layers where the weights are stored in the
+// Layer->flatConvolveMatrix[][] object.
+//
+void Neuron::feedForwardConvolution(uint32_t depth, Layer *pMyLayer)
+{
+    float sum = 0.0;
+
+    // Sum the neuron's inputs:
+    for (size_t i = 0; i < backConnectionsIndices.size(); ++i) {
+        auto idx = backConnectionsIndices[i];
+        auto const &conn = (*pMyLayer->pConnections)[idx];
+        auto &sourceNeuron = conn.fromNeuron;
+        auto kernelElement = pMyLayer->flatConvolveMatrix[depth][convolveMatrixIndex];
+        sum += sourceNeuron.output * kernelElement;
+    }
+
+    if (!pMyLayer->isConvolutionFilterLayer && !pMyLayer->isPoolingLayer) {
+        // Shape the output by passing it through the transfer function:
+        output = pMyLayer->tf(sum);
+    }
+}
+
+void Neuron::feedForwardPooling(Layer *pMyLayer)
+{
+    output = -9999.;
+
+    if (pMyLayer->poolMethod == NNet::POOL_MAX) {
+        // Find the max:
+        for (size_t i = 0; i < backConnectionsIndices.size(); ++i) {
+            auto idx = backConnectionsIndices[i];
+            auto const &conn = (*pMyLayer->pConnections)[idx];
+            auto &sourceNeuron = conn.fromNeuron;
+            if (sourceNeuron.output > output) {
+                output = sourceNeuron.output;
+            }
+        }
+    } else if (pMyLayer->poolMethod == NNet::POOL_AVG) {
+        // Find the average:
+        float sum = 0.0;
+        for (size_t i = 0; i < backConnectionsIndices.size(); ++i) {
+            auto idx = backConnectionsIndices[i];
+            auto const &conn = (*pMyLayer->pConnections)[idx];
+            sum += conn.fromNeuron.output;
+        }
+        output = sum / backConnectionsIndices.size();
+    } else {
+        // An unspecified pooling operator is a no-op.
+    }
 }
 
 
@@ -579,7 +1179,7 @@ void Neuron::feedForward(void)
 
 Net::Net(const string &topologyFilename)
 {
-    // See nnet.h for descriptions of these variables:
+    // See neural2d.h for more information about these members:
 
     enableBackPropTraining = true;
     doneErrorThreshold = 0.001;
@@ -600,7 +1200,7 @@ Net::Net(const string &topologyFilename)
     connections.clear();
     layers.clear();
     lastRecentAverageError = 1.0;
-    totalNumberConnections = 0;
+    totalNumberBackConnections = 0;
     totalNumberNeurons = 0;
 
 #if defined(ENABLE_WEBSERVER) && !defined(DISABLE_WEBSERVER)
@@ -614,7 +1214,6 @@ Net::Net(const string &topologyFilename)
     // neurons:
 
     bias.output = 1.0;
-    bias.gradient = 0.0;
 
     // Set up the layers, create neurons, and connect them:
 
@@ -648,13 +1247,8 @@ bool Net::loadWeights(const string &filename)
         throw exceptionWeightsFile();
     }
 
-    for (auto const &layer : layers) {
-        for (auto const &neuron : layer.neurons) {
-            for (auto idx : neuron.backConnectionsIndices) {
-                Connection &conn = connections[idx];
-                file >> conn.weight;
-            }
-        }
+    for (auto &pLayer : layers) {
+        pLayer->loadWeights(file);
     }
 
     // ToDo!!! check that the number of weights in the file == size of connections
@@ -675,13 +1269,10 @@ bool Net::saveWeights(const string &filename) const
         throw exceptionWeightsFile();
     }
 
-    for (auto const &layer : layers) {
-        for (auto const &neuron : layer.neurons) {
-            for (auto idx : neuron.backConnectionsIndices) {
-                const Connection &conn = connections[idx];
-                file << conn.weight << endl;
-            }
-        }
+    // The looping order must match that of loadWeights():
+
+    for (auto &pLayer : layers) {
+        pLayer->saveWeights(file);
     }
 
     file.close();
@@ -703,7 +1294,7 @@ void Net::reportResults(const Sample &sample) const
     // Report actual and expected outputs:
 
     info << "\nPass #" << inputSampleNumber << ": " << sample.imageFilename << "\nOutputs: ";
-    for (auto &n : layers.back().neurons) { // For all neurons in output layer
+    for (auto &n : layers.back()->neurons[0]) { // For all neurons in output layer
         info << n.output << " ";
     }
     info << endl;
@@ -725,11 +1316,11 @@ void Net::reportResults(const Sample &sample) const
             float maxOutput = std::numeric_limits<float>::min();
             size_t maxIdx = 0;
 
-            for (size_t i = 0; i < layers.back().neurons.size(); ++i) {
-                Neuron const &n = layers.back().neurons[i];
-                if (n.output > maxOutput) {
-                    maxOutput = n.output;
-                    maxIdx = i;
+            for (size_t li = 0; li < layers.back()->neurons[0].size(); ++li) { // Assumes output depth = 1
+                auto const &neuron = layers.back()->neurons[0][li];
+                if (neuron.output > maxOutput) {
+                    maxOutput = neuron.output;
+                    maxIdx = li;
                 }
             }
 
@@ -754,21 +1345,19 @@ void Net::reportResults(const Sample &sample) const
 // Given an existing layer with neurons already connected, add more
 // connections. This happens when a layer specification is repeated in
 // the config file, thus creating connections to source neurons from
-// multiple layers. This applies to regular neurons and neurons in a
-// convolution filter or convolution network layer. Returns false for
-// any error, true if successful.
+// multiple layers. Returns false for any error, true if successful.
 //
 bool Net::addToLayer(Layer &layerTo, Layer &layerFrom)
 {
-    for (uint32_t depth = 0; depth < layerTo.params.size.depth; ++depth) {
-        for (uint32_t ny = 0; ny < layerTo.params.size.y; ++ny) {
-            info << "\r" << ny << std::flush; // Progress indicator
+    for (uint32_t depth = 0; depth < layerTo.size.depth; ++depth) {
+        for (uint32_t nx = 0; nx < layerTo.size.x; ++nx) {
+            info << "\r" << nx << std::flush; // Progress indicator
 
-            for (uint32_t nx = 0; nx < layerTo.params.size.x; ++nx) {
+            for (uint32_t ny = 0; ny < layerTo.size.y; ++ny) {
                 //info << "connect to neuron " << nx << "," << ny << endl;
-                    connectNeuron(layerTo, layerFrom,
-                                  layerTo.neurons[flattenDXY(depth, nx, ny, layerTo.params.size)],
-                                  nx, ny);
+                layerTo.connectNeuron(layerFrom,
+                              layerTo.neurons[depth][flattenXY(nx, ny, layerTo.size)],
+                              depth, nx, ny);
                     // n.b. Bias connections were already made when the neurons were first created.
             }
         }
@@ -782,15 +1371,25 @@ bool Net::addToLayer(Layer &layerTo, Layer &layerFrom)
 
 // Given a layer name and size, create an empty layer. No neurons are created yet.
 //
-Layer &Net::createLayer(const layerParams_t &params)
+Layer &Net::createLayer(const topologyConfigSpec_t &params)
 {
-    layers.push_back(Layer());
-    Layer &layer = layers.back(); // Make a convenient name
+    if (params.isConvolutionFilterLayer) {
+        layers.push_back(std::unique_ptr<Layer>(new LayerConvolutionFilter(params)));
+    } else if (params.isConvolutionNetworkLayer) {
+        layers.push_back(std::unique_ptr<Layer>(new LayerConvolutionNetwork(params)));
+    } else if (params.isPoolingLayer) {
+        layers.push_back(std::unique_ptr<Layer>(new LayerPooling(params)));
+    } else {
+        layers.push_back(std::unique_ptr<Layer>(new LayerRegular(params)));
+    }
+    //layers.push_back(Layer(params));
+    Layer &newLayer = *layers.back(); // Make a convenient name
 
-    layer.params = params;
-    layer.params.resolveTransferFunctionName();
+    newLayer.resolveTransferFunctionName(params.transferFunctionName);
+    newLayer.pConnections = &connections;
+    newLayer.projectRectangular = projectRectangular; // Note: cannot be changed after net is initialized. !!!
 
-    return layer;
+    return newLayer;
 }
 
 
@@ -800,55 +1399,13 @@ Layer &Net::createLayer(const layerParams_t &params)
 //
 void Net::debugShowNet(bool details)
 {
-    uint32_t numFwdConnections;
-    uint32_t numBackConnections;
+//    uint32_t numFwdConnections;
+//    uint32_t numBackConnections;
 
     info << "\n\nNet configuration (incl. bias connection): --------------------------" << endl;
 
-    for (auto const &l : layers) {
-        numFwdConnections = 0;
-        numBackConnections = 0;
-        info << "Layer '" << l.params.layerName << "' has " << l.neurons.size()
-             << " neurons arranged in " << l.params.size.x << "x" << l.params.size.y
-             << " depth " << l.params.size.depth << ":" << endl;
-
-        for (auto const &n : l.neurons) {
-            if (details) {
-                info << "  neuron(" << &n << ")" << " output: " << n.output << endl;
-            }
-
-            numFwdConnections += n.forwardConnectionsIndices.size();
-            numBackConnections += n.backConnectionsIndices.size(); // Includes the bias connection
-
-            if (details && n.forwardConnectionsIndices.size() > 0) {
-                info << "    Fwd connections:" << endl;
-                for (auto idx : n.forwardConnectionsIndices) {
-                    Connection const &pc = connections[idx];
-                    info << "      conn(" << &pc << ") pFrom=" << &pc.fromNeuron
-                         << ", pTo=" << &pc.toNeuron
-                         << ", w,dw=" << pc.weight << ", " << pc.deltaWeight
-                         << endl;
-                }
-            }
-
-            if (details && n.backConnectionsIndices.size() > 0) {
-                info << "    Back connections (incl. bias):" << endl;
-                for (auto idx : n.backConnectionsIndices) {
-                    Connection const &c = connections[idx];
-                    info << "      conn(" << &c << ") pFrom=" << &c.fromNeuron
-                         << ", pTo=" << &c.toNeuron
-                         << ", w=" << c.weight
-
-                         << endl;
-                    assert(&c.toNeuron == &n);
-                }
-            }
-        }
-
-        if (!details) {
-            info << "   connections: " << numBackConnections << " back, "
-                 << numFwdConnections << " forward." << endl;
-        }
+    for (auto &pLayer : layers) {
+        pLayer->debugShow(details);
     }
 }
 
@@ -864,40 +1421,25 @@ void Net::backProp(const Sample &sample)
         return;
     }
 
-    // Calculate output layer gradients:
-
-    Layer &outputLayer = layers.back();
-    for (uint32_t n = 0; n < outputLayer.neurons.size(); ++n) {
-        outputLayer.neurons[n].calcOutputGradients(sample.targetVals[n]);
+    // Verify that we have the right number of target output values:
+    auto const &outputSize = layers.back()->size;
+    if (sample.targetVals.size() != outputSize.depth * outputSize.x * outputSize.y) {
+        err << "Error: wrong number of target output values in the input data config file" << endl;
+        throw exceptionConfigFile();
     }
 
-    // Calculate hidden layer gradients
+    // Calculate the gradients of all the neurons' outputs, starting at the output layer:
 
-    for (uint32_t layerNum = layers.size() - 2; layerNum > 0; --layerNum) {
-        Layer &hiddenLayer = layers[layerNum]; // Make a convenient name
-
-        for (auto &n : hiddenLayer.neurons) {
-            n.calcHiddenGradients();
-        }
+    for (uint32_t layerNum = layers.size() - 1; layerNum > 0; --layerNum) {
+        layers[layerNum]->calcGradients(sample.targetVals);
     }
 
     // For all layers from outputs to first hidden layer, in reverse order,
-    // update connection weights. Skip the update in convolution filter layers.
+    // update connection weights.
 
     for (uint32_t layerNum = layers.size() - 1; layerNum > 0; --layerNum) {
-        Layer &layer = layers[layerNum];
-
-        if (layer.params.isConvolutionNetworkLayer) {
-            for (uint32_t depth = 0; depth < layer.params.size.depth; ++depth) {
-                // To be implemented. See Issue #14.
-                err << "Sorry, convolution networking is not yet implemented. Workingonit." << endl;
-                exit(1); // Temporary.
-            }
-        } else if (!layer.params.isConvolutionFilterLayer) {
-            for (auto &neuron : layer.neurons) {
-                neuron.updateInputWeights(eta, alpha);
-            }
-        }
+        Layer &layer = *layers[layerNum];
+        layer.updateWeights(eta, alpha);
     }
 
     // Adjust eta if dynamic eta adjustment is enabled:
@@ -919,29 +1461,30 @@ void Net::feedForward(Sample &sample)
     // check that the number of components of the input sample equals
     // the number of input neurons:
 
-    const vector<float> &data = sample.getData(layers[0].params.channel);
-    Layer &inputLayer = layers[0];
+    Layer &inputLayer = *layers[0];
+    const vector<float> &data = sample.getData(inputLayer.channel);
 
-    if (inputLayer.neurons.size() != data.size()) {
+    if (inputLayer.neurons[0].size() != data.size()) { // We'll assume input layer depth = 1
         err << "Error: input sample " << inputSampleNumber << " has " << data.size()
-            << " components, expecting " << inputLayer.neurons.size() << endl;
+            << " components, expecting " << inputLayer.neurons[0].size() << endl;
         //throw exceptionRuntime();
     }
 
     // Rather than make it a fatal error if the number of input neurons != number
     // of input data values, we'll use whatever we can and skip the rest:
+    // Assuming the sensible case where the X and Y size of the input layer matches
+    // the X and Y size of the input image, then we don't have to flatten the indices
+    // because they are already flattened the same way:
 
-    for (uint32_t i = 0; i < (uint32_t)min(inputLayer.neurons.size(), data.size()); ++i) {
-        inputLayer.neurons[i].output = data[i];
+    for (uint32_t i = 0; i < (uint32_t)min(inputLayer.neurons[0].size(), data.size()); ++i) {
+        inputLayer.neurons[0][i].output = data[i];
     }
 
     // Start the forward propagation at the first hidden layer:
 
-    for (auto it = layers.begin() + 1; it != layers.end(); ++it){
-        for (auto &neuron : it->neurons) {
-             neuron.feedForward();
-        }
-    }
+    std::for_each(layers.begin() + 1, layers.end(), [](std::unique_ptr<Layer> &pLayer) {
+        pLayer->feedForward();
+    });
 
     // If target values are known, update the output neurons' errors and
     // update the overall net error:
@@ -970,21 +1513,22 @@ void Net::calculateOverallNetError(const Sample &sample)
         return;
     }
 
-    const Layer &outputLayer = layers.back();
+    const Layer &outputLayer = *layers.back();   // A more convenient name
 
     // Check that the number of target values equals the number of output neurons:
+    // Assumes output layer depth = 1
 
-    if (sample.targetVals.size() != outputLayer.neurons.size()) {
+    if (sample.targetVals.size() != outputLayer.neurons[0].size()) {
         err << "Error in sample " << inputSampleNumber << ": wrong number of target values" << endl;
         throw exceptionRuntime();
     }
 
-    for (uint32_t n = 0; n < outputLayer.neurons.size(); ++n) {
-        float delta = sample.targetVals[n] - outputLayer.neurons[n].output;
+    for (uint32_t n = 0; n < outputLayer.neurons[0].size(); ++n) {
+        float delta = sample.targetVals[n] - outputLayer.neurons[0][n].output;
         error += delta * delta;
     }
 
-    error /= 2.0 * outputLayer.neurons.size();
+    error /= 2.0 * outputLayer.neurons[0].size();
 
     // Regularization calculations -- this is an experimental implementation.
     // If this experiment works, we should instead calculate the sum of weights
@@ -992,6 +1536,8 @@ void Net::calculateOverallNetError(const Sample &sample)
     // This adds an error term calculated from the sum of squared weights. This encourages
     // the net to find a solution using small weight values, which can be helpful for
     // multiple reasons.
+    // To do: include convolution kernel weights in the sum !!!
+    // To do: init Connection::weight to 0.0 in Connection ctor
 
     float sumWeightsSquared_ = 0.0;
     if (lambda != 0.0) {
@@ -999,7 +1545,8 @@ void Net::calculateOverallNetError(const Sample &sample)
             sumWeightsSquared_ += connections[i].weight * connections[i].weight;
         }
 
-        error += (sumWeightsSquared_ * lambda) / (2.0 * (totalNumberConnections - totalNumberNeurons));
+        error += (sumWeightsSquared_ * lambda)
+                     / (2.0 * (totalNumberBackConnections - totalNumberNeurons));
     }
 
     // Implement a recent average measurement -- average the net errors over N samples:
@@ -1014,13 +1561,8 @@ void Net::calculateOverallNetError(const Sample &sample)
 // appears again in the topology config file, those additional connections must be added
 // to existing connections by calling addToLayer() instead of this function.
 //
-// Neurons can be "regular" neurons, or convolution filter nodes. If a convolution filter
-// matrix is defined for the layer, the neurons in that layer will be connected to source
-// neurons in a rectangular pattern defined by the matrix dimensions. No bias connections
-// are created for convolution filter nodes. Convolution filter nodes ignore any radius parameter.
-// For convolution filter nodes, the transfer function is set to be the identity function.
-//
-// For regular neurons,
+// For regular neurons we always use the radius parameter. By default, it is a huge value
+// that will guarantee coverage of the source layer. With a radius parameter,
 // the location of the destination neuron is projected onto the neurons of the source
 // layer. A shape is defined by the radius parameters, and is considered to be either
 // rectangular or elliptical (depending on the value of projectRectangular below).
@@ -1028,134 +1570,28 @@ void Net::calculateOverallNetError(const Sample &sample)
 // destination neuron. E.g., a radius of 1,1, if projectRectangular is true, connects
 // nine neurons from the source layer in a 3x3 block to this destination neuron.
 //
-// Each Neuron object holds a container of Connection objects for all the source
-// inputs to the neuron. Each neuron also holds a container of pointers to Connection
-// objects in the forward direction. Those points point to Container objects in
-// and owned by neurons in other layers. I.e., the master copies of all connection are
-// in the containers of back connections; forward connection pointers refer to
-// back connection records in other neurons.
+// Each Neuron object holds a container of indices to Connection objects for all the source
+// inputs to the neuron (back connections). Each neuron also holds a container of indices to
+// Connection objects in the forward direction.
 //
 void Net::connectNeuron(Layer &layerTo, Layer &fromLayer, Neuron &neuron,
-        uint32_t nx, uint32_t ny)
+        uint32_t depth, uint32_t nx, uint32_t ny)
 {
-    auto &params = layerTo.params;
-    uint32_t sizeX = params.size.x;
-    uint32_t sizeY = params.size.y;
-    assert(sizeX > 0 && sizeY > 0);
+    layerTo.connectNeuron(fromLayer, neuron, depth, nx, ny);
+    this->totalNumberBackConnections += layerTo.totalNumberBackConnections;
+}
 
-    // Calculate the normalized [0..1] coordinates of our neuron:
-    float normalizedX = ((float)nx / sizeX) + (1.0 / (2 * sizeX));
-    float normalizedY = ((float)ny / sizeY) + (1.0 / (2 * sizeY));
 
-    // Calculate the coords of the nearest neuron in the "from" layer.
-    // The calculated coords are relative to the "from" layer:
-    uint32_t lfromX = uint32_t(normalizedX * fromLayer.params.size.x); // should we round off instead of round down?
-    uint32_t lfromY = uint32_t(normalizedY * fromLayer.params.size.y);
-
-//    info << "our neuron at " << nx << "," << ny << " covers neuron at "
-//         << lfromX << "," << lfromY << endl;
-
-    // Calculate the rectangular window into the "from" layer:
-
-    int32_t xmin = 0;
-    int32_t xmax = 0;
-    int32_t ymin = 0;
-    int32_t ymax = 0;
-
-    if (params.isConvolutionFilterLayer) {
-        assert(params.convolveMatrix[0].size() > 0);
-        assert(params.convolveMatrix[0].size() > 0);
-
-        ymin = lfromY - params.convolveMatrix[0][0].size() / 2;
-        ymax = ymin + params.convolveMatrix[0][0].size() - 1;
-        xmin = lfromX - params.convolveMatrix[0].size() / 2;
-        xmax = xmin + params.convolveMatrix[0].size() - 1;
-    } else {
-        xmin = lfromX - params.radius.x;
-        xmax = lfromX + params.radius.x;
-        ymin = lfromY - params.radius.y;
-        ymax = lfromY + params.radius.y;
-    }
-
-    // Clip to the layer boundaries:
-
-    if (xmin < 0) xmin = 0;
-    if (xmin >= (int32_t)fromLayer.params.size.x) xmin = fromLayer.params.size.x - 1;
-    if (ymin < 0) ymin = 0;
-    if (ymin >= (int32_t)fromLayer.params.size.y) ymin = fromLayer.params.size.y - 1;
-    if (xmax < 0) xmax = 0;
-    if (xmax >= (int32_t)fromLayer.params.size.x) xmax = fromLayer.params.size.x - 1;
-    if (ymax < 0) ymax = 0;
-    if (ymax >= (int32_t)fromLayer.params.size.y) ymax = fromLayer.params.size.y - 1;
-
-    // Now (xmin,xmax,ymin,ymax) defines a rectangular subset of neurons in a previous layer.
-    // We'll make a connection from each of those neurons in the previous layer to our
-    // neuron in the current layer.
-
-    // We will also check for and avoid duplicate connections. Duplicates are mostly harmless,
-    // but unnecessary. Duplicate connections can be formed when the same layer name appears
-    // more than once in the topology config file with the same "from" layer if the projected
-    // rectangular or elliptical areas on the source layer overlap.
-
-    float xcenter = ((float)xmin + (float)xmax) / 2.0;
-    float ycenter = ((float)ymin + (float)ymax) / 2.0;
-    uint32_t maxNumSourceNeurons = ((xmax - xmin) + 1) * ((ymax - ymin) + 1);
-
-    for (uint32_t depth = 0; depth < params.size.depth; ++depth) {
-        for (int32_t y = ymin; y <= ymax; ++y) {
-            for (int32_t x = xmin; x <= xmax; ++x) {
-                if (!params.isConvolutionFilterLayer && !params.isConvolutionNetworkLayer && !projectRectangular
-                                && elliptDist(xcenter - x, ycenter - y,
-                                            params.radius.x, params.radius.y) >= 1.0) {
-                    continue; // Skip this location, it's outside the ellipse
-                }
-
-                // For convolution filter layers, there's no need to make a connection for any
-                // kernel weight that is zero:
-                if (params.isConvolutionFilterLayer && params.convolveMatrix[0][x - xmin][y - ymin] == 0.0) {
-                    continue;
-                }
-
-                Neuron &fromNeuron = fromLayer.neurons[flattenDXY(depth, x, y, fromLayer.params.size)];
-
-                bool duplicate = false;
-                if (neuron.sourceNeurons.find(&fromNeuron) != neuron.sourceNeurons.end()) {
-                    duplicate = true;
-                    break; // Skip this connection, proceed to the next
-                }
-
-                if (!duplicate) {
-                    // Add a new Connection record to the main container of connections:
-                    connections.push_back(Connection(fromNeuron, neuron));
-                    int connectionIdx = connections.size() - 1;  //    and get its index,
-                    ++totalNumberConnections;
-
-                    // Initialize the weight of the connection:
-                    if (params.isConvolutionFilterLayer) {
-                        connections.back().weight = params.convolveMatrix[0][x - xmin][y - ymin];
-                    } else {
-                        //connections.back().weight = (randomFloat() - 0.5) / maxNumSourceNeurons;
-                        connections.back().weight = ((randomFloat() * 2) - 1.0) / sqrt(maxNumSourceNeurons);
-                    }
-
-                    // Record the back connection index at the destination neuron:
-                    neuron.backConnectionsIndices.push_back(connectionIdx);
-
-                    // Remember the source neuron for detecting duplicate connections:
-                    neuron.sourceNeurons.insert(&fromNeuron);
-
-                    // Record the Connection index at the source neuron:
-                    uint32_t flatIdxFrom = flattenDXY(depth, x, y, fromLayer.params.size);
-                    fromLayer.neurons[flatIdxFrom].forwardConnectionsIndices.push_back(
-                               connectionIdx);
-
-    //                info << "    connect from layer " << fromLayer.params.layerName
-    //                     << " at " << x << "," << y
-    //                     << " to " << nx << "," << ny << endl;
-                }
-            }
-        }
-    }
+// This function is for convolution filter and convolution network layers. When a convolve
+// parameter is specified on the layer, the neurons in that layer will be connected
+// to source neurons in a rectangular window defined by the convolution kernel dimensions.
+// Convolution neurons ignore any radius parameter.
+//
+void Net::connectConvolutionNeuron(Layer &layerTo, Layer &fromLayer, Neuron &neuron,
+        uint32_t depth, uint32_t nx, uint32_t ny)
+{
+    layerTo.connectNeuron(fromLayer, neuron, depth, nx, ny);
+    this->totalNumberBackConnections += layerTo.totalNumberBackConnections;
 }
 
 
@@ -1174,7 +1610,7 @@ void Net::connectBias(Neuron &neuron)
     // Record the back connection with the destination neuron:
     neuron.backConnectionsIndices.push_back(connectionIdx);
 
-    ++totalNumberConnections;
+    ++totalNumberBackConnections;
 
     // Record the forward connection with the fake bias neuron:
     bias.forwardConnectionsIndices.push_back(connectionIdx);
@@ -1183,12 +1619,15 @@ void Net::connectBias(Neuron &neuron)
 
 // Returns layer index if found, else returns -1
 //
-int32_t Net::getLayerNumberFromName(const string &name) const
+int32_t Net::getLayerNumberFromName(string &name) const
 {
-    auto it = std::find_if(layers.begin(), layers.end(), [&name](Layer layer) {
-                      return layer.params.layerName == name; });
+    for (auto it = layers.begin(); it != layers.end(); ++it) {
+        if ((*it)->layerName == name) {
+            return it - layers.begin();
+        }
+    }
 
-    return it == layers.end() ? -1 : it - layers.begin();
+    return -1;
 }
 
 
@@ -1198,27 +1637,33 @@ int32_t Net::getLayerNumberFromName(const string &name) const
 //
 void Net::createNeurons(Layer &layerTo, Layer &layerFrom)
 {
-    // Reserve enough space in layer.neurons to prevent reallocation (so that
-    // we can form stable references to neurons):
+    // Pre-allocate all the neurons in the layer so that we can form
+    // stable references to individual neurons:
+    layerTo.neurons.assign(layerTo.size.depth,
+                           vector<Neuron>(layerTo.size.x * layerTo.size.y));
 
-    layerTo.neurons.reserve(layerTo.params.size.depth * layerTo.params.size.x * layerTo.params.size.y);
+    totalNumberNeurons += layerTo.size.depth * layerTo.size.x * layerTo.size.y;
 
-    for (uint32_t depth = 0; depth < layerTo.params.size.depth; ++depth) {
-        for (uint32_t ny = 0; ny < layerTo.params.size.y; ++ny) {
-            info << "\r" << ny << "/" << layerTo.params.size.y << std::flush; // Progress indicator
+    for (uint32_t depth = 0; depth < layerTo.size.depth; ++depth) {
+        for (uint32_t nx = 0; nx < layerTo.size.x; ++nx) {
 
-            for (uint32_t nx = 0; nx < layerTo.params.size.x; ++nx) {
-                layerTo.neurons.push_back(&layerTo); // This creates a neuron and saves it
-                Neuron &neuron = layerTo.neurons.back(); // Make a more convenient name for it
-                ++totalNumberNeurons;
+            info << "\r" << nx << "/" << layerTo.size.x << std::flush; // Progress indicator
+
+            for (uint32_t ny = 0; ny < layerTo.size.y; ++ny) {
+                Neuron &neuron = layerTo.neurons[depth][flattenXY(nx, ny, layerTo.size)];
 
                 // If layerFrom is layerTo, it means we're making input neurons
                 // that have no input connections to the neurons. Else, we must make connections
-                // to the source neurons and, for classic neurons, to a bias input:
+                // to the source neurons, and connect the bias input if needed:
 
-                if (&layerFrom != &layerTo) {
-                    connectNeuron(layerTo, layerFrom, neuron, nx, ny);
-                    if (!layerTo.params.isConvolutionFilterLayer) {
+                if (layerTo.isConvolutionNetworkLayer || layerTo.isConvolutionFilterLayer) {
+                    connectConvolutionNeuron(layerTo, layerFrom, neuron, depth, nx, ny);
+                    if (!layerTo.isConvolutionFilterLayer) {
+                        connectBias(neuron);
+                    }
+                } else if (&layerFrom != &layerTo) { // For regular and pooling layers:
+                    connectNeuron(layerTo, layerFrom, neuron, depth, nx, ny);
+                    if (!layerTo.isPoolingLayer) {
                         connectBias(neuron);
                     }
                 }
@@ -1235,7 +1680,7 @@ Convolution filter matrix example formats:
 {0, 1,2}
 { {0,1,2}, {1,2,1}, {0, 1, 0}}
 */
-convolveMatrix_t Net::parseMatrixSpec(std::istringstream &ss)
+mat2D_t Net::parseMatrixSpec(std::istringstream &ss)
 {
     char c;
     enum state_t { INIT, LEFTBRACE, RIGHTBRACE, COMMA, NUM };
@@ -1330,7 +1775,7 @@ convolveMatrix_t Net::parseMatrixSpec(std::istringstream &ss)
     // this, we'll check that all rows have the same size, and we'll
     // record the sum of the weights.
 
-    convolveMatrix_t convMat;
+    mat2D_t convMat;
     unsigned firstRowSize = 0;
 
     for (unsigned x = 0; x < mat.size(); ++x) {
@@ -1363,13 +1808,14 @@ void Net::reportUnconnectedNeurons(void)
 
     // Loop through all layers except the output layer, looking for unconnected neurons:
     uint32_t neuronsWithNoSink = 0;
-    for (uint32_t lidx = 0; lidx < layers.size() - 1; ++lidx) {
-        Layer const &layer = layers[lidx];
-        for (auto const &neuron : layer.neurons) {
-            if (neuron.forwardConnectionsIndices.size() == 0) {
-                ++neuronsWithNoSink;
-                warn << "  neuron(" << &neuron << ") on " << layer.params.layerName
-                     << endl;
+    for (uint32_t layerNum = 0; layerNum < layers.size() - 1; ++layerNum) {
+        for (auto const &plane : layers[layerNum]->neurons) {
+            for (auto const &neuron : plane) {
+                if (neuron.forwardConnectionsIndices.size() == 0) {
+                    ++neuronsWithNoSink;
+                    warn << "  neuron(" << &neuron << ") on " << layers[layerNum]->layerName
+                         << endl;
+                }
             }
         }
     }
@@ -1392,35 +1838,44 @@ void Net::configureNetwork(vector<topologyConfigSpec_t> allLayerSpecs, const str
 
     for (topologyConfigSpec_t &spec : allLayerSpecs) {
         // Find indices of existing source and dest layers, or -1 if not found:
-        int32_t previouslyDefinedLayerNumSameName = getLayerNumberFromName(spec.layerParams.layerName);
+        int32_t previouslyDefinedLayerNumSameName = getLayerNumberFromName(spec.layerName);
         int32_t layerNumFrom = getLayerNumberFromName(spec.fromLayerName); // input layer will return -1
 
         // If the layer of this name does not already exist, create it:
         if (previouslyDefinedLayerNumSameName == -1) {
             // Create a new layer
-            Layer &newLayer = createLayer(spec.layerParams);
+            Layer &newLayer = createLayer(spec);
 
             // Create neurons and connect them:
+            info << "Creating layer " << spec.layerName << ", one moment..." << endl;
 
-            info << "Creating layer " << spec.layerParams.layerName << ", one moment..." << endl;
-            if (newLayer.params.layerName == "input") {
+            if (newLayer.layerName == "input") {
                 createNeurons(newLayer, newLayer); // Input layer has no back connections
             } else {
-                createNeurons(newLayer, layers[layerNumFrom]); // Also connects them
+                createNeurons(newLayer, *layers[layerNumFrom]); // Also connects them
             }
 
-            numNeurons += newLayer.params.size.x * newLayer.params.size.y;
+            numNeurons += newLayer.size.x * newLayer.size.y;
+
+            // For convolution network layers, initialize the kernels and associated data:
+            if (spec.isConvolutionNetworkLayer) {
+                uint32_t maxNumSourceNeurons = newLayer.size.x * newLayer.size.y;
+                for (auto &plane : newLayer.flatConvolveMatrix) {
+                    std::for_each(std::begin(plane), std::end(plane), [maxNumSourceNeurons](float &weight) {
+                        weight = ((randomFloat() * 2) - 1.0) / sqrt(maxNumSourceNeurons);
+                    });
+                }
+            }
         } else {
             // Layer already exists, add connections to it.
             // "input" layer will never take this path.
-            previouslyDefinedLayerNumSameName = getLayerNumberFromName(spec.layerParams.layerName);
-            Layer &layerTo = layers[previouslyDefinedLayerNumSameName]; // A more convenient name
+            previouslyDefinedLayerNumSameName = getLayerNumberFromName(spec.layerName);
+            Layer &layerTo = *layers[previouslyDefinedLayerNumSameName]; // A more convenient name
 
             // Add more connections to the existing neurons in this layer:
-
-            bool ok = addToLayer(layerTo, layers[layerNumFrom]);
+            bool ok = addToLayer(layerTo, *layers[layerNumFrom]);
             if (!ok) {
-                err << "Error in " << configFilename << ", layer \'" << layerTo.params.layerName << "\'" << endl;
+                err << "Error in " << configFilename << ", layer \'" << layerTo.layerName << "\'" << endl;
                 throw exceptionConfigFile();
             }
         }
@@ -1442,9 +1897,11 @@ void Net::parseConfigFile(const string &configFilename)
 
     configureNetwork(parseTopologyConfig(cfg), configFilename);
 
-    // Record the location of the connections container in the Layers:
-    for_each(layers.begin(), layers.end(), [this](Layer &layer) {
-             layer.pConnections = &connections; });
+    // Record the location of the connections container in the Layers. This is used
+    // to help detect duplicate connections:
+    for (auto &layer : layers) {
+         layer->pConnections = &connections;
+    }
 
     reportUnconnectedNeurons();
 }
@@ -1500,10 +1957,11 @@ void Net::makeParameterBlock(string &s)
     // channel=R|G|B|BW
 
     string channel;
-    switch(layers[0].params.channel) {
+    switch(layers[0]->channel) {
         case NNet::R: channel = "R"; break;
         case NNet::G: channel = "G"; break;
         case NNet::B: channel = "B"; break;
+        default:
         case NNet::BW: channel = "BW"; break;
     }
 
@@ -1553,7 +2011,7 @@ void Net::makeParameterBlock(string &s)
 void Net::actOnMessageReceived(Message_t &msg)
 {
     string parameterBlock;
-    ColorChannel_t newColorChannel = layers[0].params.channel;
+    ColorChannel_t newColorChannel = layers[0]->channel;
 
     string &line = msg.text;
 
@@ -1715,9 +2173,9 @@ void Net::actOnMessageReceived(Message_t &msg)
 
     // Post processing
 
-    if (newColorChannel != layers[0].params.channel) {
+    if (newColorChannel != layers[0]->channel) {
         sampleSet.clearImageCache();
-        layers[0].params.channel = newColorChannel;
+        layers[0]->channel = newColorChannel;
     }
 
     // Send the HTTP response:

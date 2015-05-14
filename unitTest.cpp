@@ -17,6 +17,10 @@ namespace NNet {
 // Define to skip exception testing:
 //#define SKIP_TEST_EXCEPTIONS
 
+const bool StopAtFirstError = false;
+
+unsigned numErrors = 0;
+
 class unitTestException : std::exception { };
 extern float pixelToNetworkInputRange(unsigned val);
 
@@ -29,19 +33,30 @@ extern float pixelToNetworkInputRange(unsigned val);
 #define ASSERT_EQ(c, v) { if (!((c)==(v))) { \
     cerr << "FAIL: in " << __FILE__ << "(" << __LINE__ << "), expected " \
     << (v) << ", got " << (c) << endl; \
-    throw unitTestException(); \
+    ++numErrors; \
+    if (StopAtFirstError) throw unitTestException(); \
+    } }
+
+// ASSERT_FEQ() is for approximate floating point equality, of ~4 decimal digits precision:
+#define ASSERT_FEQ(c, v) { float q = (c)/(v); if (q < 0.9999 || q > 1.0001) { \
+    cerr << "FAIL: in " << __FILE__ << "(" << __LINE__ << "), expected " \
+    << (v) << ", got " << (c) << endl; \
+    ++numErrors; \
+    if (StopAtFirstError) throw unitTestException(); \
     } }
 
 #define ASSERT_NE(c, v) { if (!((c)!=(v))) { \
     cerr << "FAIL: in " << __FILE__ << "(" << __LINE__ << "), got unexpected " \
     << (v) << endl; \
-    throw unitTestException(); \
+    ++numErrors; \
+    if (StopAtFirstError) throw unitTestException(); \
     } }
 
 #define ASSERT_GE(c, v) { if (!((c)>=(v))) { \
     cerr << "FAIL: in " << __FILE__ << "(" << __LINE__ << "), expected >=" \
     << (v) << ", got " << (c) << endl; \
-    throw unitTestException(); \
+    ++numErrors; \
+    if (StopAtFirstError) throw unitTestException(); \
     } }
 
 // This macro verifies that evaluating the expression triggers the specified
@@ -60,7 +75,8 @@ extern float pixelToNetworkInputRange(unsigned val);
     if (!caught) { \
         cerr << "FAIL: in " << __FILE__ << "(" << __LINE__ << "), did not catch expected exception " \
              << endl; \
-        throw unitTestException(); \
+        ++numErrors; \
+        if (StopAtFirstError) throw unitTestException(); \
     } \
 }
 
@@ -70,16 +86,26 @@ extern float pixelToNetworkInputRange(unsigned val);
 //
 void setAllWeights(Net &myNet, float w)
 {
+    // For regular connections:
     for (auto &conn : myNet.connections) {
         conn.weight = w;
     }
+
+    // The convolution kernel elements are weights too for testing purposes:
+    for (auto &pLayer : myNet.layers) {
+        for (auto &mat2D : pLayer->flatConvolveMatrix) {
+            for (auto it = mat2D.begin(); it != mat2D.end(); ++it) {   // !!! prefer assign here
+                *it = 1.0;
+            }
+        }
+    }
 }
 
-int unitTestConfigParser()
+void unitTestConfigParser()
 {
     LOG("unitTestConfigParser()");
 
-    // Make an uninitialized Net:
+    // Make an uninitialized Net to use in this section:
     Net myNet("");
 
     {
@@ -95,31 +121,31 @@ int unitTestConfigParser()
         ASSERT_EQ(specs.size(), 2);
         ASSERT_EQ(specs[0].fromLayerName.size(), 0);
         ASSERT_EQ(specs[0].configLineNum, 1);
-        ASSERT_EQ(specs[0].layerParams.channel, NNet::BW);
-        ASSERT_EQ(specs[0].layerParams.convolveMatrix.size(), 0);
-        ASSERT_EQ(specs[0].layerParams.isConvolutionFilterLayer, false);
-        ASSERT_EQ(specs[0].layerParams.isConvolutionNetworkLayer, false);
-        ASSERT_EQ(specs[0].layerParams.layerName, "input");
-        ASSERT_EQ(specs[0].layerParams.poolSize.x, 0);
-        ASSERT_EQ(specs[0].layerParams.poolSize.y, 0);
-        ASSERT_EQ(specs[0].layerParams.size.depth, 1);
-        ASSERT_EQ(specs[0].layerParams.size.x, 2);
-        ASSERT_EQ(specs[0].layerParams.size.y, 2);
+        ASSERT_EQ(specs[0].channel, NNet::BW);
+        ASSERT_EQ(specs[0].flatConvolveMatrix.size(), 0);
+        ASSERT_EQ(specs[0].isConvolutionFilterLayer, false);
+        ASSERT_EQ(specs[0].isConvolutionNetworkLayer, false);
+        ASSERT_EQ(specs[0].isPoolingLayer, false);
+        ASSERT_EQ(specs[0].layerName, "input");
+        ASSERT_EQ(specs[0].poolSize.x, 0);
+        ASSERT_EQ(specs[0].poolSize.y, 0);
+        ASSERT_EQ(specs[0].size.depth, 1);
+        ASSERT_EQ(specs[0].size.x, 2);
+        ASSERT_EQ(specs[0].size.y, 2);
 
         ASSERT_EQ(specs[1].fromLayerName, "input");
         ASSERT_EQ(specs[1].configLineNum, 2);
-        ASSERT_EQ(specs[1].layerParams.convolveMatrix.size(), 0);
-        ASSERT_EQ(specs[1].layerParams.isConvolutionFilterLayer, false);
-        ASSERT_EQ(specs[1].layerParams.isConvolutionNetworkLayer, false);
-        ASSERT_EQ(specs[1].layerParams.layerName, "output");
-        ASSERT_EQ(specs[1].layerParams.poolSize.x, 0);
-        ASSERT_EQ(specs[1].layerParams.poolSize.y, 0);
-        ASSERT_EQ(specs[1].layerParams.size.depth, 1);
-        ASSERT_EQ(specs[1].layerParams.size.x, 1);
-        ASSERT_EQ(specs[1].layerParams.size.y, 1);
-        ASSERT_NE(specs[1].layerParams.tf, 0);
-        ASSERT_NE(specs[1].layerParams.tfDerivative, 0);
-        ASSERT_EQ(specs[1].layerParams.transferFunctionName.size(), sizeof "tanh" - 1);
+        ASSERT_EQ(specs[1].flatConvolveMatrix.size(), 0);
+        ASSERT_EQ(specs[1].isConvolutionFilterLayer, false);
+        ASSERT_EQ(specs[1].isConvolutionNetworkLayer, false);
+        ASSERT_EQ(specs[1].isPoolingLayer, false);
+        ASSERT_EQ(specs[1].layerName, "output");
+        ASSERT_EQ(specs[1].poolSize.x, 0);
+        ASSERT_EQ(specs[1].poolSize.y, 0);
+        ASSERT_EQ(specs[1].size.depth, 1);
+        ASSERT_EQ(specs[1].size.x, 1);
+        ASSERT_EQ(specs[1].size.y, 1);
+        ASSERT_EQ(specs[1].transferFunctionName.size(), sizeof "tanh" - 1);
     }
 
     {
@@ -150,7 +176,7 @@ int unitTestConfigParser()
 
         istringstream ss(config);
         auto specs = myNet.parseTopologyConfig(ss);
-        ASSERT_EQ(specs[0].layerParams.channel, NNet::R);
+        ASSERT_EQ(specs[0].channel, NNet::R);
     }
 
     {
@@ -162,9 +188,9 @@ int unitTestConfigParser()
 
         istringstream ss(config);
         auto specs = myNet.parseTopologyConfig(ss);
-        ASSERT_EQ(specs[0].layerParams.size.depth, 1);
-        ASSERT_EQ(specs[0].layerParams.size.x, 3);
-        ASSERT_EQ(specs[0].layerParams.size.y, 1);
+        ASSERT_EQ(specs[0].size.depth, 1);
+        ASSERT_EQ(specs[0].size.x, 3);
+        ASSERT_EQ(specs[0].size.y, 1);
     }
 
     {
@@ -176,9 +202,9 @@ int unitTestConfigParser()
 
         istringstream ss(config);
         auto specs = myNet.parseTopologyConfig(ss);
-        ASSERT_EQ(specs[0].layerParams.size.depth, 4);
-        ASSERT_EQ(specs[0].layerParams.size.x, 3);
-        ASSERT_EQ(specs[0].layerParams.size.y, 1);
+        ASSERT_EQ(specs[0].size.depth, 4);
+        ASSERT_EQ(specs[0].size.x, 3);
+        ASSERT_EQ(specs[0].size.y, 1);
     }
 
     {
@@ -190,9 +216,9 @@ int unitTestConfigParser()
 
         istringstream ss(config);
         auto specs = myNet.parseTopologyConfig(ss);
-        ASSERT_EQ(specs[0].layerParams.size.depth, 4);
-        ASSERT_EQ(specs[0].layerParams.size.x, 3);
-        ASSERT_EQ(specs[0].layerParams.size.y, 5);
+        ASSERT_EQ(specs[0].size.depth, 4);
+        ASSERT_EQ(specs[0].size.x, 3);
+        ASSERT_EQ(specs[0].size.y, 5);
     }
 
     {
@@ -205,7 +231,7 @@ int unitTestConfigParser()
         istringstream ss(config);
         auto specs = myNet.parseTopologyConfig(ss);
         ASSERT_EQ(specs.size(), 2);
-        ASSERT_EQ(specs[0].layerParams.layerName, "input");
+        ASSERT_EQ(specs[0].layerName, "input");
     }
 
     {
@@ -218,9 +244,9 @@ int unitTestConfigParser()
         istringstream ss(config);
         auto specs = myNet.parseTopologyConfig(ss);
         ASSERT_EQ(specs.size(), 2);
-        ASSERT_EQ(specs[0].layerParams.size.depth, 4);
-        ASSERT_EQ(specs[0].layerParams.size.x, 5);
-        ASSERT_EQ(specs[0].layerParams.size.y, 6);
+        ASSERT_EQ(specs[0].size.depth, 4);
+        ASSERT_EQ(specs[0].size.x, 5);
+        ASSERT_EQ(specs[0].size.y, 6);
     }
 
     {
@@ -242,84 +268,81 @@ int unitTestConfigParser()
         auto *spec = &specs[0];
         ASSERT_EQ(spec->fromLayerName.size(), 0);
         ASSERT_EQ(spec->configLineNum, 1);
-        ASSERT_EQ(spec->layerParams.channel, NNet::BW);
-        ASSERT_EQ(spec->layerParams.convolveMatrix.size(), 0);
-        ASSERT_EQ(spec->layerParams.isConvolutionFilterLayer, false);
-        ASSERT_EQ(spec->layerParams.isConvolutionNetworkLayer, false);
-        ASSERT_EQ(spec->layerParams.layerName, "input");
-        ASSERT_EQ(spec->layerParams.poolSize.x, 0);
-        ASSERT_EQ(spec->layerParams.poolSize.y, 0);
-        ASSERT_EQ(spec->layerParams.size.depth, 1);
-        ASSERT_EQ(spec->layerParams.size.x, 1);
-        ASSERT_EQ(spec->layerParams.size.y, 1);
+        ASSERT_EQ(spec->channel, NNet::BW);
+        ASSERT_EQ(spec->flatConvolveMatrix.size(), 0);
+        ASSERT_EQ(spec->isConvolutionFilterLayer, false);
+        ASSERT_EQ(spec->isConvolutionNetworkLayer, false);
+        ASSERT_EQ(spec->isPoolingLayer, false);
+        ASSERT_EQ(spec->layerName, "input");
+        ASSERT_EQ(spec->poolSize.x, 0);
+        ASSERT_EQ(spec->poolSize.y, 0);
+        ASSERT_EQ(spec->size.depth, 1);
+        ASSERT_EQ(spec->size.x, 1);
+        ASSERT_EQ(spec->size.y, 1);
 
         spec = &specs[1];   // layer1 size 1 from input
         ASSERT_EQ(spec->fromLayerName.size(), sizeof "input" - 1);
         ASSERT_EQ(spec->configLineNum, 2);
-        ASSERT_EQ(spec->layerParams.channel, NNet::BW);
-        ASSERT_EQ(spec->layerParams.convolveMatrix.size(), 0);
-        ASSERT_EQ(spec->layerParams.isConvolutionFilterLayer, false);
-        ASSERT_EQ(spec->layerParams.isConvolutionNetworkLayer, false);
-        ASSERT_EQ(spec->layerParams.layerName, "layer1");
-        ASSERT_EQ(spec->layerParams.poolSize.x, 0);
-        ASSERT_EQ(spec->layerParams.poolSize.y, 0);
-        ASSERT_EQ(spec->layerParams.size.depth, 1);
-        ASSERT_EQ(spec->layerParams.size.x, 1);
-        ASSERT_EQ(spec->layerParams.size.y, 1);
-        ASSERT_NE(spec->layerParams.tf, 0);
-        ASSERT_NE(spec->layerParams.tfDerivative, 0);
-        ASSERT_EQ(spec->layerParams.transferFunctionName.size(), sizeof "tanh" - 1);
+        ASSERT_EQ(spec->channel, NNet::BW);
+        ASSERT_EQ(spec->flatConvolveMatrix.size(), 0);
+        ASSERT_EQ(spec->isConvolutionFilterLayer, false);
+        ASSERT_EQ(spec->isConvolutionNetworkLayer, false);
+        ASSERT_EQ(spec->isPoolingLayer, false);
+        ASSERT_EQ(spec->layerName, "layer1");
+        ASSERT_EQ(spec->poolSize.x, 0);
+        ASSERT_EQ(spec->poolSize.y, 0);
+        ASSERT_EQ(spec->size.depth, 1);
+        ASSERT_EQ(spec->size.x, 1);
+        ASSERT_EQ(spec->size.y, 1);
+        ASSERT_EQ(spec->transferFunctionName.size(), sizeof "tanh" - 1);
 
         spec = &specs[2];   // layer2 size 2x2 from layer1
         ASSERT_EQ(spec->fromLayerName.size(), sizeof "layer1" - 1);
         ASSERT_EQ(spec->configLineNum, 3);
-        ASSERT_EQ(spec->layerParams.channel, NNet::BW);
-        ASSERT_EQ(spec->layerParams.convolveMatrix.size(), 0);
-        ASSERT_EQ(spec->layerParams.isConvolutionFilterLayer, false);
-        ASSERT_EQ(spec->layerParams.isConvolutionNetworkLayer, false);
-        ASSERT_EQ(spec->layerParams.layerName, "layer2");
-        ASSERT_EQ(spec->layerParams.poolSize.x, 0);
-        ASSERT_EQ(spec->layerParams.poolSize.y, 0);
-        ASSERT_EQ(spec->layerParams.size.depth, 1);
-        ASSERT_EQ(spec->layerParams.size.x, 2);
-        ASSERT_EQ(spec->layerParams.size.y, 2);
-        ASSERT_NE(spec->layerParams.tf, 0);
-        ASSERT_NE(spec->layerParams.tfDerivative, 0);
-        ASSERT_EQ(spec->layerParams.transferFunctionName.size(), sizeof "tanh" - 1);
+        ASSERT_EQ(spec->channel, NNet::BW);
+        ASSERT_EQ(spec->flatConvolveMatrix.size(), 0);
+        ASSERT_EQ(spec->isConvolutionFilterLayer, false);
+        ASSERT_EQ(spec->isConvolutionNetworkLayer, false);
+        ASSERT_EQ(spec->isPoolingLayer, false);
+        ASSERT_EQ(spec->layerName, "layer2");
+        ASSERT_EQ(spec->poolSize.x, 0);
+        ASSERT_EQ(spec->poolSize.y, 0);
+        ASSERT_EQ(spec->size.depth, 1);
+        ASSERT_EQ(spec->size.x, 2);
+        ASSERT_EQ(spec->size.y, 2);
+        ASSERT_EQ(spec->transferFunctionName.size(), sizeof "tanh" - 1);
 
         spec = &specs[3];   // layer3 size 7x8 from input
         ASSERT_EQ(spec->fromLayerName.size(), sizeof "input" - 1);
         ASSERT_EQ(spec->configLineNum, 4);
-        ASSERT_EQ(spec->layerParams.channel, NNet::BW);
-        ASSERT_EQ(spec->layerParams.convolveMatrix.size(), 0);
-        ASSERT_EQ(spec->layerParams.isConvolutionFilterLayer, false);
-        ASSERT_EQ(spec->layerParams.isConvolutionNetworkLayer, false);
-        ASSERT_EQ(spec->layerParams.layerName, "layer3");
-        ASSERT_EQ(spec->layerParams.poolSize.x, 0);
-        ASSERT_EQ(spec->layerParams.poolSize.y, 0);
-        ASSERT_EQ(spec->layerParams.size.depth, 1);
-        ASSERT_EQ(spec->layerParams.size.x, 7);
-        ASSERT_EQ(spec->layerParams.size.y, 8);
-        ASSERT_NE(spec->layerParams.tf, 0);
-        ASSERT_NE(spec->layerParams.tfDerivative, 0);
-        ASSERT_EQ(spec->layerParams.transferFunctionName.size(), sizeof "tanh" - 1);
+        ASSERT_EQ(spec->channel, NNet::BW);
+        ASSERT_EQ(spec->flatConvolveMatrix.size(), 0);
+        ASSERT_EQ(spec->isConvolutionFilterLayer, false);
+        ASSERT_EQ(spec->isConvolutionNetworkLayer, false);
+        ASSERT_EQ(spec->isPoolingLayer, false);
+        ASSERT_EQ(spec->layerName, "layer3");
+        ASSERT_EQ(spec->poolSize.x, 0);
+        ASSERT_EQ(spec->poolSize.y, 0);
+        ASSERT_EQ(spec->size.depth, 1);
+        ASSERT_EQ(spec->size.x, 7);
+        ASSERT_EQ(spec->size.y, 8);
+        ASSERT_EQ(spec->transferFunctionName.size(), sizeof "tanh" - 1);
 
         spec = &specs[4];   // layer4 size 2x2 from layer3
         ASSERT_EQ(spec->fromLayerName.size(), sizeof "layer3" - 1);
         ASSERT_EQ(spec->configLineNum, 5);
-        ASSERT_EQ(spec->layerParams.channel, NNet::BW);
-        ASSERT_EQ(spec->layerParams.convolveMatrix.size(), 0);
-        ASSERT_EQ(spec->layerParams.isConvolutionFilterLayer, false);
-        ASSERT_EQ(spec->layerParams.isConvolutionNetworkLayer, false);
-        ASSERT_EQ(spec->layerParams.layerName, "layer4");
-        ASSERT_EQ(spec->layerParams.poolSize.x, 0);
-        ASSERT_EQ(spec->layerParams.poolSize.y, 0);
-        ASSERT_EQ(spec->layerParams.size.depth, 1);
-        ASSERT_EQ(spec->layerParams.size.x, 2);
-        ASSERT_EQ(spec->layerParams.size.y, 2);
-        ASSERT_NE(spec->layerParams.tf, 0);
-        ASSERT_NE(spec->layerParams.tfDerivative, 0);
-        ASSERT_EQ(spec->layerParams.transferFunctionName.size(), sizeof "tanh" - 1);
+        ASSERT_EQ(spec->channel, NNet::BW);
+        ASSERT_EQ(spec->flatConvolveMatrix.size(), 0);
+        ASSERT_EQ(spec->isConvolutionFilterLayer, false);
+        ASSERT_EQ(spec->isConvolutionNetworkLayer, false);
+        ASSERT_EQ(spec->isPoolingLayer, false);
+        ASSERT_EQ(spec->layerName, "layer4");
+        ASSERT_EQ(spec->poolSize.x, 0);
+        ASSERT_EQ(spec->poolSize.y, 0);
+        ASSERT_EQ(spec->size.depth, 1);
+        ASSERT_EQ(spec->size.x, 2);
+        ASSERT_EQ(spec->size.y, 2);
+        ASSERT_EQ(spec->transferFunctionName.size(), sizeof "tanh" - 1);
     }
 
     {
@@ -335,17 +358,17 @@ int unitTestConfigParser()
         istringstream ss(config);
         auto specs = myNet.parseTopologyConfig(ss);
         auto *spec = &specs[1];
-        ASSERT_EQ(spec->layerParams.radius.x, 2);
-        ASSERT_EQ(spec->layerParams.radius.y, 3);
+        ASSERT_EQ(spec->radius.x, 2);
+        ASSERT_EQ(spec->radius.y, 3);
         spec = &specs[2];
-        ASSERT_EQ(spec->layerParams.radius.x, 4);
-        ASSERT_EQ(spec->layerParams.radius.y, 1);
+        ASSERT_EQ(spec->radius.x, 4);
+        ASSERT_EQ(spec->radius.y, 1);
         spec = &specs[3];
-        ASSERT_EQ(spec->layerParams.radius.x, 0);
-        ASSERT_EQ(spec->layerParams.radius.y, 4);
+        ASSERT_EQ(spec->radius.x, 0);
+        ASSERT_EQ(spec->radius.y, 4);
         spec = &specs[4];
-        ASSERT_GE(spec->layerParams.radius.x, Net::HUGE_RADIUS);
-        ASSERT_GE(spec->layerParams.radius.y, Net::HUGE_RADIUS);
+        ASSERT_GE(spec->radius.x, 0.0);
+        ASSERT_GE(spec->radius.y, 0.0);
     }
 
     {
@@ -361,21 +384,13 @@ int unitTestConfigParser()
         istringstream ss(config);
         auto specs = myNet.parseTopologyConfig(ss);
         auto *spec = &specs[1];
-        ASSERT_NE(spec->layerParams.tf, 0);
-        ASSERT_NE(spec->layerParams.tfDerivative, 0);
-        ASSERT_EQ(spec->layerParams.transferFunctionName, "linear");
+        ASSERT_EQ(spec->transferFunctionName, "linear");
         spec = &specs[2];
-        ASSERT_NE(spec->layerParams.tf, 0);
-        ASSERT_NE(spec->layerParams.tfDerivative, 0);
-        ASSERT_EQ(spec->layerParams.transferFunctionName, "gaussian");
+        ASSERT_EQ(spec->transferFunctionName, "gaussian");
         spec = &specs[3];
-        ASSERT_NE(spec->layerParams.tf, 0);
-        ASSERT_NE(spec->layerParams.tfDerivative, 0);
-        ASSERT_EQ(spec->layerParams.transferFunctionName, "tanh");
+        ASSERT_EQ(spec->transferFunctionName, "tanh");
         spec = &specs[4];
-        ASSERT_NE(spec->layerParams.tf, 0);
-        ASSERT_NE(spec->layerParams.tfDerivative, 0);
-        ASSERT_EQ(spec->layerParams.transferFunctionName, "logistic");
+        ASSERT_EQ(spec->transferFunctionName, "logistic");
     }
 
     {
@@ -393,21 +408,21 @@ int unitTestConfigParser()
         istringstream ss(config);
         auto specs = myNet.parseTopologyConfig(ss);
         auto *spec = &specs[1];
-        ASSERT_EQ(spec->layerParams.size.depth, 1);
-        ASSERT_EQ(spec->layerParams.size.x, 2);
-        ASSERT_EQ(spec->layerParams.size.y, 3);
+        ASSERT_EQ(spec->size.depth, 1);
+        ASSERT_EQ(spec->size.x, 2);
+        ASSERT_EQ(spec->size.y, 3);
         spec = &specs[3];
-        ASSERT_EQ(spec->layerParams.size.depth, 1);
-        ASSERT_EQ(spec->layerParams.size.x, 4);
-        ASSERT_EQ(spec->layerParams.size.y, 5);
+        ASSERT_EQ(spec->size.depth, 1);
+        ASSERT_EQ(spec->size.x, 4);
+        ASSERT_EQ(spec->size.y, 5);
         spec = &specs[5];
-        ASSERT_EQ(spec->layerParams.size.depth, 2);
-        ASSERT_EQ(spec->layerParams.size.x, 3);
-        ASSERT_EQ(spec->layerParams.size.y, 4);
+        ASSERT_EQ(spec->size.depth, 2);
+        ASSERT_EQ(spec->size.x, 3);
+        ASSERT_EQ(spec->size.y, 4);
         spec = &specs[6];
-        ASSERT_EQ(spec->layerParams.size.depth, 1);
-        ASSERT_EQ(spec->layerParams.size.x, 1);
-        ASSERT_EQ(spec->layerParams.size.y, 1);
+        ASSERT_EQ(spec->size.depth, 1);
+        ASSERT_EQ(spec->size.x, 1);
+        ASSERT_EQ(spec->size.y, 1);
     }
 
     {
@@ -420,9 +435,9 @@ int unitTestConfigParser()
         istringstream ss(config);
         auto specs = myNet.parseTopologyConfig(ss);
         auto *spec = &specs[1];
-        ASSERT_EQ(spec->layerParams.size.depth, 1);
-        ASSERT_EQ(spec->layerParams.size.x, 1);
-        ASSERT_EQ(spec->layerParams.size.y, 1);
+        ASSERT_EQ(spec->size.depth, 1);
+        ASSERT_EQ(spec->size.x, 1);
+        ASSERT_EQ(spec->size.y, 1);
     }
 
     {
@@ -436,12 +451,11 @@ int unitTestConfigParser()
         istringstream ss(config);
         auto specs = myNet.parseTopologyConfig(ss);
         auto *spec = &specs[1];
-        ASSERT_EQ(spec->layerParams.isConvolutionFilterLayer, true);
-        ASSERT_EQ(spec->layerParams.isConvolutionNetworkLayer, false);
-        ASSERT_EQ(spec->layerParams.convolveMatrix.size(), 1);
-        ASSERT_EQ(spec->layerParams.convolveMatrix[0].size(), 1);
-        ASSERT_EQ(spec->layerParams.convolveMatrix[0][0].size(), 1);
-        ASSERT_EQ(spec->layerParams.convolveMatrix[0][0][0], 2);
+        ASSERT_EQ(spec->isConvolutionFilterLayer, true);
+        ASSERT_EQ(spec->isConvolutionNetworkLayer, false);
+        ASSERT_EQ(spec->isPoolingLayer, false);
+        ASSERT_EQ(spec->flatConvolveMatrix.size(), 1);    // depth = 1
+        ASSERT_EQ(spec->flatConvolveMatrix[0].size(), 1); // one kernel element
     }
 
     {
@@ -455,13 +469,14 @@ int unitTestConfigParser()
         istringstream ss(config);
         auto specs = myNet.parseTopologyConfig(ss);
         auto *spec = &specs[1];
-        ASSERT_EQ(spec->layerParams.isConvolutionFilterLayer, true);
-        ASSERT_EQ(spec->layerParams.isConvolutionNetworkLayer, false);
-        ASSERT_EQ(spec->layerParams.convolveMatrix.size(), 1);
-        ASSERT_EQ(spec->layerParams.convolveMatrix[0].size(), 2);
-        ASSERT_EQ(spec->layerParams.convolveMatrix[0][0].size(), 1);
-        ASSERT_EQ(spec->layerParams.convolveMatrix[0][0][0], 2);
-        ASSERT_EQ(spec->layerParams.convolveMatrix[0][1][0], 3);
+        ASSERT_EQ(spec->isConvolutionFilterLayer, true);
+        ASSERT_EQ(spec->isConvolutionNetworkLayer, false);
+        ASSERT_EQ(spec->isPoolingLayer, false);
+
+        ASSERT_EQ(spec->flatConvolveMatrix.size(), 1);
+        ASSERT_EQ(spec->flatConvolveMatrix[0].size(), 2*1);
+        ASSERT_EQ(spec->flatConvolveMatrix[0][0], 2);
+        ASSERT_EQ(spec->flatConvolveMatrix[0][1], 3);
     }
 
     {
@@ -475,13 +490,14 @@ int unitTestConfigParser()
         istringstream ss(config);
         auto specs = myNet.parseTopologyConfig(ss);
         auto *spec = &specs[1];
-        ASSERT_EQ(spec->layerParams.isConvolutionFilterLayer, true);
-        ASSERT_EQ(spec->layerParams.isConvolutionNetworkLayer, false);
-        ASSERT_EQ(spec->layerParams.convolveMatrix.size(), 1);
-        ASSERT_EQ(spec->layerParams.convolveMatrix[0].size(), 1);
-        ASSERT_EQ(spec->layerParams.convolveMatrix[0][0].size(), 2);
-        ASSERT_EQ(spec->layerParams.convolveMatrix[0][0][0], 2);
-        ASSERT_EQ(spec->layerParams.convolveMatrix[0][0][1], 3);
+        ASSERT_EQ(spec->isConvolutionFilterLayer, true);
+        ASSERT_EQ(spec->isConvolutionNetworkLayer, false);
+        ASSERT_EQ(spec->isPoolingLayer, false);
+
+        ASSERT_EQ(spec->flatConvolveMatrix.size(), 1);
+        ASSERT_EQ(spec->flatConvolveMatrix[0].size(), 1*2);
+        ASSERT_EQ(spec->flatConvolveMatrix[0][0], 2);
+        ASSERT_EQ(spec->flatConvolveMatrix[0][1], 3);
     }
 
     {
@@ -495,16 +511,17 @@ int unitTestConfigParser()
         istringstream ss(config);
         auto specs = myNet.parseTopologyConfig(ss);
         auto *spec = &specs[1];
-        ASSERT_EQ(spec->layerParams.size.depth, 10);
-        ASSERT_EQ(spec->layerParams.size.x, 16);
-        ASSERT_EQ(spec->layerParams.size.y, 16);
-        ASSERT_EQ(spec->layerParams.kernelSize.x, 3);
-        ASSERT_EQ(spec->layerParams.kernelSize.y, 4);
-        ASSERT_EQ(spec->layerParams.isConvolutionFilterLayer, false);
-        ASSERT_EQ(spec->layerParams.isConvolutionNetworkLayer, true);
-        ASSERT_EQ(spec->layerParams.convolveMatrix.size(), 10);
-        ASSERT_EQ(spec->layerParams.convolveMatrix[0].size(), 3);
-        ASSERT_EQ(spec->layerParams.convolveMatrix[0][0].size(), 4);
+        ASSERT_EQ(spec->size.depth, 10);
+        ASSERT_EQ(spec->size.x, 16);
+        ASSERT_EQ(spec->size.y, 16);
+        ASSERT_EQ(spec->kernelSize.x, 3);
+        ASSERT_EQ(spec->kernelSize.y, 4);
+        ASSERT_EQ(spec->isConvolutionFilterLayer, false);
+        ASSERT_EQ(spec->isConvolutionNetworkLayer, true);
+        ASSERT_EQ(spec->isPoolingLayer, false);
+
+        ASSERT_EQ(spec->flatConvolveMatrix.size(), 10);
+        ASSERT_EQ(spec->flatConvolveMatrix[0].size(), 3*4);
     }
 
 #ifndef SKIP_TEST_EXCEPTIONS
@@ -527,24 +544,41 @@ int unitTestConfigParser()
 
         string config =
             "input size 16x16\n"
-            "layer1 size 10*16x16 from input pool max radius 2x3\n"
+            "layer1 size 10*16x16 from input pool max 2x3\n"
             "output size 1 from input\n";
 
         istringstream ss(config);
         auto specs = myNet.parseTopologyConfig(ss);
         auto *spec = &specs[1];
-        ASSERT_EQ(spec->layerParams.size.depth, 10);
-        ASSERT_EQ(spec->layerParams.poolMethod, POOL_MAX);
-        ASSERT_EQ(spec->layerParams.poolSize.x, 2);
-        ASSERT_EQ(spec->layerParams.poolSize.y, 3);
+        ASSERT_EQ(spec->size.depth, 10);
+        ASSERT_EQ(spec->poolMethod, POOL_MAX);
+        ASSERT_EQ(spec->poolSize.x, 2);
+        ASSERT_EQ(spec->poolSize.y, 3);
+        ASSERT_EQ(spec->isPoolingLayer, true);
     }
 
+    {
+        LOG("convolve networking param");
 
-    return 0;
+        string config =
+            "input size 16x16\n"
+            "layer1 size 10*16x16 from input convolve 3x5\n"
+            "output size 1 from input\n";
+
+        istringstream ss(config);
+        auto specs = myNet.parseTopologyConfig(ss);
+        auto *spec = &specs[1];
+        ASSERT_EQ(spec->kernelSize.x, 3);
+        ASSERT_EQ(spec->kernelSize.y, 5);
+        ASSERT_EQ(spec->size.depth, 10);
+
+        ASSERT_EQ(spec->flatConvolveMatrix.size(), 10);
+        ASSERT_EQ(spec->flatConvolveMatrix[0].size(), 3*5);
+    }
 }
 
 
-int unitTestNet()
+void unitTestNet()
 {
     LOG("unitTestNet()");
 
@@ -565,14 +599,16 @@ int unitTestNet()
         ASSERT_EQ((int)(100*myNet.alpha + 0.5), 10); // Expecting 0.1 which is inexact in floating-point
         ASSERT_EQ(myNet.bias.output, 1.0);
         ASSERT_EQ(myNet.layers.size(), 2);
-        ASSERT_EQ(myNet.layers[0].neurons.size(), 1);
-        ASSERT_EQ(myNet.layers[1].neurons.size(), 1);
+        ASSERT_EQ(myNet.layers[0]->neurons.size(), 1); // depth = 1
+        ASSERT_EQ(myNet.layers[0]->neurons[0].size(), 1);
+        ASSERT_EQ(myNet.layers[1]->neurons.size(), 1); // depth = 1
+        ASSERT_EQ(myNet.layers[1]->neurons[0].size(), 1);
 
-        const Neuron *pNeuron = &myNet.layers[0].neurons[0];
+        const Neuron *pNeuron = &myNet.layers[0]->neurons[0][0];
         ASSERT_EQ(pNeuron->forwardConnectionsIndices.size(), 1);
         ASSERT_EQ(pNeuron->backConnectionsIndices.size(), 0);
 
-        pNeuron = &myNet.layers[1].neurons[0];
+        pNeuron = &myNet.layers[1]->neurons[0][0];
         ASSERT_EQ(pNeuron->forwardConnectionsIndices.size(), 0);
         ASSERT_EQ(pNeuron->backConnectionsIndices.size(), 2);
 
@@ -590,10 +626,12 @@ int unitTestNet()
         myNet.configureNetwork(myNet.parseTopologyConfig(ss));
 
         ASSERT_EQ(myNet.layers.size(), 2);
-        ASSERT_EQ(myNet.layers[0].neurons.size(), 10*10);
-        ASSERT_EQ(myNet.layers[1].neurons.size(), 8*6);
+        ASSERT_EQ(myNet.layers[0]->neurons.size(), 1); // depth = 1
+        ASSERT_EQ(myNet.layers[0]->neurons[0].size(), 10*10);
+        ASSERT_EQ(myNet.layers[1]->neurons.size(), 1); // depth = 1
+        ASSERT_EQ(myNet.layers[1]->neurons[0].size(), 8*6);
 
-        const Neuron *pNeuron = &myNet.layers[0].neurons[0];
+        const Neuron *pNeuron = &myNet.layers[0]->neurons[0][0];
         ASSERT_EQ(pNeuron->forwardConnectionsIndices.size(), 8*6);
         ASSERT_EQ(pNeuron->backConnectionsIndices.size(), 0);
 
@@ -616,33 +654,37 @@ int unitTestNet()
         Net myNet(topologyConfigFilename);
 
         ASSERT_EQ(myNet.layers.size(), 2);
-        ASSERT_EQ(myNet.layers[0].neurons.size(), 1);
-        ASSERT_EQ(myNet.layers[1].neurons.size(), 1);
+        ASSERT_EQ(myNet.layers[0]->neurons.size(), 1); // depth = 1
+        ASSERT_EQ(myNet.layers[0]->neurons[0].size(), 1);
+        ASSERT_EQ(myNet.layers[1]->neurons.size(), 1); // depth = 1
+        ASSERT_EQ(myNet.layers[1]->neurons[0].size(), 1);
 
-        ASSERT_EQ(myNet.layers[0].params.isConvolutionFilterLayer, false);
-        ASSERT_EQ(myNet.layers[0].params.isConvolutionNetworkLayer, false);
-        ASSERT_EQ(myNet.layers[1].params.isConvolutionFilterLayer, false);
-        ASSERT_EQ(myNet.layers[1].params.isConvolutionNetworkLayer, false);
+        ASSERT_EQ(myNet.layers[0]->isConvolutionFilterLayer, false);
+        ASSERT_EQ(myNet.layers[0]->isConvolutionNetworkLayer, false);
+        ASSERT_EQ(myNet.layers[0]->isPoolingLayer, false);
+        ASSERT_EQ(myNet.layers[1]->isConvolutionFilterLayer, false);
+        ASSERT_EQ(myNet.layers[1]->isConvolutionNetworkLayer, false);
+        ASSERT_EQ(myNet.layers[1]->isPoolingLayer, false);
 
-        ASSERT_EQ(myNet.layers[0].params.size.depth, 1);
-        ASSERT_EQ(myNet.layers[0].params.size.x, 1);
-        ASSERT_EQ(myNet.layers[0].params.size.y, 1);
+        ASSERT_EQ(myNet.layers[0]->size.depth, 1);
+        ASSERT_EQ(myNet.layers[0]->size.x, 1);
+        ASSERT_EQ(myNet.layers[0]->size.y, 1);
 
-        ASSERT_EQ(myNet.layers[1].params.size.depth, 1);
-        ASSERT_EQ(myNet.layers[1].params.size.x, 1);
-        ASSERT_EQ(myNet.layers[1].params.size.y, 1);
+        ASSERT_EQ(myNet.layers[1]->size.depth, 1);
+        ASSERT_EQ(myNet.layers[1]->size.x, 1);
+        ASSERT_EQ(myNet.layers[1]->size.y, 1);
 
         ASSERT_EQ(myNet.connections.size(), 1+1); // one plus bias
-        ASSERT_EQ(myNet.layers[0].neurons[0].backConnectionsIndices.size(), 0);
-        ASSERT_EQ(myNet.layers[0].neurons[0].forwardConnectionsIndices.size(), 1);
-        ASSERT_EQ(myNet.layers[1].neurons[0].backConnectionsIndices.size(), 2); // Source plus bias
-        ASSERT_EQ(myNet.layers[1].neurons[0].forwardConnectionsIndices.size(), 0);
+        ASSERT_EQ(myNet.layers[0]->neurons[0][0].backConnectionsIndices.size(), 0);
+        ASSERT_EQ(myNet.layers[0]->neurons[0][0].forwardConnectionsIndices.size(), 1);
+        ASSERT_EQ(myNet.layers[1]->neurons[0][0].backConnectionsIndices.size(), 2); // Source plus bias
+        ASSERT_EQ(myNet.layers[1]->neurons[0][0].forwardConnectionsIndices.size(), 0);
 
         ASSERT_EQ(myNet.bias.backConnectionsIndices.size(), 0);
         ASSERT_EQ(myNet.bias.forwardConnectionsIndices.size(), 1);
 
-        auto const &l0n0 = myNet.layers[0].neurons[0];
-        auto const &l1n0 = myNet.layers[1].neurons[0];
+        auto const &l0n0 = myNet.layers[0]->neurons[0][0];
+        auto const &l1n0 = myNet.layers[1]->neurons[0][0];
         auto backIdx = l1n0.backConnectionsIndices[0];
         auto forwardIdx = l0n0.forwardConnectionsIndices[0];
         ASSERT_EQ(backIdx, forwardIdx); // Should refer to the same connection record
@@ -671,31 +713,31 @@ int unitTestNet()
         Net myNet(topologyConfigFilename);
 
         ASSERT_EQ(myNet.layers.size(), 2);
-        ASSERT_EQ(myNet.layers[0].neurons.size(), 8*8);
-        ASSERT_EQ(myNet.layers[1].neurons.size(), 8*8);
+        ASSERT_EQ(myNet.layers[0]->neurons.size(), 1); // depth = 1
+        ASSERT_EQ(myNet.layers[0]->neurons[0].size(), 8*8);
+        ASSERT_EQ(myNet.layers[1]->neurons.size(), 1); // depth = 1
+        ASSERT_EQ(myNet.layers[1]->neurons[0].size(), 8*8);
 
-        ASSERT_EQ(myNet.layers[0].params.isConvolutionFilterLayer, false);
-        ASSERT_EQ(myNet.layers[0].params.isConvolutionNetworkLayer, false);
-        ASSERT_EQ(myNet.layers[1].params.isConvolutionFilterLayer, false);
-        ASSERT_EQ(myNet.layers[1].params.isConvolutionNetworkLayer, false);
+        ASSERT_EQ(myNet.layers[0]->isConvolutionFilterLayer, false);
+        ASSERT_EQ(myNet.layers[0]->isConvolutionNetworkLayer, false);
+        ASSERT_EQ(myNet.layers[0]->isPoolingLayer, false);
+        ASSERT_EQ(myNet.layers[1]->isConvolutionFilterLayer, false);
+        ASSERT_EQ(myNet.layers[1]->isConvolutionNetworkLayer, false);
+        ASSERT_EQ(myNet.layers[1]->isPoolingLayer, false);
 
-        ASSERT_EQ(myNet.layers[0].params.size.depth, 1);
-        ASSERT_EQ(myNet.layers[0].params.size.x, 8);
-        ASSERT_EQ(myNet.layers[0].params.size.y, 8);
+        ASSERT_EQ(myNet.layers[0]->size.depth, 1);
+        ASSERT_EQ(myNet.layers[0]->size.x, 8);
+        ASSERT_EQ(myNet.layers[0]->size.y, 8);
 
-        ASSERT_EQ(myNet.layers[1].params.size.depth, 1);
-        ASSERT_EQ(myNet.layers[1].params.size.x, 8);
-        ASSERT_EQ(myNet.layers[1].params.size.y, 8);
+        ASSERT_EQ(myNet.layers[1]->size.depth, 1);
+        ASSERT_EQ(myNet.layers[1]->size.x, 8);
+        ASSERT_EQ(myNet.layers[1]->size.y, 8);
     }
-
-    return 0;
 }
 
 
-int unitTestConvolutionFilter()
+void unitTestSparseConnections()
 {
-    LOG("unitTestConvolutionFilter()");
-
     {
         LOG("radius parameter");
         string config =
@@ -707,10 +749,12 @@ int unitTestConvolutionFilter()
         myNet.configureNetwork(myNet.parseTopologyConfig(ss));
 
         ASSERT_EQ(myNet.layers.size(), 2);
-        ASSERT_EQ(myNet.layers[0].neurons.size(), 10*10);
-        ASSERT_EQ(myNet.layers[1].neurons.size(), 8*8);
+        ASSERT_EQ(myNet.layers[0]->neurons.size(), 1); // depth = 1
+        ASSERT_EQ(myNet.layers[0]->neurons[0].size(), 10*10);
+        ASSERT_EQ(myNet.layers[1]->neurons.size(), 1); // depth = 1
+        ASSERT_EQ(myNet.layers[1]->neurons[0].size(), 8*8);
 
-        const Neuron *pNeuron = &myNet.layers[0].neurons[0];
+        const Neuron *pNeuron = &myNet.layers[0]->neurons[0][0];
         ASSERT_EQ(pNeuron->forwardConnectionsIndices.size(), 1);
         ASSERT_EQ(pNeuron->backConnectionsIndices.size(), 0);
 
@@ -728,10 +772,12 @@ int unitTestConvolutionFilter()
         myNet.configureNetwork(myNet.parseTopologyConfig(ss));
 
         ASSERT_EQ(myNet.layers.size(), 2);
-        ASSERT_EQ(myNet.layers[0].neurons.size(), 10*10);
-        ASSERT_EQ(myNet.layers[1].neurons.size(), 1);
+        ASSERT_EQ(myNet.layers[0]->neurons.size(), 1); // depth = 1
+        ASSERT_EQ(myNet.layers[0]->neurons[0].size(), 10*10);
+        ASSERT_EQ(myNet.layers[1]->neurons.size(), 1); // depth = 1
+        ASSERT_EQ(myNet.layers[1]->neurons[0].size(), 1);
 
-        const Neuron *pNeuron = &myNet.layers[0].neurons[0];
+        const Neuron *pNeuron = &myNet.layers[0]->neurons[0][0];
         ASSERT_EQ(pNeuron->forwardConnectionsIndices.size(), 0);
         ASSERT_EQ(pNeuron->backConnectionsIndices.size(), 0);
 
@@ -749,8 +795,10 @@ int unitTestConvolutionFilter()
         myNet.configureNetwork(myNet.parseTopologyConfig(ss));
 
         ASSERT_EQ(myNet.layers.size(), 2);
-        ASSERT_EQ(myNet.layers[0].neurons.size(), 10*10);
-        ASSERT_EQ(myNet.layers[1].neurons.size(), 1);
+        ASSERT_EQ(myNet.layers[0]->neurons.size(), 1); // depth = 1
+        ASSERT_EQ(myNet.layers[0]->neurons[0].size(), 10*10);
+        ASSERT_EQ(myNet.layers[1]->neurons.size(), 1); // depth = 1
+        ASSERT_EQ(myNet.layers[1]->neurons[0].size(), 1);
         ASSERT_EQ(myNet.connections.size(), 3 + 1);
     }
 
@@ -805,20 +853,24 @@ int unitTestConvolutionFilter()
 
         myNet.sampleSet.loadSamples(inputDataConfigFilename);
         auto data = myNet.sampleSet.samples[0].getData(NNet::R);
-        ASSERT_EQ(data[3], pixelToNetworkInputRange(8));
-        ASSERT_EQ(data[4], pixelToNetworkInputRange(8));
-        ASSERT_EQ(data[5], pixelToNetworkInputRange(8));
+
+        ASSERT_EQ(data[flattenXY(3, 1, 8)], pixelToNetworkInputRange(2));
+        ASSERT_EQ(data[flattenXY(4, 1, 8)], pixelToNetworkInputRange(2));
+        ASSERT_EQ(data[flattenXY(5, 1, 8)], pixelToNetworkInputRange(2));
 
         myNet.feedForward(myNet.sampleSet.samples[0]);
-        auto &inputLayer = myNet.layers[0];
-        auto &outputLayer = myNet.layers.back();
+        auto const &inputLayer = *myNet.layers[0];
+        auto const &outputLayer = *myNet.layers.back();
 
-        // Neuron 4 is on a row of all 8's, so its output should be the sum
-        // of three pixels of value 8 plus a bias:
-        ASSERT_EQ(inputLayer.neurons[3].output, pixelToNetworkInputRange(8));
-        ASSERT_EQ(inputLayer.neurons[4].output, pixelToNetworkInputRange(8));
-        ASSERT_EQ(inputLayer.neurons[5].output, pixelToNetworkInputRange(8));
-        ASSERT_EQ(outputLayer.neurons[4].output, 3 * pixelToNetworkInputRange(8) + 1.0);
+        ASSERT_EQ(inputLayer.neurons[0][flattenXY(3, 1, 8)].output, pixelToNetworkInputRange(2));
+        ASSERT_EQ(inputLayer.neurons[0][flattenXY(4, 1, 8)].output, pixelToNetworkInputRange(2));
+        ASSERT_EQ(inputLayer.neurons[0][flattenXY(5, 1, 8)].output, pixelToNetworkInputRange(2));
+
+        // Output neurons at row 1 cover a row of all 2's, so its output should be
+        // the sum of three pixels of value 2 plus a bias:
+
+        ASSERT_EQ(outputLayer.neurons[0][flattenXY(3, 1, 8)].output, 3 * pixelToNetworkInputRange(2) + 1.0);
+        ASSERT_EQ(outputLayer.neurons[0][flattenXY(6, 1, 8)].output, 3 * pixelToNetworkInputRange(2) + 1.0);
     }
 
     {
@@ -846,23 +898,421 @@ int unitTestConvolutionFilter()
         setAllWeights(myNet, 1.0);
 
         myNet.sampleSet.loadSamples(inputDataConfigFilename);
-        auto data = myNet.sampleSet.samples[0].getData(NNet::G);
         myNet.feedForward(myNet.sampleSet.samples[0]);
 
-        // Neuron 8 is on a col of all 1's, so its output should be the sum
-        // of three pixels of value 1 plus a bias:
-        ASSERT_EQ(myNet.layers.back().neurons[8].output, 3 * pixelToNetworkInputRange(1) + 1.0);
+        // Neurons on column 1 cover a column of all 2's, so its output should be the sum
+        // of three pixels of value 2 plus a bias:
+        ASSERT_EQ(myNet.layers.back()->neurons[0][flattenXY(1, 3, 8)].output, 3 * pixelToNetworkInputRange(2) + 1.0);
+        ASSERT_EQ(myNet.layers.back()->neurons[0][flattenXY(1, 5, 8)].output, 3 * pixelToNetworkInputRange(2) + 1.0);
 
-        // Neuron 15 is on a col of all 8's, so its output should be the sum
+        // Neuron on column 7 covers a col of all 8's, so its output should be the sum
         // of three pixels of value 8 plus a bias:
-        ASSERT_EQ(myNet.layers.back().neurons[15].output, 3 * pixelToNetworkInputRange(8) + 1.0);
+        ASSERT_EQ(myNet.layers.back()->neurons[0][flattenXY(7, 2, 8)].output, 3 * pixelToNetworkInputRange(8) + 1.0);
     }
-
-    return 0;
 }
 
 
-int unitTestImages()
+void unitTestConvolutionFiltering()
+{
+    {
+        LOG("Convolution filter {}");
+
+        string topologyConfig =
+            "input size 8x8 channel R\n"
+            "layer1 size 1x1 from input convolve {0.5} tf linear\n"
+            "output size 1 from layer1\n";
+
+        string inputDataConfig =
+            "images/8x8-test11.bmp\n";
+
+        const string topologyConfigFilename = "./topologyUnitTest.txt";
+        const string inputDataConfigFilename = "./inputDataUnitTest.txt";
+
+        std::ofstream topologyConfigFile(topologyConfigFilename);
+        topologyConfigFile << topologyConfig;
+        topologyConfigFile.close();
+
+        std::ofstream inputDataConfigFile(inputDataConfigFilename);
+        inputDataConfigFile << inputDataConfig;
+        inputDataConfigFile.close();
+
+        Net myNet(topologyConfigFilename);
+
+        auto const &h1 = *myNet.layers[1]; // the convolution filter layer
+        ASSERT_EQ(h1.neurons.size(), 1); // depth = 1
+        ASSERT_EQ(h1.neurons[0].size(), 1);
+        ASSERT_EQ(h1.isConvolutionFilterLayer, true);
+        ASSERT_EQ(h1.isPoolingLayer, false);
+        ASSERT_EQ(h1.flatConvolveMatrix.size(), 1); // depth = 1
+        ASSERT_EQ(h1.flatConvolveMatrix[0].size(), 1*1); // 1x1 kernel
+        ASSERT_EQ(h1.neurons[0][0].convolveMatrixIndex, 0);
+        ASSERT_EQ(h1.flatConvolveMatrix[0][h1.neurons[0][0].convolveMatrixIndex], 0.5);
+        ASSERT_EQ(h1.neurons[0][0].forwardConnectionsIndices.size(), 1);
+    }
+}
+
+
+void unitTestConvolutionNetworking()
+{
+    {
+        LOG("Convolution network trivial kernel 1x1 in 1x1 plane");
+        /*
+               /-1x1[1x1]-\
+            1x1            1
+               \-1x1[1x1]-/
+         */
+
+        string topologyConfig =
+            "input size 1x1\n"
+            "layerConv size 2*1x1 from input convolve 1x1 tf linear\n"
+            "output size 1 from layerConv\n";
+
+        string inputDataConfig =
+            "{ 1.0 } 1.0\n";
+
+        const string topologyConfigFilename = "./topologyUnitTest.txt";
+        const string inputDataConfigFilename = "./inputDataUnitTest.txt";
+
+        std::ofstream topologyConfigFile(topologyConfigFilename);
+        topologyConfigFile << topologyConfig;
+        topologyConfigFile.close();
+
+        std::ofstream inputDataConfigFile(inputDataConfigFilename);
+        inputDataConfigFile << inputDataConfig;
+        inputDataConfigFile.close();
+
+        Net myNet(topologyConfigFilename);
+
+        ASSERT_EQ(myNet.layers[0]->neurons.size(), 1); // input layer depth = 1
+        ASSERT_EQ(myNet.layers[0]->neurons[0].size(), 1*1);
+        ASSERT_EQ(myNet.layers[1]->neurons.size(), 2); // hidden layer depth = 2
+        ASSERT_EQ(myNet.layers[1]->neurons[0].size(), 1*1);
+        ASSERT_EQ(myNet.layers[1]->neurons[1].size(), 1*1);
+        ASSERT_EQ(myNet.layers[2]->neurons.size(), 1); // output layer depth = 1
+        ASSERT_EQ(myNet.layers[2]->neurons[0].size(), 1);
+
+        auto const &hl = *myNet.layers[1]; // Hidden layer (the convolution network layer)
+        ASSERT_EQ(hl.size.depth, 2);
+        ASSERT_EQ(hl.size.x, 1);
+        ASSERT_EQ(hl.size.y, 1);
+
+        ASSERT_EQ(hl.flatConvolveMatrix.size(), 2); // depth = 2
+        ASSERT_EQ(hl.flatConvolveMatrix[0].size(), 1*1); // kernel size 1x1
+        ASSERT_EQ(hl.flatConvolveMatrix[1].size(), 1*1);
+
+        ASSERT_EQ(hl.isConvolutionFilterLayer, false);
+        ASSERT_EQ(hl.isConvolutionNetworkLayer, true);
+        ASSERT_EQ(hl.isPoolingLayer, false);
+        ASSERT_EQ(hl.kernelSize.x, 1);
+        ASSERT_EQ(hl.kernelSize.y, 1);
+
+        auto &n000 = hl.neurons[0][flattenXY(0, 0, hl.size)];   // depth,x,y = 0,0,0
+        auto &n100 = hl.neurons[1][flattenXY(0, 0, hl.size)];   // depth,x,y = 1,0,0
+
+        ASSERT_EQ(n000.backConnectionsIndices.size(), 1+1); // 1 source plus a bias
+        ASSERT_EQ(n100.backConnectionsIndices.size(), 1+1); // 1 source plus a bias
+
+        setAllWeights(myNet, 1.0);
+
+        myNet.sampleSet.loadSamples(inputDataConfigFilename);
+        myNet.feedForward(myNet.sampleSet.samples[0]);
+
+        // The sole hidden-layer neuron covers the sole input neuron, which has value 1:
+        ASSERT_EQ(myNet.layers[0]->neurons[0][flattenXY(0, 0, myNet.layers[0]->size)].output, 1.0);
+        auto backIndex = n000.backConnectionsIndices[0];    // source neuron index
+        auto &sourceNeuron = myNet.connections[backIndex].fromNeuron;
+        ASSERT_EQ(sourceNeuron.output, 1.0);
+        ASSERT_EQ(n000.convolveMatrixIndex, 0);
+        ASSERT_EQ(n100.convolveMatrixIndex, 0);
+        ASSERT_EQ(hl.flatConvolveMatrix.size(), 2);    // depth = 2
+        ASSERT_EQ(hl.flatConvolveMatrix[0].size(), 1*1); // 1*1 kernel elements, depth 0
+        ASSERT_EQ(hl.flatConvolveMatrix[0][n000.convolveMatrixIndex], 1.0);
+        ASSERT_EQ(hl.flatConvolveMatrix[1].size(), 1*1); // 1*1 kernel elements, depth 1
+        ASSERT_EQ(hl.flatConvolveMatrix[1][n000.convolveMatrixIndex], 1.0);
+        ASSERT_EQ(n000.output, 1.0 + 1.0);  // depth,x,y = 0,0,0
+        ASSERT_EQ(n100.output, 1.0 + 1.0);  // depth,x,y = 1,0,0
+    }
+
+    {
+        LOG("Convolution network kernel 1x1 in 8x8 plane");
+        /*
+               /-8x8[1x1]-\
+            8x8            1
+               \-8x8[1x1]-/
+         */
+
+        string topologyConfig =
+            "input size 8x8 channel R\n"
+            "layerConv size 2*8x8 from input convolve 1x1 tf linear\n"
+            "output size 1 from layerConv\n";
+
+        string inputDataConfig =
+            "images/8x8-test11.bmp\n";
+
+        const string topologyConfigFilename = "./topologyUnitTest.txt";
+        const string inputDataConfigFilename = "./inputDataUnitTest.txt";
+
+        std::ofstream topologyConfigFile(topologyConfigFilename);
+        topologyConfigFile << topologyConfig;
+        topologyConfigFile.close();
+
+        std::ofstream inputDataConfigFile(inputDataConfigFilename);
+        inputDataConfigFile << inputDataConfig;
+        inputDataConfigFile.close();
+
+        Net myNet(topologyConfigFilename);
+
+        ASSERT_EQ(myNet.layers[0]->neurons.size(), 1); // input layer depth = 1
+        ASSERT_EQ(myNet.layers[0]->neurons[0].size(), 8*8);
+        ASSERT_EQ(myNet.layers[1]->neurons.size(), 2); // hidden layer depth = 2
+        ASSERT_EQ(myNet.layers[1]->neurons[0].size(), 8*8);
+        ASSERT_EQ(myNet.layers[1]->neurons[1].size(), 8*8);
+        ASSERT_EQ(myNet.layers[2]->neurons.size(), 1); // output layer depth = 1
+        ASSERT_EQ(myNet.layers[2]->neurons[0].size(), 1);
+
+        auto const &hl = *myNet.layers[1]; // Hidden layer (the convolution network layer)
+        ASSERT_EQ(hl.size.depth, 2);
+        ASSERT_EQ(hl.size.x, 8);
+        ASSERT_EQ(hl.size.y, 8);
+
+        ASSERT_EQ(hl.flatConvolveMatrix.size(), 2); // depth = 2
+        ASSERT_EQ(hl.flatConvolveMatrix[0].size(), 1*1); // kernel size 1x1
+        ASSERT_EQ(hl.flatConvolveMatrix[1].size(), 1*1);
+
+        ASSERT_EQ(hl.isConvolutionFilterLayer, false);
+        ASSERT_EQ(hl.isConvolutionNetworkLayer, true);
+        ASSERT_EQ(hl.isPoolingLayer, false);
+
+        ASSERT_EQ(hl.kernelSize.x, 1);
+        ASSERT_EQ(hl.kernelSize.y, 1);
+
+        auto &n000 = hl.neurons[0][flattenXY(0, 0, hl.size)];   // depth,x,y = 0,0,0
+        auto &n100 = hl.neurons[1][flattenXY(0, 0, hl.size)];   // depth,x,y = 1,0,0
+        auto &n024 = hl.neurons[0][flattenXY(2, 4, hl.size)];   // depth,x,y = 0,2,4
+
+        ASSERT_EQ(n000.backConnectionsIndices.size(), 1+1); // 1 source plus a bias
+        ASSERT_EQ(n100.backConnectionsIndices.size(), 1+1); // 1 source plus a bias
+        ASSERT_EQ(n024.backConnectionsIndices.size(), 1+1); // 1 source plus a bias
+
+        setAllWeights(myNet, 1.0);
+        myNet.sampleSet.loadSamples(inputDataConfigFilename);
+        myNet.feedForward(myNet.sampleSet.samples[0]);
+
+        ASSERT_EQ(myNet.layers[0]->neurons[0][flattenXY(2, 4,8)].output, pixelToNetworkInputRange(5));
+
+        // Each hidden-layer neuron covers only one input neuron, which has value based on its row number:
+        ASSERT_EQ(myNet.layers[0]->neurons[0][flattenXY(0, 0, myNet.layers[0]->size)].output, pixelToNetworkInputRange(1));
+        ASSERT_EQ(myNet.layers[0]->neurons[0][flattenXY(2, 4, myNet.layers[0]->size)].output, pixelToNetworkInputRange(5));
+
+        auto backIndex = n000.backConnectionsIndices[0];    // source neuron index
+        auto &sourceNeuron = myNet.connections[backIndex].fromNeuron;
+
+        ASSERT_EQ(sourceNeuron.output, pixelToNetworkInputRange(1));
+        ASSERT_EQ(n000.convolveMatrixIndex, 0);
+        ASSERT_EQ(n100.convolveMatrixIndex, 0);
+        ASSERT_EQ(n024.convolveMatrixIndex, 0);
+
+        ASSERT_EQ(hl.flatConvolveMatrix.size(), 2);    // depth = 2
+        ASSERT_EQ(hl.flatConvolveMatrix[0].size(), 1*1); // 1*1 kernel elements, depth 0
+        ASSERT_EQ(hl.flatConvolveMatrix[0][n000.convolveMatrixIndex], 1.0);
+        ASSERT_EQ(hl.flatConvolveMatrix[1].size(), 1*1); // 1*1 kernel elements, depth 1
+        ASSERT_EQ(hl.flatConvolveMatrix[1][n000.convolveMatrixIndex], 1.0);
+
+        ASSERT_EQ(n000.output, pixelToNetworkInputRange(1) + 1.0);  // depth,x,y = 0,0,0
+        ASSERT_EQ(n100.output, pixelToNetworkInputRange(1) + 1.0);  // depth,x,y = 1,0,0
+        ASSERT_EQ(n024.output, pixelToNetworkInputRange(5) + 1.0);  // depth,x,y = 0,2,4
+    }
+
+    {
+        LOG("Convolution networking");
+
+        /*
+                    /8x8[2x2]b--6x6[2x2]--6x6[2x2]b--4x4[2x2]--\
+                   / 8x8[2x2]b--6x6[2x2]--6x6[2x2]b--4x4[2x2]-- \
+                  /  8x8[2x2]b--6x6[2x2]--6x6[2x2]b--4x4[2x2]--  \
+                 /   8x8[2x2]b--6x6[2x2]--6x6[2x2]b--4x4[2x2]--   \
+            1*8x8    8x8[2x2]b--6x6[2x2]--6x6[2x2]b--4x4[2x2]--    1*10x1--1*10x1--1*3x1
+                 \   8x8[2x2]b--6x6[2x2]--6x6[2x2]b--4x4[2x2]--   /
+                  \  8x8[2x2]b--6x6[2x2]--6x6[2x2]b--4x4[2x2]--  /
+                   \ 8x8[2x2]b--6x6[2x2]--6x6[2x2]b--4x4[2x2]-- /
+                    \8x8[2x2]b--6x6[2x2]--6x6[2x2]b--4x4[2x2]--/
+                     8x8[2x2]b--6x6[2x2]--6x6[2x2]b--4x4[2x2]--
+         */
+
+        string topologyConfig =
+            "input size 8x8\n"
+            "layerConvolve1 size 10*8x8 from input convolve 2x2\n"
+            "layerPool1 size 10*6x6 from layerConvolve1 pool max 2x2\n"
+            "layerConvolve2 size 10*6x6 from layerPool1 convolve 2x2\n"
+            "layerPool2 size 10*4x4 from layerConvolve2 pool max 2x2\n"
+            "layerReduce size 10 from layerPool2 pool max 4x4\n"
+            "layerHidden size 10 from layerReduce\n"
+            "output size 3 from layerHidden\n";
+
+        string inputDataConfig =
+            "images/8x8-test.bmp\n";
+
+        const string topologyConfigFilename = "./topologyUnitTest.txt";
+        const string inputDataConfigFilename = "./inputDataUnitTest.txt";
+
+        std::ofstream topologyConfigFile(topologyConfigFilename);
+        topologyConfigFile << topologyConfig;
+        topologyConfigFile.close();
+
+        std::ofstream inputDataConfigFile(inputDataConfigFilename);
+        inputDataConfigFile << inputDataConfig;
+        inputDataConfigFile.close();
+
+        Net myNet(topologyConfigFilename);
+        setAllWeights(myNet, 1.0);
+
+        myNet.sampleSet.loadSamples(inputDataConfigFilename);
+        myNet.feedForward(myNet.sampleSet.samples[0]);
+
+        // verify some structural stuff:
+        ASSERT_EQ(myNet.layers.size(), 8);
+        ASSERT_EQ(myNet.layers[0]->neurons.size(), 1);  // input size 1*8x8
+        ASSERT_EQ(myNet.layers[1]->neurons.size(), 10); // layerConvolve1 size 10*8x8
+        ASSERT_EQ(myNet.layers[2]->neurons.size(), 10); // layerPool1 size 10*6x6
+        ASSERT_EQ(myNet.layers[3]->neurons.size(), 10); // layerConvolve2 size 10*6x6
+        ASSERT_EQ(myNet.layers[4]->neurons.size(), 10); // layerPool2 size 10*4x4
+        ASSERT_EQ(myNet.layers[5]->neurons.size(), 1);  // layerReduce size 10
+        ASSERT_EQ(myNet.layers[6]->neurons.size(), 1);  // layerHidden size 10
+        ASSERT_EQ(myNet.layers[7]->neurons.size(), 1);  // output size 3
+
+        ASSERT_EQ(myNet.layers[0]->neurons[0].size(), 8*8); // input size 1*8x8
+        ASSERT_EQ(myNet.layers[1]->neurons[0].size(), 8*8); // layerConvolve1 size 10*8x8
+        ASSERT_EQ(myNet.layers[1]->neurons[9].size(), 8*8);
+        ASSERT_EQ(myNet.layers[2]->neurons[0].size(), 6*6); // layerPool1 size 10*6x6
+        ASSERT_EQ(myNet.layers[2]->neurons[9].size(), 6*6);
+        ASSERT_EQ(myNet.layers[3]->neurons[0].size(), 6*6); // layerConvolve2 size 10*6x6
+        ASSERT_EQ(myNet.layers[4]->neurons[0].size(), 4*4); // layerPool2 size 10*4x4
+        ASSERT_EQ(myNet.layers[5]->neurons[0].size(), 10);  // layerReduce size 10
+        ASSERT_EQ(myNet.layers[6]->neurons[0].size(), 10);  // layerHidden size 10
+        ASSERT_EQ(myNet.layers[7]->neurons[0].size(), 3);   // output size 3
+
+        // To do
+    }
+
+    {
+        LOG("Convolution networking backprop");
+
+        /*
+               /-8x8[1x1]-\
+            8x8            10
+               \-8x8[1x1]-/
+         */
+
+        string topologyConfig =
+            "input size 8x8 channel B\n"
+            "layerConv size 2*8x8 from input convolve 1x1 tf linear\n"
+            "output size 1 from layerConv tf linear\n";
+
+        string inputDataConfig =
+            "images/8x8-test.bmp 1.0\n";
+
+        const string topologyConfigFilename = "./topologyUnitTest.txt";
+        const string inputDataConfigFilename = "./inputDataUnitTest.txt";
+
+        std::ofstream topologyConfigFile(topologyConfigFilename);
+        topologyConfigFile << topologyConfig;
+        topologyConfigFile.close();
+
+        std::ofstream inputDataConfigFile(inputDataConfigFilename);
+        inputDataConfigFile << inputDataConfig;
+        inputDataConfigFile.close();
+
+        Net myNet(topologyConfigFilename);
+        setAllWeights(myNet, 1.0);
+
+        myNet.sampleSet.loadSamples(inputDataConfigFilename);
+        myNet.feedForward(myNet.sampleSet.samples[0]);
+
+        // verify some structural stuff:
+        ASSERT_EQ(myNet.layers.size(), 3);
+        ASSERT_EQ(myNet.layers[0]->neurons.size(), 1);  // input depth = 1
+        ASSERT_EQ(myNet.layers[1]->neurons.size(), 2);  // layerConv depth = 2
+        ASSERT_EQ(myNet.layers[2]->neurons.size(), 1);  // output depth = 1
+
+        ASSERT_EQ(myNet.layers[0]->neurons[0].size(), 8*8); // input size 1*8x8
+
+        ASSERT_EQ(myNet.layers[1]->neurons[0].size(), 8*8); // layerConv size 2*8x8
+        ASSERT_EQ(myNet.layers[1]->neurons[1].size(), 8*8);
+
+        ASSERT_EQ(myNet.layers[2]->neurons[0].size(), 1);   // output size 1
+
+        myNet.backProp(myNet.sampleSet.samples[0]);
+    }
+
+    {
+        LOG("Convolution networking split topology");
+
+        /*
+                   /-20*32x32[7x7]--20*8x8[2x2]--\
+            1*32x32                               1*8x8--1*4x4--1*10x1
+                   \                             /
+                    \-1*8x8[1x3]----------------/
+         */
+
+        string topologyConfig =
+            "input size 32x32\n"
+            "layerConv size 20*32x32 from input convolve 7x7\n"
+            "layerPool size 20*8x8 from layerConv pool max 2x2\n"
+            "layerMix1 size 8x8 from layerPool\n"
+            "layerGauss size 8x8 from input radius 1x3 tf gaussian\n"
+            "layerMix2 size 4x4 from layerMix1\n"
+            "layerMix2 from layerGauss\n"
+            "output size 10 from layerMix2\n";
+
+        string inputDataConfig =
+            "images/8x8-test.bmp\n";
+
+        const string topologyConfigFilename = "./topologyUnitTest.txt";
+        const string inputDataConfigFilename = "./inputDataUnitTest.txt";
+
+        std::ofstream topologyConfigFile(topologyConfigFilename);
+        topologyConfigFile << topologyConfig;
+        topologyConfigFile.close();
+
+        std::ofstream inputDataConfigFile(inputDataConfigFilename);
+        inputDataConfigFile << inputDataConfig;
+        inputDataConfigFile.close();
+
+        const string filename = "./unitTestSavedWeights.txt";
+
+        Net myNet1(topologyConfigFilename);
+        myNet1.sampleSet.loadSamples(inputDataConfigFilename);
+
+        // move the following topological tests to a different unit test
+        ASSERT_EQ(myNet1.layers[0]->neurons[0].size(), 32*32);
+
+        auto const &input = *myNet1.layers[0];
+        ASSERT_EQ(input.size.depth, 1);
+        ASSERT_EQ(input.neurons.size(), 1);
+        ASSERT_EQ(input.neurons[0].size(), 32*32);
+        ASSERT_EQ(input.neurons[0][0].backConnectionsIndices.size(), 0);
+        ASSERT_EQ(input.neurons[0].back().backConnectionsIndices.size(), 0);
+        ASSERT_EQ(input.neurons[0][7*16+7].forwardConnectionsIndices.size(), 20*7*7);
+
+        auto const &layerConv = *myNet1.layers[1]; // size 20*32x32 from input convolve 7x7
+        ASSERT_EQ(layerConv.size.depth, 20);
+        ASSERT_EQ(layerConv.neurons.size(), 20);
+        ASSERT_EQ(layerConv.neurons[0].size(), 32*32);
+        ASSERT_EQ(layerConv.neurons[0][16*32+16].backConnectionsIndices.size(), 7*7+1);
+
+        auto const &output = *myNet1.layers.back();
+        ASSERT_EQ(output.size.depth, 1);
+        ASSERT_EQ(output.neurons.size(), 1);
+        ASSERT_EQ(output.neurons[0].size(), 10);
+        ASSERT_EQ(output.neurons[0][0].backConnectionsIndices.size(), 4*4 + 1);
+        ASSERT_EQ(output.neurons[0].back().backConnectionsIndices.size(), 4*4 + 1);
+        ASSERT_EQ(output.neurons[0][0].forwardConnectionsIndices.size(), 0);
+        ASSERT_EQ(output.neurons[0].back().forwardConnectionsIndices.size(), 0);
+    }
+}
+
+
+void unitTestImages()
 {
     {
         LOG("images smoke test");
@@ -871,13 +1321,13 @@ int unitTestImages()
         // files are the default version, and that the digits archive has been
         // expanded in the usual subdirectory
 
-        Net myNet("topology.txt");
+        Net myNet("images/digits/topology.txt");
         ASSERT_EQ(myNet.layers.size(), 3);
-        ASSERT_EQ(myNet.layers[0].params.size.x, 32);
-        ASSERT_EQ(myNet.layers[0].params.size.y, 32);
+        ASSERT_EQ(myNet.layers[0]->size.x, 32);
+        ASSERT_EQ(myNet.layers[0]->size.y, 32);
         ASSERT_EQ(myNet.sampleSet.samples.size(), 0);
 
-        myNet.sampleSet.loadSamples("./inputData.txt");
+        myNet.sampleSet.loadSamples("images/digits/inputData.txt");
         ASSERT_EQ(myNet.sampleSet.samples.size(), 5000);
     }
 
@@ -911,12 +1361,15 @@ int unitTestImages()
         myNet.sampleSet.loadSamples(inputDataConfigFilename);
         ASSERT_EQ(myNet.sampleSet.samples.size(), 1);
         auto data = myNet.sampleSet.samples[0].getData(NNet::R);
-        ASSERT_EQ(data.size(), 8*8);
+        myNet.feedForward(myNet.sampleSet.samples[0]);
 
-        ASSERT_EQ(data[0],   pixelToNetworkInputRange(30));
-        ASSERT_EQ(data[1],   pixelToNetworkInputRange(101));
-        ASSERT_EQ(data[7],   pixelToNetworkInputRange(40));
-        ASSERT_EQ(data[63],  pixelToNetworkInputRange(20));
+        ASSERT_EQ(data.size(), 8*8);
+        ASSERT_EQ(data[flattenXY(0, 0, 8)], pixelToNetworkInputRange(10));
+        ASSERT_EQ(data[flattenXY(0, 1, 8)], pixelToNetworkInputRange(101));
+        ASSERT_EQ(data[flattenXY(0, 7, 8)], pixelToNetworkInputRange(30));
+        ASSERT_EQ(data[flattenXY(1, 0, 8)], pixelToNetworkInputRange(101));
+        ASSERT_EQ(data[flattenXY(7, 0, 8)], pixelToNetworkInputRange(20));
+        ASSERT_EQ(data[flattenXY(7, 7, 8)], pixelToNetworkInputRange(40));
     }
 
     {
@@ -947,47 +1400,546 @@ int unitTestImages()
 
         myNet.sampleSet.loadSamples(inputDataConfigFilename);
         auto data = myNet.sampleSet.samples[0].getData(NNet::R);
-
-        ASSERT_EQ(data[0],  pixelToNetworkInputRange(8));
-        ASSERT_EQ(data[1],  pixelToNetworkInputRange(8));
-        ASSERT_EQ(data[8],  pixelToNetworkInputRange(7));
-        ASSERT_EQ(data[63], pixelToNetworkInputRange(1));
-
         myNet.feedForward(myNet.sampleSet.samples[0]);
+
+        ASSERT_EQ(data[flattenXY(0, 0, 8)], pixelToNetworkInputRange(1));
+        ASSERT_EQ(data[flattenXY(0, 1, 8)], pixelToNetworkInputRange(2));
+        ASSERT_EQ(data[flattenXY(1, 0, 8)], pixelToNetworkInputRange(1));
+        ASSERT_EQ(data[flattenXY(1, 7, 8)], pixelToNetworkInputRange(8));
+        ASSERT_EQ(data[flattenXY(2, 4, 8)], pixelToNetworkInputRange(5));
+
         // Output should be the sum of 64 input values of pixels with values from 1..8.
         //   plus a bias input of 1.0:
         float avgInputVal = (pixelToNetworkInputRange(1) + pixelToNetworkInputRange(8)) / 2.0;
-        ASSERT_EQ(myNet.layers.back().neurons[0].output, 64 * avgInputVal + 1.0);
+        ASSERT_EQ(myNet.layers.back()->neurons[0][0].output, 64 * avgInputVal + 1.0);
 
         myNet.sampleSet.clearImageCache();
         data = myNet.sampleSet.samples[0].getData(NNet::R);
-        ASSERT_EQ(data[0],  pixelToNetworkInputRange(8));
-        ASSERT_EQ(data[1],  pixelToNetworkInputRange(8));
-        ASSERT_EQ(data[8],  pixelToNetworkInputRange(7));
-        ASSERT_EQ(data[63], pixelToNetworkInputRange(1));
+        ASSERT_EQ(data[flattenXY(0, 0, 8)], pixelToNetworkInputRange(1));
+        ASSERT_EQ(data[flattenXY(0, 1, 8)], pixelToNetworkInputRange(2));
+        ASSERT_EQ(data[flattenXY(1, 0, 8)], pixelToNetworkInputRange(1));
+        ASSERT_EQ(data[flattenXY(1, 7, 8)], pixelToNetworkInputRange(8));
+        ASSERT_EQ(data[flattenXY(2, 4, 8)], pixelToNetworkInputRange(5));
 
         myNet.sampleSet.clearImageCache();
         data = myNet.sampleSet.samples[0].getData(NNet::G);
-        ASSERT_EQ(data[0],  pixelToNetworkInputRange(1));
-        ASSERT_EQ(data[1],  pixelToNetworkInputRange(2));
-        ASSERT_EQ(data[8],  pixelToNetworkInputRange(1));
-        ASSERT_EQ(data[63], pixelToNetworkInputRange(8));
+        ASSERT_EQ(data[flattenXY(0, 0, 8)], pixelToNetworkInputRange(1));
+        ASSERT_EQ(data[flattenXY(0, 1, 8)], pixelToNetworkInputRange(1));
+        ASSERT_EQ(data[flattenXY(1, 0, 8)], pixelToNetworkInputRange(2));
+        ASSERT_EQ(data[flattenXY(1, 7, 8)], pixelToNetworkInputRange(2));
+        ASSERT_EQ(data[flattenXY(7, 7, 8)], pixelToNetworkInputRange(8));
+        ASSERT_EQ(data[flattenXY(2, 4, 8)], pixelToNetworkInputRange(3));
 
         myNet.sampleSet.clearImageCache();
         data = myNet.sampleSet.samples[0].getData(NNet::B);
-        ASSERT_EQ(data[0], pixelToNetworkInputRange(127));
-        ASSERT_EQ(data[1], pixelToNetworkInputRange(127));
-        ASSERT_EQ(data[8], pixelToNetworkInputRange(127));
-        ASSERT_EQ(data[63],pixelToNetworkInputRange(127));
+        ASSERT_EQ(data[flattenXY(0, 0, 8)], pixelToNetworkInputRange(127));
+        ASSERT_EQ(data[flattenXY(0, 1, 8)], pixelToNetworkInputRange(127));
+        ASSERT_EQ(data[flattenXY(1, 0, 8)], pixelToNetworkInputRange(127));
+        ASSERT_EQ(data[flattenXY(1, 7, 8)], pixelToNetworkInputRange(127));
+        ASSERT_EQ(data[flattenXY(2, 4, 8)], pixelToNetworkInputRange(127));
     }
 
-    return 0;
+    {
+        LOG("Image read and orientation");
+
+        string topologyConfig =
+            "input size 8x8 channel R\n"
+            "output size 1 from input radius 0x0 tf linear\n";
+
+        string inputDataConfig =
+            "images/8x8-test11.bmp\n";
+
+        const string topologyConfigFilename = "./topologyUnitTest.txt";
+        const string inputDataConfigFilename = "./inputDataUnitTest.txt";
+
+        std::ofstream topologyConfigFile(topologyConfigFilename);
+        topologyConfigFile << topologyConfig;
+        topologyConfigFile.close();
+
+        std::ofstream inputDataConfigFile(inputDataConfigFilename);
+        inputDataConfigFile << inputDataConfig;
+        inputDataConfigFile.close();
+
+        Net myNet(topologyConfigFilename);
+        setAllWeights(myNet, 1.0);
+
+        myNet.sampleSet.loadSamples(inputDataConfigFilename);
+        auto data = myNet.sampleSet.samples[0].getData(NNet::R);
+        myNet.feedForward(myNet.sampleSet.samples[0]);
+
+        ASSERT_EQ(data[flattenXY(3, 1, 8)], pixelToNetworkInputRange(2));
+        ASSERT_EQ(data[flattenXY(2, 4, 8)], pixelToNetworkInputRange(5));
+
+        auto const &inputLayer = *myNet.layers[0];
+        ASSERT_EQ(inputLayer.neurons[0][flattenXY(3,1,8)].output, pixelToNetworkInputRange(2));
+        ASSERT_EQ(inputLayer.neurons[0][flattenXY(2,4,8)].output, pixelToNetworkInputRange(5));
+
+        // Output neurons at row 1 covers a single neuron, at x=3 or 4 and y = 3 or 4,
+        // depending on roundoff (one of the following lines will be correct):
+
+        auto const &outputLayer = *myNet.layers.back();
+        ASSERT_EQ(outputLayer.neurons[0][0].output, 1*1 * pixelToNetworkInputRange(5) + 1.0);
+    }
 }
 
 
-int unitTestMisc()
+void unitTestPooling()
 {
     {
+        LOG("Pooling trivial config");
+
+        string topologyConfig =
+            "input size 8x8 channel R\n"
+            "layerPool size 1 from input pool max 1x1 tf linear\n"
+            "output from layerPool tf linear\n";
+
+        string inputDataConfig =
+            "images/8x8-test11.bmp\n";
+
+        const string topologyConfigFilename = "./topologyUnitTest.txt";
+        const string inputDataConfigFilename = "./inputDataUnitTest.txt";
+
+        std::ofstream topologyConfigFile(topologyConfigFilename);
+        topologyConfigFile << topologyConfig;
+        topologyConfigFile.close();
+
+        std::ofstream inputDataConfigFile(inputDataConfigFilename);
+        inputDataConfigFile << inputDataConfig;
+        inputDataConfigFile.close();
+
+        Net myNet(topologyConfigFilename);
+        setAllWeights(myNet, 1.0);
+
+        myNet.sampleSet.loadSamples(inputDataConfigFilename);
+        myNet.feedForward(myNet.sampleSet.samples[0]);
+
+        ASSERT_EQ(myNet.layers.size(), 3);
+        auto const &pl = *myNet.layers[1]; // the pooling layer
+        ASSERT_EQ(pl.neurons.size(), 1); // depth = 1
+        ASSERT_EQ(pl.neurons[0].size(), 1*1);
+
+        ASSERT_EQ(pl.flatConvolveMatrix.size(), 0);
+        ASSERT_EQ(pl.isConvolutionFilterLayer, false);
+        ASSERT_EQ(pl.isConvolutionNetworkLayer, false);
+        ASSERT_EQ(pl.isPoolingLayer, true);
+        ASSERT_EQ(pl.poolMethod, NNet::POOL_MAX);
+        ASSERT_EQ(pl.poolSize.x, 1);
+        ASSERT_EQ(pl.poolSize.y, 1);
+        ASSERT_EQ(pl.size.depth, 1);
+        ASSERT_EQ(pl.size.x, 1);
+        ASSERT_EQ(pl.size.y, 1);
+
+        // The pooling layer neuron at 0,0 covers an input neuron on either row 3 or
+        // 4 depending on roundoff, with pixel value 4 or 5:
+        // No bias, and that's the only input so it's the max:
+        auto const &n00 = pl.neurons[0][0];
+        ASSERT_EQ(n00.backConnectionsIndices.size(), 1);
+        auto backIdx = n00.backConnectionsIndices[0];
+        auto const &backConn = myNet.connections[backIdx];
+        auto const &sourceNeuron = backConn.fromNeuron;
+        ASSERT_EQ(sourceNeuron.output, pixelToNetworkInputRange(5));
+        ASSERT_EQ(n00.output, pixelToNetworkInputRange(5));
+
+        ASSERT_EQ(n00.forwardConnectionsIndices.size(), 1);
+        auto const &outputNeuron = myNet.layers.back()->neurons[0][0];
+        ASSERT_EQ(outputNeuron.output, n00.output + 1.0);
+    }
+
+    {
+        LOG("Pool max 1*8x8 to 1*2x2[4x4]");
+
+        // Channel B contains pixels all of value 127. In this test, we use
+        // pooling to find the max or avg of the four quadrants of the input.
+
+        string topologyConfig =
+            "input size 8x8 channel B\n"
+            "layerPool size 2x2 from input pool max 4x4 tf linear\n"
+            "output size 1 from layerPool tf linear\n";
+
+        string inputDataConfig =
+            "images/8x8-test11.bmp\n";
+
+        const string topologyConfigFilename = "./topologyUnitTest.txt";
+        const string inputDataConfigFilename = "./inputDataUnitTest.txt";
+
+        std::ofstream topologyConfigFile(topologyConfigFilename);
+        topologyConfigFile << topologyConfig;
+        topologyConfigFile.close();
+
+        std::ofstream inputDataConfigFile(inputDataConfigFilename);
+        inputDataConfigFile << inputDataConfig;
+        inputDataConfigFile.close();
+
+        Net myNet(topologyConfigFilename);
+        setAllWeights(myNet, 1.0);
+
+        myNet.sampleSet.loadSamples(inputDataConfigFilename);
+        auto data = myNet.sampleSet.samples[0].getData(NNet::B);
+        myNet.feedForward(myNet.sampleSet.samples[0]);
+
+        ASSERT_EQ(myNet.layers.size(), 3);
+        auto const &pl = *myNet.layers[1]; // the pooling layer
+        ASSERT_EQ(pl.neurons.size(), 1); // depth = 1
+        ASSERT_EQ(pl.neurons[0].size(), 2*2);
+
+        // The NW (upper left) pooling layer neuron covers the upper left quadrant of the input image
+        auto const &neuronNW = pl.neurons[0][flattenXY(0,0,2)];
+        auto const &neuronNE = pl.neurons[0][flattenXY(1,0,2)];
+        auto const &neuronSW = pl.neurons[0][flattenXY(0,1,2)];
+        auto const &neuronSE = pl.neurons[0][flattenXY(1,1,2)];
+
+        // each pooling neuron covers a 4x4 patch of input neurons:
+        ASSERT_EQ(neuronNW.backConnectionsIndices.size(), 4*4);
+        ASSERT_EQ(neuronNE.backConnectionsIndices.size(), 4*4);
+        ASSERT_EQ(neuronSW.backConnectionsIndices.size(), 4*4);
+        ASSERT_EQ(neuronSE.backConnectionsIndices.size(), 4*4);
+
+        // let's verify some raw inputs of the NW quadrant:
+        ASSERT_EQ(data[flattenXY(0,0,8)], pixelToNetworkInputRange(127));
+        ASSERT_EQ(data[flattenXY(3,0,8)], pixelToNetworkInputRange(127));
+        ASSERT_EQ(data[flattenXY(3,3,8)], pixelToNetworkInputRange(127));
+
+        // NW quadrant max:
+        float expectedOutput = pixelToNetworkInputRange(127); // max
+        ASSERT_EQ(neuronNW.output, expectedOutput);
+
+        // NE quadrant max:
+        ASSERT_EQ(neuronNE.output, expectedOutput);
+
+        // SW quadrant max:
+        ASSERT_EQ(neuronSW.output, expectedOutput);
+
+        // SE quadrant max:
+        ASSERT_EQ(neuronSE.output, expectedOutput);
+    }
+
+    {
+        LOG("Pool avg 1*8x8 to 1*2x2[4x4]");
+
+        // In this test, we use pooling to find the average in each of the
+        // four quadrants of the input.
+
+        string topologyConfig =
+            "input size 8x8 channel R\n"
+            "layerPool size 2x2 from input pool avg 4x4 tf linear\n"
+            "output size 1 from layerPool tf linear\n";
+
+        string inputDataConfig =
+            "images/8x8-test.bmp\n";
+
+        const string topologyConfigFilename = "./topologyUnitTest.txt";
+        const string inputDataConfigFilename = "./inputDataUnitTest.txt";
+
+        std::ofstream topologyConfigFile(topologyConfigFilename);
+        topologyConfigFile << topologyConfig;
+        topologyConfigFile.close();
+
+        std::ofstream inputDataConfigFile(inputDataConfigFilename);
+        inputDataConfigFile << inputDataConfig;
+        inputDataConfigFile.close();
+
+        Net myNet(topologyConfigFilename);
+        setAllWeights(myNet, 1.0);
+
+        myNet.sampleSet.loadSamples(inputDataConfigFilename);
+        auto data = myNet.sampleSet.samples[0].getData(NNet::R);
+        myNet.feedForward(myNet.sampleSet.samples[0]);
+
+        auto const &pl = *myNet.layers[1]; // the pooling layer
+
+        // The NW (upper left) pooling layer neuron covers the upper left quadrant of the input image
+        auto const &neuronNW = pl.neurons[0][flattenXY(0,0,2)];
+        auto const &neuronNE = pl.neurons[0][flattenXY(1,0,2)];
+        auto const &neuronSW = pl.neurons[0][flattenXY(0,1,2)];
+        auto const &neuronSE = pl.neurons[0][flattenXY(1,1,2)];
+
+        // let's verify some raw inputs of the NW quadrant:
+        ASSERT_EQ(data[flattenXY(0,0,8)], pixelToNetworkInputRange(10));
+        ASSERT_EQ(data[flattenXY(3,0,8)], pixelToNetworkInputRange(101));
+        ASSERT_EQ(data[flattenXY(3,3,8)], pixelToNetworkInputRange(101));
+
+        // NW quadrant avg:
+        float expectedOutput = (pixelToNetworkInputRange(10) + 15 * pixelToNetworkInputRange(101)) / 16.0;
+        ASSERT_EQ(neuronNW.output, expectedOutput);
+
+        // NE quadrant avg:
+        expectedOutput = (pixelToNetworkInputRange(20) + 15 * pixelToNetworkInputRange(101)) / 16.0;
+        ASSERT_EQ(neuronNE.output, expectedOutput);
+
+        // SW quadrant avg:
+        expectedOutput = (pixelToNetworkInputRange(30) + 15 * pixelToNetworkInputRange(101)) / 16.0;
+        ASSERT_EQ(neuronSW.output, expectedOutput);
+
+        // SE quadrant avg:
+        expectedOutput = (pixelToNetworkInputRange(40) + 15 * pixelToNetworkInputRange(101)) / 16.0;
+        ASSERT_EQ(neuronSE.output, expectedOutput);
+    }
+
+    {
+        LOG("Pool avg 2*8x8 to 2*2x2[4x4]");
+
+        /*
+                 /-8x8[1x1]b--2x2[4x4]-\
+            1*8x8                       1*1x1
+                 \-8x8[1x1]b--2x2[4x4]-/
+         */
+
+        // In this test, we use pooling to find the average in each of the
+        // four quadrants of the input, in a convolution network layer with depth = 2.
+
+        string topologyConfig =
+            "input size 8x8 channel R\n"
+            "layerConvPassthrough size 2*8x8 from input convolve 1x1 tf linear\n"
+            "layerPool size 2*2x2 from layerConvPassthrough pool avg 4x4 tf linear\n"
+            "output size 1 from layerPool tf linear\n";
+
+        string inputDataConfig =
+            "images/8x8-test.bmp\n";
+
+        const string topologyConfigFilename = "./topologyUnitTest.txt";
+        const string inputDataConfigFilename = "./inputDataUnitTest.txt";
+
+        std::ofstream topologyConfigFile(topologyConfigFilename);
+        topologyConfigFile << topologyConfig;
+        topologyConfigFile.close();
+
+        std::ofstream inputDataConfigFile(inputDataConfigFilename);
+        inputDataConfigFile << inputDataConfig;
+        inputDataConfigFile.close();
+
+        Net myNet(topologyConfigFilename);
+        setAllWeights(myNet, 1.0);
+
+        myNet.sampleSet.loadSamples(inputDataConfigFilename);
+        myNet.feedForward(myNet.sampleSet.samples[0]);
+
+        auto const &pl = *myNet.layers[2]; // the pooling layer
+
+        // verify some structural stuff:
+        ASSERT_EQ(myNet.layers.size(), 4);
+        ASSERT_EQ(myNet.layers[0]->neurons.size(), 1); // depth = 1
+        ASSERT_EQ(myNet.layers[1]->neurons.size(), 2); // depth = 2
+        ASSERT_EQ(myNet.layers[2]->neurons.size(), 2); // depth = 2
+        ASSERT_EQ(myNet.layers[3]->neurons.size(), 1); // depth = 1
+
+        ASSERT_EQ(myNet.layers[0]->neurons[0].size(), 8*8);
+        ASSERT_EQ(myNet.layers[1]->neurons[0].size(), 8*8);
+        ASSERT_EQ(myNet.layers[1]->neurons[1].size(), 8*8);
+        ASSERT_EQ(myNet.layers[2]->neurons[0].size(), 2*2);
+        ASSERT_EQ(myNet.layers[2]->neurons[1].size(), 2*2);
+        ASSERT_EQ(myNet.layers[3]->neurons[0].size(), 1);
+
+        ASSERT_EQ(myNet.layers[0]->neurons[0][0].forwardConnectionsIndices.size(), 2); // input splits into two
+
+        for (uint32_t nIdx = 0; nIdx < myNet.layers[1]->size.x * myNet.layers[1]->size.y; ++nIdx) {
+            ASSERT_EQ(myNet.layers[1]->neurons[0][nIdx].backConnectionsIndices.size(), 1+1); // one source plus bias
+            ASSERT_EQ(myNet.layers[1]->neurons[1][nIdx].backConnectionsIndices.size(), 1+1);
+            ASSERT_EQ(myNet.layers[1]->neurons[0][nIdx].forwardConnectionsIndices.size(), 1);
+            ASSERT_EQ(myNet.layers[1]->neurons[1][nIdx].forwardConnectionsIndices.size(), 1);
+        }
+
+        // size 2*2x2 from layerConvPassthrough pool avg 4x4
+        for (uint32_t nIdx = 0; nIdx < myNet.layers[2]->size.x * myNet.layers[2]->size.y; ++nIdx) {
+            ASSERT_EQ(myNet.layers[2]->neurons[0][nIdx].backConnectionsIndices.size(), 4*4); // no bias on pooling layers
+            ASSERT_EQ(myNet.layers[2]->neurons[1][nIdx].backConnectionsIndices.size(), 4*4);
+            ASSERT_EQ(myNet.layers[2]->neurons[0][nIdx].forwardConnectionsIndices.size(), 1);
+            ASSERT_EQ(myNet.layers[2]->neurons[1][nIdx].forwardConnectionsIndices.size(), 1);
+        }
+
+        ASSERT_EQ(myNet.layers[3]->neurons[0][0].backConnectionsIndices.size(), 2*2*2 + 1);
+
+        auto idx = myNet.layers[2]->neurons[0][flattenXY(0,0,2)].backConnectionsIndices[0];
+        ASSERT_EQ(&myNet.connections[idx].fromNeuron, &myNet.layers[1]->neurons[0][flattenXY(0,0,8)]);
+        idx = myNet.layers[2]->neurons[1][flattenXY(0,0,2)].backConnectionsIndices[0];
+        ASSERT_EQ(&myNet.connections[idx].fromNeuron, &myNet.layers[1]->neurons[1][flattenXY(0,0,8)]);
+
+        // The NW (upper left) pooling layer neuron covers the upper left quadrant of the input image
+        auto const &neuronNW0 = pl.neurons[0][flattenXY(0,0,2)];
+        auto const &neuronNE0 = pl.neurons[0][flattenXY(1,0,2)];
+        auto const &neuronSW0 = pl.neurons[0][flattenXY(0,1,2)];
+        auto const &neuronSE0 = pl.neurons[0][flattenXY(1,1,2)];
+
+        auto const &neuronNW1 = pl.neurons[1][flattenXY(0,0,2)];
+        auto const &neuronNE1 = pl.neurons[1][flattenXY(1,0,2)];
+        auto const &neuronSW1 = pl.neurons[1][flattenXY(0,1,2)];
+        auto const &neuronSE1 = pl.neurons[1][flattenXY(1,1,2)];
+
+        // might as well verify some of the outputs of layerConvPassthrough
+        ASSERT_EQ(myNet.layers[1]->neurons[0][flattenXY(0,0,8)].output, pixelToNetworkInputRange(10) + 1.0);
+        ASSERT_EQ(myNet.layers[1]->neurons[1][flattenXY(0,0,8)].output, pixelToNetworkInputRange(10) + 1.0);
+        ASSERT_EQ(myNet.layers[1]->neurons[0][flattenXY(1,1,8)].output, pixelToNetworkInputRange(101) + 1.0);
+        ASSERT_EQ(myNet.layers[1]->neurons[1][flattenXY(1,1,8)].output, pixelToNetworkInputRange(101) + 1.0);
+
+        // NW quadrant avg:
+        float expectedOutput =
+                ((pixelToNetworkInputRange(10) + 1.0) + 15 * (pixelToNetworkInputRange(101) + 1.0) ) / 16.0;
+        ASSERT_EQ(neuronNW0.output, expectedOutput);
+        ASSERT_EQ(neuronNW1.output, expectedOutput);
+
+        // NE quadrant avg:
+        expectedOutput = ((pixelToNetworkInputRange(20) + 1.0) + 15 * (pixelToNetworkInputRange(101) + 1.0) ) / 16.0;
+        ASSERT_EQ(neuronNE0.output, expectedOutput);
+        ASSERT_EQ(neuronNE1.output, expectedOutput);
+
+        // SW quadrant avg:
+        expectedOutput = ((pixelToNetworkInputRange(30) + 1.0) + 15 * (pixelToNetworkInputRange(101) + 1.0) ) / 16.0;
+        ASSERT_EQ(neuronSW0.output, expectedOutput);
+        ASSERT_EQ(neuronSW1.output, expectedOutput);
+
+        // SE quadrant avg:
+        expectedOutput = ((pixelToNetworkInputRange(40) + 1.0) + 15 * (pixelToNetworkInputRange(101) + 1.0) ) / 16.0;
+        ASSERT_EQ(neuronSE0.output, expectedOutput);
+        ASSERT_EQ(neuronSE1.output, expectedOutput);
+    }
+}
+
+
+void unitTestMisc()
+{
+    // To do: add test for save/load weights
+
+    {
+        LOG("test sanitizeFilename");   // != '_' && c != '-' && c != '.' && c != '%')
+
+        extern void sanitizeFilename(string &s);
+        string s;
+        s = ""; sanitizeFilename(s); ASSERT_EQ(s, "");
+        s = "_"; sanitizeFilename(s); ASSERT_EQ(s, "_");
+        s = "-"; sanitizeFilename(s); ASSERT_EQ(s, "-");
+        s = "%"; sanitizeFilename(s); ASSERT_EQ(s, "%");
+        s = "$"; sanitizeFilename(s); ASSERT_EQ(s, "_");
+        s = "%%%%"; sanitizeFilename(s); ASSERT_EQ(s, "%%%%");
+        s = "a-*bc&.%d"; sanitizeFilename(s); ASSERT_EQ(s, "a-_bc_.%d");
+        s = "&^%$*)*_+"; sanitizeFilename(s); ASSERT_EQ(s, "__%______");
+        s = " <"; sanitizeFilename(s); ASSERT_EQ(s, "__");
+    }
+
+    {
+        LOG("index flattening");
+
+        ASSERT_EQ(flattenXY(0, 0, 8), 0);
+        ASSERT_EQ(flattenXY(0, 1, 8), 1);
+        ASSERT_EQ(flattenXY(1, 0, 8), 8);
+
+        dxySize dxySz;
+        dxySz.depth = 0;
+        dxySz.x = 4;
+        dxySz.y = 8;
+        ASSERT_EQ(flattenXY(2, 3, dxySz), 2*8 + 3);
+    }
+
+    {
+        LOG("Save/restore weights, split convolution network");
+
+        /*
+                   /-20*32x32[7x7]--20*8x8[2x2]--\
+            1*32x32                               1*8x8--1*4x4--1*10x1
+                   \                             /
+                    \-1*8x8[1x3]----------------/
+         */
+
+        string topologyConfig =
+            "input size 32x32\n"
+            "layerConv size 20*32x32 from input convolve 7x7\n"
+            "layerPool size 20*8x8 from layerConv pool max 2x2\n"
+            "layerMix size 8x8 from layerPool\n"
+            "layerGauss size 8x8 from input radius 1x3 tf gaussian\n"
+            "layerCombine size 4x4 from layerMix\n"
+            "layerCombine from layerGauss\n"
+            "output size 10 from layerCombine\n";
+
+        string inputDataConfig =
+            "images/8x8-test.bmp 0 0 0 0 0 0 0 0 0 0\n";
+
+        const string topologyConfigFilename = "./topologyUnitTest.txt";
+        const string inputDataConfigFilename = "./inputDataUnitTest.txt";
+
+        std::ofstream topologyConfigFile(topologyConfigFilename);
+        topologyConfigFile << topologyConfig;
+        topologyConfigFile.close();
+
+        std::ofstream inputDataConfigFile(inputDataConfigFilename);
+        inputDataConfigFile << inputDataConfig;
+        inputDataConfigFile.close();
+
+        const string filename = "./unitTestSavedWeights.txt";
+
+        Net myNet1(topologyConfigFilename);
+        myNet1.sampleSet.loadSamples(inputDataConfigFilename);
+        myNet1.feedForward(myNet1.sampleSet.samples[0]);
+        myNet1.backProp(myNet1.sampleSet.samples[0]);
+        myNet1.saveWeights(filename);
+
+        Net myNet2(topologyConfigFilename);
+        myNet2.loadWeights(filename);
+
+        // input layer has no incoming weights
+
+        // layerConv:
+        auto const &conv1kernels = myNet1.layers[1]->flatConvolveMatrix;
+        auto const &conv2kernels = myNet2.layers[1]->flatConvolveMatrix;
+        for (uint32_t depthNum = 0; depthNum < conv1kernels.size(); ++depthNum) {
+            auto const &kernel1Flat = conv1kernels[depthNum];
+            auto const &kernel2Flat = conv2kernels[depthNum];
+            for (uint32_t n = 0; n < kernel1Flat.size(); ++n) {
+                ASSERT_FEQ(kernel1Flat[n], kernel2Flat[n]);
+            }
+        }
+
+        // layerPool has no incoming weights
+
+        // layerMix size 8x8 from layerPool
+        auto const &mix1 = *myNet1.layers[3];
+        auto const &mix2 = *myNet2.layers[3];
+        for (uint32_t neuronNum = 0; neuronNum < mix1.neurons[0].size(); ++neuronNum) {
+            auto const &neuron1 = mix1.neurons[0][neuronNum];
+            auto const &neuron2 = mix2.neurons[0][neuronNum];
+            for (uint32_t i = 0; i < neuron1.backConnectionsIndices.size(); ++i) {
+                ASSERT_FEQ(myNet1.connections[neuron1.backConnectionsIndices[i]].weight,
+                           myNet2.connections[neuron2.backConnectionsIndices[i]].weight);
+            }
+        }
+
+        // layerGauss size 8x8 from input radius 1x3
+        auto const &gauss1 = *myNet1.layers[3];
+        auto const &gauss2 = *myNet2.layers[3];
+        for (uint32_t neuronNum = 0; neuronNum < gauss1.neurons[0].size(); ++neuronNum) {
+            auto const &neuron1 = gauss1.neurons[0][neuronNum];
+            auto const &neuron2 = gauss2.neurons[0][neuronNum];
+            for (uint32_t i = 0; i < neuron1.backConnectionsIndices.size(); ++i) {
+                ASSERT_FEQ(myNet1.connections[neuron1.backConnectionsIndices[i]].weight,
+                           myNet2.connections[neuron2.backConnectionsIndices[i]].weight);
+            }
+        }
+
+        // layerCombine size 4x4
+        auto const &combine1 = *myNet1.layers[3];
+        auto const &combine2 = *myNet2.layers[3];
+        for (uint32_t neuronNum = 0; neuronNum < combine1.neurons[0].size(); ++neuronNum) {
+            auto const &neuron1 = combine1.neurons[0][neuronNum];
+            auto const &neuron2 = combine2.neurons[0][neuronNum];
+            for (uint32_t i = 0; i < neuron1.backConnectionsIndices.size(); ++i) {
+                ASSERT_FEQ(myNet1.connections[neuron1.backConnectionsIndices[i]].weight,
+                           myNet2.connections[neuron2.backConnectionsIndices[i]].weight);
+            }
+        }
+
+        // output size 10
+        auto const &output1 = *myNet1.layers[3];
+        auto const &output2 = *myNet2.layers[3];
+        for (uint32_t neuronNum = 0; neuronNum < output1.neurons[0].size(); ++neuronNum) {
+            auto const &neuron1 = output1.neurons[0][neuronNum];
+            auto const &neuron2 = output2.neurons[0][neuronNum];
+            for (uint32_t i = 0; i < neuron1.backConnectionsIndices.size(); ++i) {
+                ASSERT_FEQ(myNet1.connections[neuron1.backConnectionsIndices[i]].weight,
+                           myNet2.connections[neuron2.backConnectionsIndices[i]].weight);
+            }
+        }
+    }
+
+    {
+        // This test must be executed last, as it disrupts the Logger streams.
+        // To do: fix that.
         LOG("test logger output");
 
         const string tempFilename = "./unitTestTempOutput";
@@ -1015,24 +1967,6 @@ int unitTestMisc()
         ASSERT_EQ(result, "HelloErrorTestFile");
         rFile.close();
     }
-
-    {
-        LOG("test sanitizeFilename");   // != '_' && c != '-' && c != '.' && c != '%')
-
-        extern void sanitizeFilename(string &s);
-        string s;
-        s = ""; sanitizeFilename(s); ASSERT_EQ(s, "");
-        s = "_"; sanitizeFilename(s); ASSERT_EQ(s, "_");
-        s = "-"; sanitizeFilename(s); ASSERT_EQ(s, "-");
-        s = "%"; sanitizeFilename(s); ASSERT_EQ(s, "%");
-        s = "$"; sanitizeFilename(s); ASSERT_EQ(s, "_");
-        s = "%%%%"; sanitizeFilename(s); ASSERT_EQ(s, "%%%%");
-        s = "a-*bc&.%d"; sanitizeFilename(s); ASSERT_EQ(s, "a-_bc_.%d");
-        s = "&^%$*)*_+"; sanitizeFilename(s); ASSERT_EQ(s, "__%______");
-        s = " <"; sanitizeFilename(s); ASSERT_EQ(s, "__");
-    }
-
-    return 0;
 }
 
 
@@ -1050,16 +1984,25 @@ int main()
 
     try {
         NNet::unitTestConfigParser();
-        NNet::unitTestNet();
-        NNet::unitTestConvolutionFilter();
         NNet::unitTestImages();
+        NNet::unitTestNet();
+        NNet::unitTestSparseConnections();
+        NNet::unitTestConvolutionFiltering();
+        NNet::unitTestConvolutionNetworking();
+        NNet::unitTestPooling();
         NNet::unitTestMisc();
     } catch (...) {
         cerr << "Oops, something didn't work right." << endl;
         return 1;
     }
 
-    cout << "PASS: All tests passed." << endl;
+    if (NNet::numErrors == 0) {
+        cout << "PASS: All tests passed." << endl;
+    } else if (NNet::numErrors == 1){
+        cout << "There was only one error." << endl;
+    } else {
+        cout << "There were " << NNet::numErrors << " errors." << endl;
+    }
 
     return 0;
 }

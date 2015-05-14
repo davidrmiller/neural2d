@@ -23,14 +23,27 @@ topologyConfigSpec_t::topologyConfigSpec_t(void)
     colorChannelSpecified = false;
     radiusSpecified = false;
     tfSpecified = false;
+
+    size.depth = size.x = size.y = 0;
+    channel = NNet::BW;
+    radius.x = radius.y = 0.0;
+    transferFunctionName.clear();
+    transferFunctionName = "tanh";
+    flatConvolveMatrix.clear();
+    isConvolutionFilterLayer = false;   // Equivalent to (convolveMatrix.size() == 1)
+    isConvolutionNetworkLayer = false;  // Equivalent to (convolveMatrix.size() > 1)
+    isPoolingLayer = false;             // Equivalent to (poolSize.x != 0)
+    kernelSize.x = kernelSize.y = 0;    // Used only for convolution filter and conv. network layers
+    poolSize.x = poolSize.y = 0;        // Used only for convolution network layers
+    poolMethod = POOL_NONE;
 }
 
 
 void configErrorThrow(topologyConfigSpec_t &params, const string &msg)
 {
     err << "There's a problem in the topology config file at line " << params.configLineNum << ":";
-    if (params.layerParams.layerName.size() > 0) {
-        err << "(layer \"" << params.layerParams.layerName << "\")";
+    if (params.layerName.size() > 0) {
+        err << "(layer \"" << params.layerName << "\")";
     }
     err << endl;
     err << msg << endl;
@@ -130,27 +143,31 @@ void extractConvolveFilterMatrix(topologyConfigSpec_t &params, std::istringstrea
         lastState = newState;
     }
 
-    // Transpose the matrix so that we can access elements as [x][y]
-    // This matters only if the matrix is asymmetric. While we're doing
-    // this, we'll check that all rows have the same size.
+    // Check that all rows have the same size:
 
-    convolveMatrix_t convMat;
-    unsigned firstRowSize = 0;
-
-    firstRowSize = mat[0].size();
+    unsigned firstRowSize = mat[0].size();
     if (0 != count_if(mat.begin() + 1, mat.end(), [firstRowSize](vector<float> row) {
              return row.size() != firstRowSize; })) {
         configErrorThrow(params, "Error in topology config file: inconsistent row size in convolve filter matrix spec");
     }
 
-    for (unsigned y = 0; y < firstRowSize; ++y) {
-        convMat.push_back(vector<float>());
-        for (unsigned x = 0; x < mat.size(); ++x) {
-            convMat.back().push_back(mat[x][y]);
+    // We'll create (or recreate) a one-element flatConvolveMatrix in the params structure:
+    // Convolution filtering only needs a single convolve matrix, so only element zero is
+    // used in params.flatConvolveMatrix. That one element will be a flattened
+    // container of the 2D convolve matrix:
+
+    params.flatConvolveMatrix.clear();
+    params.flatConvolveMatrix.push_back(vector<float>()); // Start with one empty container
+
+    for (auto &row : mat) {
+        for (auto val : row) {
+            params.flatConvolveMatrix[0].push_back(val);
         }
     }
 
-    params.layerParams.convolveMatrix[0] = convMat;
+    // The matrix is arranged so that we can access elements as [x][y]:
+    params.kernelSize.x = mat.size();
+    params.kernelSize.y = mat[0].size();
 }
 
 
@@ -214,10 +231,10 @@ void extractChannel(topologyConfigSpec_t &params, std::istringstream &ss)
 {
     string stoken;
     ss >> stoken;
-    if      (stoken == "R")  params.layerParams.channel = NNet::R;
-    else if (stoken == "G")  params.layerParams.channel = NNet::G;
-    else if (stoken == "B")  params.layerParams.channel = NNet::B;
-    else if (stoken == "BW") params.layerParams.channel = NNet::BW;
+    if      (stoken == "R")  params.channel = NNet::R;
+    else if (stoken == "G")  params.channel = NNet::G;
+    else if (stoken == "B")  params.channel = NNet::B;
+    else if (stoken == "BW") params.channel = NNet::BW;
     else {
         configErrorThrow(params, "Unknown color channel");
     }
@@ -227,6 +244,7 @@ void extractChannel(topologyConfigSpec_t &params, std::istringstream &ss)
 
 
 // Throws for any error.
+// Modifies params and leaves ss pointing to the next char after the pool method:
 //
 void extractPoolMethod(topologyConfigSpec_t &params, std::istringstream &ss)
 {
@@ -234,21 +252,21 @@ void extractPoolMethod(topologyConfigSpec_t &params, std::istringstream &ss)
 
     ss >> stoken;
     if (stoken == "max") {
-        params.layerParams.poolMethod = POOL_MAX;
+        params.poolMethod = POOL_MAX;
     } else if (stoken == "avg") {
-        params.layerParams.poolMethod = POOL_AVG;
+        params.poolMethod = POOL_AVG;
     } else {
         configErrorThrow(params, "Expected pool method \"max\" or \"avg\"");
     }
 }
 
 
-// Grammar:
+// Topology config grammar:
 //
 // layer-name parameters
 // parameters := parameter [ parameters ]
 // parameter :=
-//    input|output|layer-name
+//    input | output | layer-name
 //    size dxy-spec
 //    from layer-name
 //    channel channel-spec
@@ -256,7 +274,7 @@ void extractPoolMethod(topologyConfigSpec_t &params, std::istringstream &ss)
 //    tf transfer-function-spec
 //    convolve filter-spec
 //    convolve xy-spec
-//    pool max|avg radius xy-spec
+//    pool { max | avg } xy-spec
 // dxy-spec := integer * xy-spec
 // xy-spec := integer [ x integer ]
 // channel-spec := R|G|B|BW
@@ -276,7 +294,7 @@ bool extractOneLayerParams(topologyConfigSpec_t &params, const string &line)
         return false;
     }
 
-    params.layerParams.layerName = stoken;
+    params.layerName = stoken;
 
     // Extract the rest of the parameters:
 
@@ -289,7 +307,7 @@ bool extractOneLayerParams(topologyConfigSpec_t &params, const string &line)
         }
 
         if (stoken == "size") {
-            params.layerParams.size = extractDxySize(ss);
+            params.size = extractDxySize(ss);
             params.sizeSpecified = true;
         } else if (stoken == "from") {
             ss >> params.fromLayerName;
@@ -297,10 +315,10 @@ bool extractOneLayerParams(topologyConfigSpec_t &params, const string &line)
             extractChannel(params, ss);
             params.colorChannelSpecified = true;
         } else if (stoken == "radius") {
-            params.layerParams.radius = extractXySize(ss);
+            params.radius = extractXySize(ss);
             params.radiusSpecified = true;
         } else if (stoken == "tf") {
-            ss >> params.layerParams.transferFunctionName;
+            ss >> params.transferFunctionName;
             params.tfSpecified = true;
         } else if (stoken == "convolve") {
             // The next non-space char determines whether this is a
@@ -309,26 +327,26 @@ bool extractOneLayerParams(topologyConfigSpec_t &params, const string &line)
             ss >> ctoken;
             if (ctoken == '{') {
                 // Convolution filter spec    expects: {{},{}}
-                params.layerParams.convolveMatrix.push_back(convolveMatrix_t());
                 ss.seekg(pos);
-                extractConvolveFilterMatrix(params, ss);
+                extractConvolveFilterMatrix(params, ss); // Allocates and initializes the matrix
+                params.isConvolutionFilterLayer = true;
             } else {
-                // Convolution network layer  expects: kernel size
+                extern float randomFloat(void);
+                // Convolution network layer  expects: kernel size to be defined
                 ss.seekg(pos);
-                params.layerParams.kernelSize = extractXySize(ss);
+                params.kernelSize = extractXySize(ss);
                 // Construct a matrix of the correct size, and make depth copies
-                auto col = matColumn_t(params.layerParams.kernelSize.y, 0.0);  // to do: random initial values
-                auto mat = convolveMatrix_t(params.layerParams.kernelSize.x, col);
-                params.layerParams.convolveMatrix.assign(params.layerParams.size.depth, mat);
+                vector<float> flatMatrix(params.kernelSize.x * params.kernelSize.y);
+                std::for_each(flatMatrix.begin(), flatMatrix.end(), [](float &w) {
+                        w = randomFloat() / 100.0; // !!!
+                });
+                params.isConvolutionNetworkLayer = true;
+                params.flatConvolveMatrix.assign(params.size.depth, flatMatrix);
             }
         } else if (stoken == "pool") {
             extractPoolMethod(params, ss);
-            ss >> stoken;
-            if (stoken == "radius") {
-                params.layerParams.poolSize = extractXySize(ss);
-            } else {
-                configErrorThrow(params, "Expected \"radius\" after the pooling method");
-            }
+            params.poolSize = extractXySize(ss);
+            params.isPoolingLayer = true;
         } else {
             configErrorThrow(params, "Unknown parameter");
         }
@@ -350,7 +368,7 @@ void consistency(vector<topologyConfigSpec_t> &params)
 
     // Specific only to input layer:
 
-    if (params[0].layerParams.layerName != "input") {
+    if (params[0].layerName != "input") {
         err << "First layer must be named input" << endl;
         throw exceptionConfigFile();
     }
@@ -358,17 +376,30 @@ void consistency(vector<topologyConfigSpec_t> &params)
     if (params[0].fromLayerName.size() > 0) {
         warn << "Input layer cannot have a from parameter" << endl;
     }
-    if (params[0].layerParams.convolveMatrix.size() > 0) {
+
+    if (params[0].kernelSize.x != 0 || params[0].kernelSize.y != 0) {
         err << "Input layer cannot have a convolve parameter" << endl;
         throw exceptionConfigFile();
     }
-    if (params[0].layerParams.poolSize.x != 0 || params[0].layerParams.poolSize.y != 0) {
+
+    if (params[0].isConvolutionFilterLayer || params[0].isConvolutionNetworkLayer) {
+        err << "Input layer cannot have a convolve parameter" << endl;
+        throw exceptionConfigFile();
+    }
+
+    if (params[0].isPoolingLayer) {
         err << "Input layer cannot have a pool parameter" << endl;
         throw exceptionConfigFile();
     }
-    if (params[0].layerParams.radius.x != Net::HUGE_RADIUS
-                || params[0].layerParams.radius.y != Net::HUGE_RADIUS) {
-        warn << "Input layer cannot have a radius parameter" << endl;
+
+    if (params[0].radiusSpecified) {
+        err << "Input layer cannot have a radius parameter" << endl;
+        throw exceptionConfigFile();
+    }
+
+    if (params[0].tfSpecified) {
+        err << "Input layer cannot have a tf parameter" << endl;
+        throw exceptionConfigFile();
     }
 
     // In common to hidden layer and output layer specs:
@@ -380,11 +411,11 @@ void consistency(vector<topologyConfigSpec_t> &params)
         // match the size of the previous spec:
         if (spec.sizeSpecified) {
             for (auto itp = it - 1; itp != params.begin() - 1; --itp) {
-                if (itp->layerParams.layerName == spec.layerParams.layerName) {
-                    if (itp->layerParams.size.depth != spec.layerParams.size.depth
-                            || itp->layerParams.size.x != spec.layerParams.size.x
-                            || itp->layerParams.size.y != spec.layerParams.size.y) {
-                        err << "Repeated layer spec for \"" << spec.layerParams.layerName
+                if (itp->layerName == spec.layerName) {
+                    if (itp->size.depth != spec.size.depth
+                            || itp->size.x != spec.size.x
+                            || itp->size.y != spec.size.y) {
+                        err << "Repeated layer spec for \"" << spec.layerName
                             << "\" must have the same size" << endl;
                         throw exceptionConfigFile();
                     }
@@ -394,16 +425,15 @@ void consistency(vector<topologyConfigSpec_t> &params)
 
         // Check from parameter:
         if (spec.fromLayerName.size() == 0) {
-            warn << "All hidden and output layers need a from parameter" << endl;
+            err << "All hidden and output layers need a from parameter" << endl;
+            throw exceptionConfigFile();
         }
-
-        spec.layerParams.resolveTransferFunctionName();
 
         // Verify from layer and compute its index
         auto iti = find_if(params.begin(), params.end() - 1, [spec](topologyConfigSpec_t &pspec) {
-                            return pspec.layerParams.layerName == spec.fromLayerName; });
+                            return pspec.layerName == spec.fromLayerName; });
         if (iti == params.end() - 1) {
-            err << "Undefined from-layer" << endl;
+            err << "Undefined from-layer:" << spec.fromLayerName << endl;
             throw exceptionConfigFile();
         } else {
             spec.fromLayerIndex = distance(params.begin(), iti);
@@ -411,22 +441,31 @@ void consistency(vector<topologyConfigSpec_t> &params)
 
         // If a size param was not specified, copy the size from the from-layer:
         if (!spec.sizeSpecified) {
-            spec.layerParams.size = params[spec.fromLayerIndex].layerParams.size;
+            spec.size = params[spec.fromLayerIndex].size;
         }
 
-        // Set flags
-        spec.layerParams.isConvolutionFilterLayer = spec.layerParams.convolveMatrix.size() == 1;
-        spec.layerParams.isConvolutionNetworkLayer = spec.layerParams.convolveMatrix.size() > 1;
+        // Check that radius is not specified at the same with with a convolve or pool parameter:
+        if (spec.radiusSpecified && (spec.isConvolutionFilterLayer
+                || spec.isConvolutionNetworkLayer || spec.isPoolingLayer)) {
+            err << "Radius cannot be specified on a convolve or pool layer." << endl;
+            throw exceptionConfigFile();
+        }
+
+        // Check convolve kernel size:
+        if ((spec.isConvolutionFilterLayer || spec.isConvolutionNetworkLayer)
+                    && (spec.kernelSize.x == 0 || spec.kernelSize.y == 0)) {
+            err << "Error in topology config file: Convolve kernel dimension cannot be zero" << endl;
+            throw exceptionConfigFile();
+        }
     }
 
     // Specific only to output layer:
-
-    if (params.back().layerParams.layerName != "output") {
+    if (params.back().layerName != "output") {
         err << "Last layer must be named output" << endl;
         throw exceptionConfigFile();
     }
 
-    if (params.back().layerParams.size.depth != 1 || params.back().layerParams.isConvolutionNetworkLayer) {
+    if (params.back().size.depth != 1 || params.back().isConvolutionNetworkLayer) {
         err << "Output layer cannot have depth (e.g., cannot be a convolution network layer)" << endl;
         throw exceptionConfigFile();
     }

@@ -42,5 +42,6 @@ topologyUnitTest.txt
 unitTest
 unitTestOutputRedirect
 unitTestTempOutput
+unitTestSavedWeights.txt
 weights.txt
 

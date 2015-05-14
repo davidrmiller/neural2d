@@ -27,6 +27,7 @@ int main(int argc, char **argv)
 
     if (argc > 4 && argv[4][0] == '-' && argv[4][1] == 'p') {
         myNet.isRunning = false;
+        std::cout << "Paused." << std::endl;
     }
 
     // Here is an example of TRAINING mode -------------:
@@ -45,8 +46,8 @@ int main(int argc, char **argv)
         if (myNet.shuffleInputSamples) {
             myNet.sampleSet.shuffle();
         }
-        for (uint32_t sampleIdx = 0; sampleIdx < myNet.sampleSet.samples.size(); ++sampleIdx) {
-            NNet::Sample &sample = myNet.sampleSet.samples[sampleIdx];
+
+        for (auto &sample : myNet.sampleSet.samples) {
             myNet.feedForward(sample);
             myNet.backProp(sample);
             myNet.reportResults(sample);
