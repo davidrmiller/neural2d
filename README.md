@@ -336,7 +336,7 @@ Here is the grammar of the topology config file:
  
 > *channel-spec* := R | G | B | BW
 
-> *transfer-function-spec* := tanh | logistic | linear | ramp | gaussian
+> *transfer-function-spec* := tanh | logistic | linear | ramp | gaussian | relu
  
 > *filter-spec* := same {{,},{,}} syntax used for array initialization in C, C#, VB, Java, etc.
 
@@ -556,7 +556,7 @@ outputs to be 0 and 1.
 **How do I use a different transfer function?**<a name="howTf"></a>
 
 You can add a "tf" parameter to any layer definition line in the topology config file.
-The argument to tf can be "tanh", "logistic", "linear", "ramp", or "gaussian". 
+The argument to tf can be "tanh", "logistic", "linear", "ramp", "gaussian", or "relu". 
 The transfer function you specify will be used by all the neurons in that layer.
 See neural2d-core.cpp for more information.
 
