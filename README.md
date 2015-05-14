@@ -5,7 +5,7 @@ User Manual
 ===========
 
 Ver. 1.0  
-Updated 13-May-2015
+Updated 14-May-2015
 
 Intro video (11 min): [https://www.youtube.com/watch?v=yB43jj-wv8Q](https://www.youtube.com/watch?v=yB43jj-wv8Q)
 
@@ -292,13 +292,17 @@ A pooling layer is defined in the topology config file by specifying a pool para
 Pooling layers can take their input from any other kind of layer of equal depth.
 
 In the topology config syntax, the pool parameter requires the argument "avg" or "max" followed by 
-the operator size, For example, in a convolution network pipeline of depth 10, you might have 
+the operator size, For example, in a convolution network pipeline of depth 20, you might have 
 these layers:
 
       input size 64x64
       layerConv size 20*64x64 from input convolve 5x5
       layerPool size 20*16x16 from layerConv pool max 4x4
       . . .
+
+Convolution network and pooling layers take their input from a regular layer of depth 1, or from another
+convolution network or pooling layer of the same depth. If a convolution network or pooling layer
+is fed into a regular layer of depth 1, it will be fully connected.
 
 
 Topology config file format<a name="TopologyConfig"></a>
@@ -635,4 +639,4 @@ Licenses<a name="Licenses"></a>
 
 The neural2d program and its documentation are copyrighted and licensed under the terms of the MIT license.
 
-The set of digits images in the images/digits/ subdirectory are released to the public domain.
+The set of digits images in the images/digits/ subdirectory is released to the public domain.
