@@ -289,7 +289,8 @@ For example, to train 40 kernels of size 7x7 on an input image of 64x64 pixels:
 A **[pooling layer](http://en.wikipedia.org/wiki/Convolutional_neural_network#Pooling_layer)** 
 down-samples the previous layer by finding the average or maximum in patches of source neurons. 
 A pooling layer is defined in the topology config file by specifying a pool parameter on a layer. 
-Pooling layers can take their input from any other kind of layer of equal depth.
+Pooling layers can take their input from any other kind of layer of equal depth or from a
+regular layer of depth 1.
 
 In the topology config syntax, the pool parameter requires the argument "avg" or "max" followed by 
 the operator size, For example, in a convolution network pipeline of depth 20, you might have 
@@ -300,9 +301,8 @@ these layers:
       layerPool size 20*16x16 from layerConv pool max 4x4
       . . .
 
-Convolution network and pooling layers take their input from a regular layer of depth 1, or from another
-convolution network or pooling layer of the same depth. If a convolution network or pooling layer
-is fed into a regular layer of depth 1, it will be fully connected.
+If a convolution network or pooling layer is fed into a regular layer of depth 1, it will be
+fully connected.
 
 
 Topology config file format<a name="TopologyConfig"></a>
@@ -590,13 +590,14 @@ kernels of size 7x7 on an input image of 64x64 pixels:
 
      input size 64x64  
      layerConv size 40*64x64 from input convolve 7x7
+     . . .
 
-Pooling layers can take their input from any other kind of layer of equal depth. To define
-a pooling layer, add a pool parameter, followed by the argument "avg" or "max," followed by
-the operator size, e.g.:
+To define a pooling layer, add a pool parameter, followed by the argument "avg" or "max,"
+followed by the operator size, e.g.:
 
      layerConv size 10*32x32 ...
      layerPool size 10*8x8 from layerConv pool max 4x4
+     . . .
 
 **How do the color image pixels get converted to floating point for the input layer?**<a name="howRgb"></a>
 
