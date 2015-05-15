@@ -36,6 +36,7 @@ Document Contents
 [The 2D in neural2d](#2D)  
 [Convolution filtering](#ConvolutionFiltering)  
 [Convolution networking and pooling](#ConvolutionNetworking)  
+[Layer depth](#LayerDepth)  
 [Topology config file format](#TopologyConfig)  
 [Topology config file examples](#TopologyExamples)  
 [How-do-I *X*?](#HowDoI)  
@@ -303,6 +304,34 @@ these layers:
 
 If a convolution network or pooling layer is fed into a regular layer of depth 1, it will be
 fully connected.
+
+
+Layer depth<a name="LayerDepth"></a>
+---------------------
+
+All layers have a depth. Regular layers and convolution filter layers have a depth of one. Convolution
+network layers and pooling layers can have a depth > 1 in order to train multiple kernels. Layer depth
+is specified in the topology config file in the layer size parameter. If the depth is not specified, it
+defaults to one. For example:
+
+* size 10*64x64 means 64x64 neurons, depth 10
+
+* size 64x64 means 64*64 neurons, depth 1
+
+* size 1*64x64 means the same thing
+
+* size 10*64 means 64x1 neurons, depth 10 (the Y dimension defaults to 1)
+
+Layer depth affects how layers can be connected, as shown in the following table, where "any" means
+any depth, and "same" means the same depth. For example, a pooling layer can connect to a convolution
+network layer only of the same depth.
+
+From   to->  | regular        | convolution-filter | convolution-network | pooling 
+:------------|:--------------:|:------------------:|:-------------------:|:-----------------:
+regular      | 1->1           | 1->1               | 1->any              | 1->1
+conv-filter  | 1->1           | 1->1               | 1->any              | 1->1
+conv-network | any->1         | any->1             | any->same           | any->same
+pooling      | any->1         | any->1             | any->same           | any->same
 
 
 Topology config file format<a name="TopologyConfig"></a>
