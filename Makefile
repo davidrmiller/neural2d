@@ -23,8 +23,8 @@ all: neural2d
 
 # The next rules make the neural2d program.
 
-neural2d: neural2d.o neural2d-core.o messagequeue.o webserver.o parseTopologyConfig.o Makefile
-	$(COMPILER) $(EXTRACFLAGS) neural2d.o neural2d-core.o messagequeue.o webserver.o parseTopologyConfig.o -o neural2d
+neural2d: neural2d.o neural2d-core.o messagequeue.o webserver.o parseTopologyConfig.o visualize.o Makefile
+	$(COMPILER) $(EXTRACFLAGS) neural2d.o neural2d-core.o messagequeue.o webserver.o parseTopologyConfig.o visualize.o -o neural2d
 
 neural2d.o: neural2d.cpp neural2d.h Makefile
 	$(COMPILER) $(EXTRACFLAGS) -c neural2d.cpp -o neural2d.o
@@ -41,8 +41,12 @@ webserver.o: webserver.cpp neural2d.h webserver.h Makefile
 parseTopologyConfig.o: parseTopologyConfig.cpp neural2d.h Makefile
 	$(COMPILER) $(EXTRACFLAGS) -c parseTopologyConfig.cpp -o parseTopologyConfig.o
 
+visualize.o: visualize.cpp neural2d.h Makefile
+	$(COMPILER) $(EXTRACFLAGS) -c visualize.cpp -o visualize.o
+
+
 clean:
-	rm neural2d neural2d.o neural2d-core.o messagequeue.o webserver.o parseTopologyConfig.o unitTest.o
+	rm -f neural2d neural2d.o neural2d-core.o messagequeue.o webserver.o parseTopologyConfig.o visualize.o unitTest.o
 
 # Run neural2d on a test set of images (the easy digits demo):
 
@@ -89,6 +93,6 @@ unitTest.o: unitTest.cpp neural2d.h Makefile
 	$(COMPILER) $(EXTRACFLAGS) -c unitTest.cpp -o unitTest.o
 
 cleanUnitTest:
-	rm unitTest unitTest.o
+	rm -f unitTest unitTest.o
 
 .PHONY: all clean test test-xor test-mnist

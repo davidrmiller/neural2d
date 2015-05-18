@@ -251,6 +251,7 @@ struct topologyConfigSpec_t {
     bool tfSpecified;
 
     string layerName;                  // Can be input, output, or layer*
+    bool isRegularLayer;
     bool isConvolutionFilterLayer;     // Equivalent to (convolveMatrix.size() == 1)
     bool isConvolutionNetworkLayer;    // Equivalent to (convolveMatrix.size() > 1)
     bool isPoolingLayer;               // Equivalent to (poolSize.x != 0)
@@ -285,6 +286,7 @@ public: // New
     vector<vector<Neuron>> neurons;    // neurons[depth][i], where i = flattened 2D index
     string layerName;                  // Can be input, output, or layer*
     dxySize size;                      // layer depth, X, Y dimensions (number of neurons)
+    bool isRegularLayer;
     bool isConvolutionFilterLayer;     // Equivalent to (convolveMatrix.size() == 1)
     bool isConvolutionNetworkLayer;    // Equivalent to (convolveMatrix.size() > 1)
     bool isPoolingLayer;               // Equivalent to (poolSize.x != 0)
@@ -307,17 +309,23 @@ public: // New
     xySize poolSize;                   // Used only for pooling layers
 
     static void clipToBounds(int32_t &xmin, int32_t &xmax, int32_t &ymin, int32_t &ymax, dxySize &size);
-    uint32_t recordConnectionIndices(uint32_t sourceDepthMin, uint32_t sourceDepthMax,
-            Layer &fromLayer, Neuron &toNeuron, uint32_t srcx, uint32_t srcy, uint32_t maxNumSourceNeurons);
     virtual void saveWeights(std::ofstream &);
     virtual void loadWeights(std::ifstream &);
-    virtual void connectNeuron(Layer &fromLayer, Neuron &neuron,
-            uint32_t depth, uint32_t nx, uint32_t ny);
+    void connectLayers(Layer &layerFrom);
+    void connectOneNeuronAllDepths(Layer &fromLayer, Neuron &toNeuron,
+                uint32_t destDepth, uint32_t destX, uint32_t destY);
+    void connectBiasToAllNeuronsAllDepths(Neuron &bias);
     void resolveTransferFunctionName(string const &transferFunctionName);
     virtual void debugShow(bool details);
     virtual void calcGradients(const vector<float> &targetVals);
     virtual void updateWeights(float eta, float alpha);
     virtual void feedForward() = 0;
+
+#if defined(ENABLE_WEBSERVER) && !defined(DISABLE_WEBSERVER)
+    virtual std::string visualizationsAvailable(void); // Creates options for the drop-down menu in the GUI
+    virtual string visualizeKernels(void); // Create a base64-encoded BMP image
+    virtual string visualizeOutputs(void); // Create a base64-encoded BMP image
+#endif
 };
 
 class LayerRegular : public Layer
@@ -328,8 +336,10 @@ public:
     void saveWeights(std::ofstream &);
     void loadWeights(std::ifstream &);
     void updateWeights(float eta, float alpha);
-    void connectNeuron(Layer &fromLayer, Neuron &neuron, uint32_t depth, uint32_t nx, uint32_t ny);
     void debugShow(bool details);
+#if defined(ENABLE_WEBSERVER) && !defined(DISABLE_WEBSERVER)
+    string visualizationsAvailable(void);
+#endif
 };
 
 class LayerConvolution : public Layer
@@ -337,7 +347,10 @@ class LayerConvolution : public Layer
 public:
     LayerConvolution(const topologyConfigSpec_t &params);
     void feedForward();
-    void connectNeuron(Layer &fromLayer, Neuron &neuron, uint32_t depth, uint32_t nx, uint32_t ny);
+#if defined(ENABLE_WEBSERVER) && !defined(DISABLE_WEBSERVER)
+    string visualizationsAvailable(void);
+    string visualizeKernels(void);
+#endif
 };
 
 class LayerConvolutionFilter : public LayerConvolution
@@ -363,9 +376,11 @@ class LayerPooling : public Layer
 public:
     LayerPooling(const topologyConfigSpec_t &params);
     void feedForward();
-    void connectNeuron(Layer &fromLayer, Neuron &neuron, uint32_t depth, uint32_t nx, uint32_t ny);
     void updateWeights(float eta, float alpha);
     void debugShow(bool details);
+#if defined(ENABLE_WEBSERVER) && !defined(DISABLE_WEBSERVER)
+    string visualizationsAvailable(void);
+#endif
 };
 
 
@@ -387,7 +402,11 @@ struct Connection
     Neuron &fromNeuron;
     Neuron &toNeuron;
     float weight;       // Used only by regular neuron layers
-    float deltaWeight;  // The weight change from the previous training iteration,
+    float deltaWeight;  // The weight change from the previous training iteration
+
+    // Used only by convolution layers, this is an index into the flattened convolve
+    // matrix container and the associated gradient container:
+    int convolveMatrixIndex;
 };
 
 
@@ -408,7 +427,7 @@ public:
     // container is a public data member of class Net, but it could be stored anywhere that
     // is accessible.
 
-    vector<uint32_t> backConnectionsIndices; // My back connections
+    vector<uint32_t> backConnectionsIndices;    // My back connections
     vector<uint32_t> forwardConnectionsIndices; // My forward connections
 
     void feedForward(Layer *pMyLayer);          // Propagate the net inputs to the outputs
@@ -425,10 +444,6 @@ public:
     // the backConnectionIndices to find the neuron's inputs. This container
     // holds pointers to all the source neurons that feed this neuron:
     std::set<Neuron *> sourceNeurons;
-
-    // Used only by convolution layers, this is an index into the flattened convolve
-    // matrix container and the associated gradient container:
-    int convolveMatrixIndex;  // Used only by convolution network layers
 
 private:
     float sumDOW_nextLayer(vector<Connection> *pConnections) const; // Used in hidden layer backprop training
@@ -509,8 +524,8 @@ public: // These members are public only for convenience of unit testing:
     // Here is where we store all the weighted connections. The container can get
     // reallocated, so we'll only refer to elements by indices, not by pointers or
     // references.
-
     vector<Connection> connections;
+
     vector<std::unique_ptr<Layer>> layers; // Polymorphic
 
     Neuron bias;  // Fake neuron with constant output 1.0
@@ -526,19 +541,17 @@ private:
     void parseConfigFile(const string &configFilename); // Creates layer metadata from a config file
     mat2D_t parseMatrixSpec(std::istringstream &ss);
     Layer &createLayer(const topologyConfigSpec_t &params);
-    bool addToLayer(Layer &layerTo, Layer &layerFrom);
-    void createNeurons(Layer &layerTo, Layer &layerFrom);
-    void connectNeuron(Layer &layerTo, Layer &layerFrom, Neuron &neuron,
-                       uint32_t depth, uint32_t nx, uint32_t ny);
-    void connectConvolutionNeuron(Layer &layerTo, Layer &layerFrom, Neuron &neuron,
-                       uint32_t depth, uint32_t nx, uint32_t ny);
-    void connectBias(Neuron &neuron);
+    bool addConnectionsToLayer(Layer &layerTo, Layer &layerFrom);
+    void createAllNeurons(Layer &layerTo, Layer &layerFrom);
     int32_t getLayerNumberFromName(string &name) const;
 
 #if defined(ENABLE_WEBSERVER) && !defined(DISABLE_WEBSERVER)
     void doCommand(); // Handles incoming program command and control
     void actOnMessageReceived(Message_t &msg);
     void makeParameterBlock(string &s);
+    string visualizationMenu; // Options for the drop-down menu in the GUI
+    Layer *pLayerToVisualize; // Only one layer can be visualized at a time; NULL to disable visualizations
+    string visualizeChoice;   // Layer-dependent, what visualization to do
     WebServer webServer;
     int portNumber;
     MessageQueue messages;

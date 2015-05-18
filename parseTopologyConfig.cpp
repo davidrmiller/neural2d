@@ -14,7 +14,8 @@ Also see neural2d.h for more information.
 
 namespace NNet {
 
-
+// One of these gets created for each layer specification line in the topology config file:
+//
 topologyConfigSpec_t::topologyConfigSpec_t(void)
 {
     fromLayerName = "";
@@ -30,6 +31,7 @@ topologyConfigSpec_t::topologyConfigSpec_t(void)
     transferFunctionName.clear();
     transferFunctionName = "tanh";
     flatConvolveMatrix.clear();
+    isRegularLayer = false;
     isConvolutionFilterLayer = false;   // Equivalent to (convolveMatrix.size() == 1)
     isConvolutionNetworkLayer = false;  // Equivalent to (convolveMatrix.size() > 1)
     isPoolingLayer = false;             // Equivalent to (poolSize.x != 0)
@@ -157,11 +159,14 @@ void extractConvolveFilterMatrix(topologyConfigSpec_t &params, std::istringstrea
     // container of the 2D convolve matrix:
 
     params.flatConvolveMatrix.clear();
-    params.flatConvolveMatrix.push_back(vector<float>()); // Start with one empty container
+    params.flatConvolveMatrix.push_back(vector<float>()); // Start with one empty container for one kernel
+    params.flatConvolveMatrix.back().assign(mat.size() * mat[0].size(), 0);
 
-    for (auto &row : mat) {
-        for (auto val : row) {
-            params.flatConvolveMatrix[0].push_back(val);
+//    for (auto &row : mat) {
+//        for (auto val : row) {
+    for (uint32_t row = 0; row < mat.size(); ++row) {
+        for (uint32_t col = 0; col < mat[row].size(); ++col) {
+            params.flatConvolveMatrix.back()[flattenXY(col, row, mat.size())] = mat[row][col];
         }
     }
 
@@ -326,7 +331,7 @@ bool extractOneLayerParams(topologyConfigSpec_t &params, const string &line)
             auto pos = ss.tellg();
             ss >> ctoken;
             if (ctoken == '{') {
-                // Convolution filter spec    expects: {{},{}}
+                // Convolution filter spec, expects: {{},{}}
                 ss.seekg(pos);
                 extractConvolveFilterMatrix(params, ss); // Allocates and initializes the matrix
                 params.isConvolutionFilterLayer = true;
@@ -335,13 +340,7 @@ bool extractOneLayerParams(topologyConfigSpec_t &params, const string &line)
                 // Convolution network layer  expects: kernel size to be defined
                 ss.seekg(pos);
                 params.kernelSize = extractXySize(ss);
-                // Construct a matrix of the correct size, and make depth copies
-                vector<float> flatMatrix(params.kernelSize.x * params.kernelSize.y);
-                std::for_each(flatMatrix.begin(), flatMatrix.end(), [](float &w) {
-                        w = randomFloat() / 100.0; // !!!
-                });
                 params.isConvolutionNetworkLayer = true;
-                params.flatConvolveMatrix.assign(params.size.depth, flatMatrix);
             }
         } else if (stoken == "pool") {
             extractPoolMethod(params, ss);
@@ -350,6 +349,11 @@ bool extractOneLayerParams(topologyConfigSpec_t &params, const string &line)
         } else {
             configErrorThrow(params, "Unknown parameter");
         }
+
+        params.isRegularLayer =
+                   !params.isConvolutionFilterLayer
+                && !params.isConvolutionNetworkLayer
+                && !params.isPoolingLayer;
     }
 
     return true;
@@ -377,18 +381,8 @@ void consistency(vector<topologyConfigSpec_t> &params)
         warn << "Input layer cannot have a from parameter" << endl;
     }
 
-    if (params[0].kernelSize.x != 0 || params[0].kernelSize.y != 0) {
-        err << "Input layer cannot have a convolve parameter" << endl;
-        throw exceptionConfigFile();
-    }
-
-    if (params[0].isConvolutionFilterLayer || params[0].isConvolutionNetworkLayer) {
-        err << "Input layer cannot have a convolve parameter" << endl;
-        throw exceptionConfigFile();
-    }
-
-    if (params[0].isPoolingLayer) {
-        err << "Input layer cannot have a pool parameter" << endl;
+    if (!params[0].isRegularLayer) {
+        err << "Input layer cannot have a convolve or pool parameter" << endl;
         throw exceptionConfigFile();
     }
 
@@ -406,6 +400,18 @@ void consistency(vector<topologyConfigSpec_t> &params)
 
     for (auto it = params.begin() + 1; it != params.end(); ++it) {
         auto &spec = *it;
+
+        // If no tf parameter was specified, set a default.
+        // A transfer function is permitted on all layers except the input
+        // and convolution filter layers:
+
+        if (!spec.tfSpecified) {
+            if (spec.isConvolutionFilterLayer) {
+                spec.transferFunctionName = "linear";
+            } else {
+                spec.transferFunctionName = "tanh";
+            }
+        }
 
         // Ensure that if a layer name is repeated with a size, the size must
         // match the size of the previous spec:
@@ -445,8 +451,7 @@ void consistency(vector<topologyConfigSpec_t> &params)
         }
 
         // Check that radius is not specified at the same with with a convolve or pool parameter:
-        if (spec.radiusSpecified && (spec.isConvolutionFilterLayer
-                || spec.isConvolutionNetworkLayer || spec.isPoolingLayer)) {
+        if (spec.radiusSpecified && !spec.isRegularLayer) {
             err << "Radius cannot be specified on a convolve or pool layer." << endl;
             throw exceptionConfigFile();
         }
@@ -457,6 +462,27 @@ void consistency(vector<topologyConfigSpec_t> &params)
             err << "Error in topology config file: Convolve kernel dimension cannot be zero" << endl;
             throw exceptionConfigFile();
         }
+
+        // Initialize convolution network kernels if needed: Construct a matrix of the
+        // correct size, and make depth copies
+        if (spec.isConvolutionNetworkLayer) {
+            extern float randomFloat();
+            vector<float> flatMatrix(spec.kernelSize.x * spec.kernelSize.y);
+            std::for_each(flatMatrix.begin(), flatMatrix.end(), [](float &w) {
+                w = randomFloat() / 100.0; // Do something more intelligent here
+            });
+            spec.flatConvolveMatrix.assign(spec.size.depth, flatMatrix);
+        }
+    }
+
+    // Specific only to hidden layers:
+    for (auto it = params.begin() + 1; it != params.end() - 1; ++it) {
+        auto &spec = *it;
+        // Verify that if a depth was specified > 1, then there must be a convolve or pool param:
+        if (spec.size.depth > 1 && !(spec.isConvolutionNetworkLayer || spec.isPoolingLayer)) {
+            err << "A layer with depth > 1 must be a convolution networking or pooling layer" << endl;
+            throw exceptionConfigFile();
+        }
     }
 
     // Specific only to output layer:
@@ -465,8 +491,8 @@ void consistency(vector<topologyConfigSpec_t> &params)
         throw exceptionConfigFile();
     }
 
-    if (params.back().size.depth != 1 || params.back().isConvolutionNetworkLayer) {
-        err << "Output layer cannot have depth (e.g., cannot be a convolution network layer)" << endl;
+    if (params.back().isConvolutionNetworkLayer || params.back().size.depth > 1) {
+        err << "Output layer cannot be a convolution network layer" << endl;
         throw exceptionConfigFile();
     }
 }
@@ -492,7 +518,7 @@ vector<topologyConfigSpec_t> Net::parseTopologyConfig(std::istream &cfg)
     string line;
     while (!cfg.eof() && getline(cfg, line)) {
         ++lineNum;
-        if (line[0] != '\n' && line[0] != '\0' && line[0] != '#') { // this check may not be needed here any longer? !!!
+        if (line[0] != '\n' && line[0] != '\0' && line[0] != '#') { // this check may not be needed here any longer?
             topologyConfigSpec_t params;
             params.configLineNum = lineNum;
             if (extractOneLayerParams(params, line)) { // Get what we can from the topology config file

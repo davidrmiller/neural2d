@@ -21,6 +21,9 @@ var reportEveryNth=125;
 var smoothingFactor=100;
 var weightsFile="weights.txt";
 var portNumber=1100;
+var visuals = [];
+var selectedVisual = "";
+var image1="";    
 
 // Don't move, remove, or modify this sentinel: "Parameter block"
 
@@ -43,10 +46,16 @@ function initVars()
    document.getElementById("smoothingFactor").value = smoothingFactor;
    document.getElementById("reportEveryNth").value = reportEveryNth;
    document.getElementById("weightsFile").value = weightsFile;
+   document.getElementById("vis").value = vis;
    
-   // Add onChange attribute to every input element:
+   // Add onChange attribute to every input and select element:
 
    inputs = document.getElementsByTagName("INPUT");
+   for (i = 0; i < inputs.length; ++i) {
+       inputs[i].setAttribute("onChange", "this.form.submit();");
+   }
+   
+   inputs = document.getElementsByTagName("SELECT");
    for (i = 0; i < inputs.length; ++i) {
        inputs[i].setAttribute("onChange", "this.form.submit();");
    }
@@ -62,9 +71,11 @@ function initVars()
    // Enable/disable widgets depending on state
    
    if (!isRunning) {
+       document.getElementById("resume").disabled = false;
        document.getElementById("pause").disabled = true;
    } else {
        document.getElementById("resume").disabled = true;
+       document.getElementById("pause").disabled = false;
    }
 
    if (!targetOutputsDefined) {
@@ -83,6 +94,28 @@ function initVars()
        }
    }
 
+   // Display the visualization menu and image:
+    
+   var sel = document.getElementById('vis');
+   for (var i = 0; i < visuals.length; i++) {
+      var opt = document.createElement('option');
+      opt.innerHTML = visuals[i];
+      opt.value = visuals[i];
+
+      if (visuals[i] == selectedVisual) {
+          opt.selected = "selected";
+      }
+      sel.appendChild(opt);  
+   }
+
+   var im = document.getElementById('image1');
+   if (image1.length != 0) {
+      im.src = "data:image/bmp;base64," + image1;
+      im.style.display = "";
+   } else {
+      im.style.display = "none";
+   }
+   
    // Leave the address bar with a safe URL:
 
    history.pushState('', '', "http://localhost:" + portNumber.toString());
@@ -172,6 +205,16 @@ INPUT[type="text"] {
     margin: 8px;
     padding: 4px;
     box-shadow: 2px 2px 1px #cccccc;
+}
+
+.zoomable {
+    z-index: 3;
+}
+ 
+.zoomable:hover {
+    border: 5px solid #f4f4f4;
+    transform: scale(2.8);
+    z-index: 3;
 }
 
 </style>
@@ -367,6 +410,18 @@ INPUT[type="text"] {
           <form>
             <BUTTON name="resume" id="resume" class="bbtn">Resume</BUTTON>
           </form>
+        </div>
+      </div>
+
+      <div class="row bgroup">
+        <div class="row">
+            <form>
+              <LABEL>Visualizer:</LABEL>
+              <SELECT name="vis" id="vis"></SELECT>
+            </form>
+        </div>
+        <div class="row">
+            <img class="zoomable" src="" id="image1"></img>
         </div>
       </div>
 

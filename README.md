@@ -5,7 +5,7 @@ User Manual
 ===========
 
 Ver. 1.0  
-Updated 14-May-2015
+Updated 17-May-2015
 
 Intro video (11 min): [https://www.youtube.com/watch?v=yB43jj-wv8Q](https://www.youtube.com/watch?v=yB43jj-wv8Q)
 
@@ -23,6 +23,7 @@ Features
 *     Standalone console program
 *     Simple, heavily-commented code, suitable for prototyping, learning, and experimentation
 *     Optional web-browser-based GUI controller
+*     Graphic visualizations of individual layers
 *     No dependencies! Just C++11 (and POSIX networking for the optional webserver interface)
 
 Document Contents
@@ -139,6 +140,16 @@ A GUI interface will appear that looks like:
 Press Resume to start the neural net training. It will automatically pause when the
 average error rate falls below a certain threshold (or when you press Pause). You 
 now have a trained net. You can press Save Weights to save the weights for later use.
+
+### Visualizations
+
+At the bottom of the GUI window, a drop-down box shows the visualization options that
+are available for your network topology, as shown below. There will be options to display
+the activation (the outputs) of any 2D layer of neurons 3x3 or larger, and convolution
+kernels of size 3x3 or larger. Visualization images appear at the bottom of the GUI. You 
+can mouse-over the images to zoom in.
+
+![visualizerExample](https://raw.github.com/davidrmiller/neural2d/master/images/visualizerExample.png)
 
 
 How to use your own data<a name="YourOwnData"></a>
