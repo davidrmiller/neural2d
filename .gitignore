@@ -44,4 +44,4 @@ unitTestOutputRedirect
 unitTestTempOutput
 unitTestSavedWeights.txt
 weights.txt
-
+build/
