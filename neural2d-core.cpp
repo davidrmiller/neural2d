@@ -121,11 +121,12 @@ float transferFunctionGaussian(float x) { return exp(-((x * x) / 2.0)); }
 float transferFunctionDerivativeGaussian(float x) { return -x * exp(-(x * x) / 2.0); }
 
 // ReLU:
-// This is a softmax approximation of a ReLU:
-float transferFunctionReLU(float x) { return exp(-((x * x) / 2.0)); }
-float transferFunctionDerivativeReLU(float x) { return -x * exp(-(x * x) / 2.0); }
+// This is a softplus approximation of a ReLU:
+float transferFunctionReLU(float x) { return log(1.0 + exp(x)); }
+float transferFunctionDerivativeReLU(float x) { return 1.0 / (1.0 + exp(-x)); }
 
-float transferFunctionIdentity(float x) { return x; } // Used only in convolution layers
+// Identity function:
+float transferFunctionIdentity(float x) { return x; }
 float transferFunctionIdentityDerivative(float x) { return (void)x, 1.0; }
 
 
