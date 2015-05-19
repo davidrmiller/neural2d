@@ -327,7 +327,7 @@ defaults to one. For example:
 
 * size 10*64x64 means 64x64 neurons, depth 10
 
-* size 64x64 means 64*64 neurons, depth 1
+* size 64x64 means 64x64 neurons, depth 1
 
 * size 1*64x64 means the same thing
 
@@ -409,17 +409,18 @@ the layer, or sparsely 2D-connected at all depths if a radius parameter is speci
 
 1. The same layer name can be defined multiple times with different "from" parameters.
 This allows source neurons from more than one layer to be combined in one 
-destination layer. The source layers can be any size. When a destination layer is 
-defined more than once, the first definition must have a *size* parameter. The size parameter
-is optional on the repeated lines; if it appears, it must be the same size as defined
-initially. For example, in the following, layerCombined is size 8x8:
+destination layer. The source layers can be any size, but the repeated (the destination)
+layer must have the same size in each specification. For example, in the following, 
+layerCombined is size 16x16 and takes inputs from two source layers of different sizes:
 
+```
      input size 128x128  
      layerVertical size 32x32 from input radius 1x8  
      layerHorizontal size 16x16 from input radius 8x1  
-     **layerCombined** **size 8x8** from layerVertical   
-     **layerCombined** from layerHorizontal  
+     layerCombined from layerHorizontal          <= assumes size 16x16 from the source layer  
+     layerCombined size 16x16 from layerVertical <= repeated destination, must match 16x16  
      output size 1 from layerCombined  
+```
 
 1. In the *xy-spec*  and in the X,Y part of the *dxy-spec*, you may specify one or two dimensions.
 Spaces are not allowed in the size spec. If only one dimension is given, the other is assumed to be 1. 

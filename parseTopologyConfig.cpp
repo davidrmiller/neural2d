@@ -413,22 +413,6 @@ void consistency(vector<topologyConfigSpec_t> &params)
             }
         }
 
-        // Ensure that if a layer name is repeated with a size, the size must
-        // match the size of the previous spec:
-        if (spec.sizeSpecified) {
-            for (auto itp = it - 1; itp != params.begin() - 1; --itp) {
-                if (itp->layerName == spec.layerName) {
-                    if (itp->size.depth != spec.size.depth
-                            || itp->size.x != spec.size.x
-                            || itp->size.y != spec.size.y) {
-                        err << "Repeated layer spec for \"" << spec.layerName
-                            << "\" must have the same size" << endl;
-                        throw exceptionConfigFile();
-                    }
-                }
-            }
-        }
-
         // Check from parameter:
         if (spec.fromLayerName.size() == 0) {
             err << "All hidden and output layers need a from parameter" << endl;
@@ -448,6 +432,20 @@ void consistency(vector<topologyConfigSpec_t> &params)
         // If a size param was not specified, copy the size from the from-layer:
         if (!spec.sizeSpecified) {
             spec.size = params[spec.fromLayerIndex].size;
+        }
+
+        // Ensure that if a layer name is repeated, the size must match the size of
+        // the previous spec:
+        for (auto itp = it - 1; itp != params.begin() - 1; --itp) {
+            if (itp->layerName == spec.layerName) {
+                if (itp->size.depth != spec.size.depth
+                        || itp->size.x != spec.size.x
+                        || itp->size.y != spec.size.y) {
+                    err << "Repeated layer spec for \"" << spec.layerName
+                        << "\" must have the same size" << endl;
+                    throw exceptionConfigFile();
+                }
+            }
         }
 
         // Check that radius is not specified at the same with with a convolve or pool parameter:

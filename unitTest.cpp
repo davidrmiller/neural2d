@@ -409,18 +409,22 @@ void unitTestConfigParser()
 
         istringstream ss(config);
         auto specs = myNet.parseTopologyConfig(ss);
+
         auto *spec = &specs[1];
         ASSERT_EQ(spec->size.depth, 1);
         ASSERT_EQ(spec->size.x, 2);
         ASSERT_EQ(spec->size.y, 3);
+
         spec = &specs[3];
         ASSERT_EQ(spec->size.depth, 1);
         ASSERT_EQ(spec->size.x, 4);
         ASSERT_EQ(spec->size.y, 5);
+
         spec = &specs[5];
         ASSERT_EQ(spec->size.depth, 2);
         ASSERT_EQ(spec->size.x, 3);
         ASSERT_EQ(spec->size.y, 4);
+
         spec = &specs[6];
         ASSERT_EQ(spec->size.depth, 1);
         ASSERT_EQ(spec->size.x, 1);
@@ -1953,7 +1957,7 @@ void unitTestMisc()
             "layerMix size 8x8 from layerPool\n"
             "layerGauss size 8x8 from input radius 1x3 tf gaussian\n"
             "layerCombine size 4x4 from layerMix\n"
-            "layerCombine from layerGauss\n"
+            "layerCombine size 4x4 from layerGauss\n"
             "output size 10 from layerCombine\n";
 
         string inputDataConfig =
