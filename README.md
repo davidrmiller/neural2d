@@ -5,7 +5,7 @@ User Manual
 ===========
 
 Ver. 1.0  
-Updated 17-May-2015
+Updated 19-May-2015
 
 Intro video (11 min): [https://www.youtube.com/watch?v=yB43jj-wv8Q](https://www.youtube.com/watch?v=yB43jj-wv8Q)
 
