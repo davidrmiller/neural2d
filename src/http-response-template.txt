@@ -1,0 +1,432 @@
+HTTP/1.1 200 OK
+Content-Type: text/html
+Connection: close
+
+<html>
+<head>
+
+<script type="text/javascript">
+var isRunning=0;
+var targetOutputsDefined=1;
+var mode="training";
+var runMode="runRepeatShuffle";
+var train=1;
+var stopError=0.005;
+var channel="BW";
+var eta=0.22;
+var dynamicEta=1;
+var alpha=0.1;
+var lambda=0.0;
+var reportEveryNth=125;
+var smoothingFactor=100;
+var weightsFile="weights.txt";
+var portNumber=1100;
+var visuals = [];
+var selectedVisual = "";
+var image1="";    
+
+// Don't move, remove, or modify this sentinel: "Parameter block"
+
+window.onload = initVars;
+
+function initVars() 
+{
+
+   document.getElementById("train").checked = train;
+   document.getElementById("stopError").value = stopError;
+   document.getElementById(channel).checked = 1;
+   document.getElementById("runOnce").checked = false;
+   document.getElementById("runRepeat").checked = false;
+   document.getElementById("runRepeatShuffle").checked = false;
+   document.getElementById(runMode).checked = true;
+   document.getElementById("eta").value = eta;
+   document.getElementById("dynamicEta").checked = dynamicEta;
+   document.getElementById("alpha").value = alpha;
+   document.getElementById("lambda").value = lambda;
+   document.getElementById("smoothingFactor").value = smoothingFactor;
+   document.getElementById("reportEveryNth").value = reportEveryNth;
+   document.getElementById("weightsFile").value = weightsFile;
+   document.getElementById("vis").value = vis;
+   
+   // Add onChange attribute to every input and select element:
+
+   inputs = document.getElementsByTagName("INPUT");
+   for (i = 0; i < inputs.length; ++i) {
+       inputs[i].setAttribute("onChange", "this.form.submit();");
+   }
+   
+   inputs = document.getElementsByTagName("SELECT");
+   for (i = 0; i < inputs.length; ++i) {
+       inputs[i].setAttribute("onChange", "this.form.submit();");
+   }
+
+   // Add action and method attributes to all form elements:
+
+   forms = document.getElementsByTagName("form");
+   for (i = 0; i < forms.length; ++i) {
+       forms[i].setAttribute("action", "http://localhost:" + portNumber.toString());
+       forms[i].setAttribute("method", "post");
+   }
+
+   // Enable/disable widgets depending on state
+   
+   if (!isRunning) {
+       document.getElementById("resume").disabled = false;
+       document.getElementById("pause").disabled = true;
+   } else {
+       document.getElementById("resume").disabled = true;
+       document.getElementById("pause").disabled = false;
+   }
+
+   if (!targetOutputsDefined) {
+       var offList = [ "train", "stopError", "eta", "dynamicEta", "alpha", "lambda", "smoothingFactor" ];
+       for (i = 0; i < offList.length; ++i) {
+           document.getElementById(offList[i]).disabled = true;
+           document.getElementById(offList[i] + "Label").style.color = "#bbbbbb";
+       }
+   }
+
+   if (!train) {
+       var offList = [ "stopError", "eta", "dynamicEta", "alpha", "lambda", "smoothingFactor" ];
+       for (i = 0; i < offList.length; ++i) {
+           document.getElementById(offList[i]).disabled = true;
+           document.getElementById(offList[i] + "Label").style.color = "#bbbbbb";
+       }
+   }
+
+   // Display the visualization menu and image:
+    
+   var sel = document.getElementById('vis');
+   for (var i = 0; i < visuals.length; i++) {
+      var opt = document.createElement('option');
+      opt.innerHTML = visuals[i];
+      opt.value = visuals[i];
+
+      if (visuals[i] == selectedVisual) {
+          opt.selected = "selected";
+      }
+      sel.appendChild(opt);  
+   }
+
+   var im = document.getElementById('image1');
+   if (image1.length != 0) {
+      im.src = "data:image/bmp;base64," + image1;
+      im.style.display = "";
+   } else {
+      im.style.display = "none";
+   }
+   
+   // Leave the address bar with a safe URL:
+
+   history.pushState('', '', "http://localhost:" + portNumber.toString());
+}
+
+</script>
+
+<STYLE type="text/css">
+
+BUTTON[name=resume] { color:#11aa22 }
+BUTTON[name=pause] { color:#aa1122 }
+
+form { display: inline }
+
+LABEL {
+    font-size: 90%;
+}
+
+INPUT[type="radio"] + label {
+    margin-right: 16px;
+}
+
+.outer {
+    background-color: #f8f8fb;
+    border: 1px solid;
+    border-radius: 15px;
+    width: 400px;
+    box-shadow: 6px 6px 3px #cccccc;
+    display: table;
+    margin: 3px;
+    padding: 4px;
+    padding-right: 0px;
+    font-family: "sans-serif";
+}
+
+.row {
+    width: 100%
+    display: table-cell;
+    background-color: #f8f8f8;
+    #border: 1px solid;
+    #border-color: #ffffff;
+    #display: table;
+    margin: 2px;
+    padding: 2px;
+    padding-right: 0px;
+}
+
+.bgroup {
+    border: 1px solid;
+    border-radius: 10px;
+    border-color: #aaaaaa;
+    margin: 6px;
+    padding: 4px;
+    padding-right: 0px;
+    box-shadow: 1px 1px 1px #cccccc;
+}
+
+.rowheader {
+    background-color: #88aacc;
+    color: white;
+    font-weight: bolder;
+    font-family: "sans"
+}
+
+.cell {
+    display: table-cell;
+}
+
+.row > .cell {
+    padding-right: 4px;
+}
+
+INPUT[type="text"] {
+    background-color: white;
+}
+
+#weightsFile {
+    width: 100%;
+    padding-right: 0px;
+    margin-right: 0px;
+    margin: 4px;
+}
+
+.bbtn {
+    width: 120px;
+    font-weight: bolder;
+    margin: 8px;
+    padding: 4px;
+    box-shadow: 2px 2px 1px #cccccc;
+}
+
+.zoomable {
+    z-index: 3;
+}
+ 
+.zoomable:hover {
+    border: 5px solid #f4f4f4;
+    transform: scale(2.8);
+    z-index: 3;
+}
+
+</style>
+
+</head>
+  <body>
+    <div class="outer">
+      <div class="row rowheader">
+        <div class="cell">
+        neural2d runtime control
+        </div>
+      </div>
+
+      <div class="bgroup">
+        <div class="row">
+          <div class="cell"><!-- ******************************************* Quick settings -->
+            <LABEL>Quick settings:</label>
+          </div>
+        </div>
+
+        <div class="row">
+          <div class="cell"><!-- ******************************************* Quick settings, cont'd -->
+            <form>
+              <BUTTON name="training">Training</BUTTON>
+            </form>
+            <form>
+              <BUTTON name="validate">Validate</BUTTON>
+            </form>
+            <form>
+              <BUTTON name="trained">Trained</BUTTON>
+            </form>
+          </div>
+        </div>
+      </div>
+
+      <div class="bgroup">
+        <div class="row">
+          <div class="cell"><!-- ******************************************* enable train -->
+            <form>
+              <INPUT type="hidden" name="trainShadow" />
+              <LABEL for="train" id="trainLabel">Enable backprop training</label>
+              <INPUT type="checkbox" name="train" id="train" />
+            </form>
+          </div>
+        </div>
+  
+        <div class="row">
+          <div class="cell"><!-- ******************************************* pause when error < n -->
+            <form>
+              <LABEL for="stopError" id="stopErrorLabel">Pause when error &lt; N</label>
+              <INPUT type="text" name="stopError" id="stopError" />
+            </form>
+          </div>
+        </div>
+  
+        <div class="row"><!-- ******************************************* channel -->
+          <div class="cell">
+            <LABEL>Color channel: </label>
+            <form>
+              <INPUT type="hidden" name="channelRShadow" value="1" />
+              <LABEL for="R">R</label>
+              <INPUT type="radio" name="channel" id="R" />
+            </form>
+            
+             <form>
+              <INPUT type="hidden" name="channelGShadow" value="1" />
+              <LABEL for="G">G</label>
+              <INPUT type="radio" name="channel" id="G" />
+            </form>
+            
+            <form>
+              <INPUT type="hidden" name="channelBShadow" value="1" />
+              <LABEL for="B">B</label>
+              <INPUT type="radio" name="channel" id="B" />
+            </form>
+            
+            <form>
+              <INPUT type="hidden" name="channelBWShadow" value="1" />
+              <LABEL for="BW">BW</label>
+              <INPUT type="radio" name="channel" id="BW" />
+            </form>
+            
+          </div>
+        </div>
+  
+        <div class="bgroup">
+          <div class="row"><!-- ******************************************* run mode -->
+            <div class="col">
+              <form>
+                <INPUT type="hidden" name="runOnceShadow" value="1" />
+                <INPUT type="radio" name="runMode" id="runOnce" />
+                <LABEL for="runOnce">Run input samples once then pause</label><br />
+              </form>
+              
+              <form>
+                <INPUT type="hidden" name="runRepeatShadow" value="1" />
+                <INPUT type="radio" name="runMode" id="runRepeat" />
+                <LABEL for="runRepeat">Run input samples; repeat</label><br />
+              </form>
+              
+              <form>
+                <INPUT type="hidden" name="runRepeatShuffleShadow" value="1" />
+                <INPUT type="radio" name="runMode" id="runRepeatShuffle" />
+                <LABEL for="runRepeatShuffle">Run input samples; shuffle; repeat</label>
+              </form>
+            </div>
+          </div>
+        </div>
+  
+        <div class="row">
+          <div class="cell"><!-- ******************************************* reportEveryNth -->
+            <form>
+              <LABEL for="reportEveryNth">Report every Nth result</label>
+              <INPUT type="text" name="reportEveryNth" id="reportEveryNth" />
+            </form>
+          </div>
+        </div>
+  
+        <div class="row">
+          <div class="cell"><!-- ******************************************* eta -->
+            <form>
+              <LABEL for="eta" id="etaLabel">eta</label>
+              <INPUT type="text" name="eta" id="eta" />
+            </form>
+          </div>
+  
+          <div class="cell"><!-- ******************************************* Dynamic eta -->
+            <form>
+              <INPUT type="hidden" name="etaShadow" />
+              <LABEL for="dynamicEta" id="dynamicEtaLabel">Dynamic eta</label>
+              <INPUT type="checkbox" name="dynamicEta" id="dynamicEta" value="1" />
+            </form>
+          </div>
+        </div>
+  
+        <div class="row">
+          <div class="cell"><!-- ******************************************* alpha -->
+            <form>
+              <LABEL for="alpha" id="alphaLabel">alpha</label>
+              <INPUT type="text" name="alpha" id="alpha" />
+            </form>
+          </div>
+        </div>
+  
+        <div class="row">
+          <div class="cell"><!-- ******************************************* lambda -->
+            <form>
+              <LABEL for="lambda" id="lambdaLabel">lambda</label>
+              <INPUT type="text" name="lambda"  id="lambda" />
+            </form>
+          </div>
+        </div>
+  
+        <div class="row">
+          <div class="cell"><!-- ******************************************* Average over -->
+            <form>
+              <LABEL for="smoothingFactor" id="smoothingFactorLabel">Avg err over N samples</label>
+              <INPUT type="text" name="smoothingFactor" id="smoothingFactor" />
+            </form>
+          </div>
+        </div>
+      </div>
+
+      <div class="bgroup">
+        <div class="row">
+          <div class="cell"><!-- ******************************************* weights file -->
+            <form>
+              <LABEL>Weights file</label>
+              <INPUT type="text" name="weightsFile" id="weightsFile" />
+            </form>
+          </div>
+        </div>
+  
+        <div class="row">
+          <div class="cell"><!-- ******************************************* weights save/load -->
+            <form>
+              <BUTTON name="savew">Save weights</BUTTON>
+            </form>
+  
+            <form>
+              <BUTTON name="loadw">Load weights</BUTTON>
+            </form>
+          </div>
+        </div>
+      </div>
+
+      <div class="row bgroup">
+        <div class="cell"><!-- ******************************************* Pause/Resume -->
+          <form>
+            <BUTTON name="pause" id="pause" class="bbtn">Pause</BUTTON>
+          </form>
+
+          <form>
+            <BUTTON name="resume" id="resume" class="bbtn">Resume</BUTTON>
+          </form>
+        </div>
+      </div>
+
+      <div class="row bgroup">
+        <div class="row">
+            <form>
+              <LABEL>Visualizer:</LABEL>
+              <SELECT name="vis" id="vis"></SELECT>
+            </form>
+        </div>
+        <div class="row">
+            <img class="zoomable" src="" id="image1"></img>
+        </div>
+      </div>
+
+    </div><!-- end table -->
+
+  </body>
+</html>
+

@@ -5,7 +5,7 @@ User Manual
 ===========
 
 Ver. 1.0  
-Updated 19-May-2015
+Updated 26-May-2015
 
 Intro video (11 min): [https://www.youtube.com/watch?v=yB43jj-wv8Q](https://www.youtube.com/watch?v=yB43jj-wv8Q)
 
@@ -30,6 +30,7 @@ Document Contents
 -----------------
 
 [Requirements](#Requirements)  
+[Compiling the source](#Compiling)  
 [How to run the digits demo](#Demo)  
 [How to run the XOR example](#XorExample)  
 [GUI interface](#GUI)  
@@ -41,13 +42,12 @@ Document Contents
 [Topology config file format](#TopologyConfig)  
 [Topology config file examples](#TopologyExamples)  
 [How-do-I *X*?](#HowDoI)  
-* [How do I get, build, and install the command-line neural2d program?](#howInstall)  
 * [How do I run the command-line program?](#howConsole)  
 * [How do I run the GUI interface?](#howGui)  
 * [How do I disable the GUI interface?](#howDisableGui)  
 * [How do I use my own data instead of the digits images?](#howOwnData)  
 * [How do I use a trained net on new data?](#howTrained)  
-* [How do I train on the MNIST handlwritten digits data set?](#MNIST)  
+* [How do I train on the MNIST handwritten digits data set?](#MNIST)  
 * [How do I change the learning rate parameter?](#howEta)  
 * [Are the output neurons binary or floating point?](#howBinary)  
 * [How do I use a different transfer function?](#howTf)  
@@ -58,39 +58,78 @@ Document Contents
 * [Why does the net error rate stay high? Why doesn't my net learn?](#howLearn)  
 * [What other parameters do I need to know about?](#howParams)  
 
-[Licenses](#Licenses)  
-
-Also see the [wiki](https://github.com/davidrmiller/neural2d/wiki) for more information.
 
 
 Requirements<a name="Requirements"></a>
 ------------
 
 * C++-11 compiler (e.g., g++ on Linux)
-* POSIX sockets (e.g., Cygwin on Windows)
+* POSIX sockets (e.g., Cygwin on Windows) (only needed for the optional GUI)
+* CMake 2.8.12 or later
 * Compiles and runs on Linux, Windows, and probably Mac
+
+
+Compiling the source<a name="Compiling"></a>
+------------
+
+We use CMake to configure the build system. First get the source code from
+the Gitub repository. If using the command line, the command is:
+
+     git clone https://github.com/davidrmiller/neural2d
+
+That will put the source code tree into a directory named neural2d.
+
+If you are using the CMake graphical interface, run it and set the "source" 
+directory to the neural2d top directory, and set the binary output directory 
+to a build directory under that, then click Configure and Generate. For example:
+
+![CMake GUI example](https://raw.github.com/davidrmiller/neural2d/neural2d-cmake/images/cmake-gui.png)
+
+If you are using CMake from the command line, cd to the neural2d top level
+directory, make a build directory, the run cmake from there:
+
+```
+git clone https://github.com/davidrmiller/neural2d
+cd neural2d
+mkdir build
+cd build
+cmake ..
+make
+```
+
+There is no "install" step. After the neural2d program is compiled, you can execute
+it or open the project file from the build directory.
+
+On Windows, by default CMake generates a Microsoft Visual Studio project file in the
+build directory. On Linux and Cygwin, CMake generates a Makefile that you can use to 
+compile neural2d. You can specify a different CMake generator with the -G option,
+for example:
+
+     cmake -G "Visual Studio 11 2012" ..
+
+To get a list of available CMake generators:
+
+     cmake --help
+
+If you get errors when compiling the integrated webserver, you can build neural2d without
+webserver support by running CMake with the -DWEBSERVER=OFF option, like this:
+
+     cmake -DWEBSERVER=OFF ..
 
 
 How to run the digits demo<a name="Demo"></a>
 -----------
 
-Place all the files, maintaining the relative directory structure, into a convenient directory.
-
-In the images/digits/ subdirectory, extract the image files from the archive into the same directory.
-
-To compile neural2d, cd to the directory containing the Makefile and execute the default make target:
-
-    make
-
-This will use g++ to compile neural2d.cpp and neural2d-core.cpp and result in an executable
-named neural2d.
-
-To run the demo, execute:
+On systems using Makefiles, in the build directory, execute:
 
     make test
 
-In this demo, we train the neural net to recognize digits. The input data, or "training set",
-consists of a few thousand images of numeric digits. The first 50 look like these:
+This will do several things: it will compile the neural2d program if necessary; it will
+expand the archive in image/digits/digits.zip into 5000 individual images; and it will 
+then train the neural net to classify those digit images.
+
+The input data, or "training set," consists of images of numeric digits. The first 50 look
+like these:
 
 ![training samples](https://raw.github.com/davidrmiller/neural2d/master/images/digits-illus.png)
 
@@ -102,12 +141,16 @@ neuron to a high level.
 Once the net is sufficiently trained, all the connection weights are saved in a file
 named "weights.txt".
 
+If you are not using Makefiles, you will need to expand the archive in images/digits, then
+invoke the neural2d program like this:
+
+     neural2d ../images/digits/topology.txt ../images/digits/inputData.txt weights.txt
 
 
 How to run the XOR example<a name="XorExample"></a>
 --------------------------
 
-In the top level directory where the Makefile lives, execute:
+On systems using Makefiles, in the build directory, execute:
 
      make test-xor
 
@@ -499,26 +542,10 @@ Here are a few complete topology config files and the nets they specify.
 How-do-I X?<a name="HowDoI"></a>
 -------------
 
-**How do I get, build, and install the command-line neural2d program?**<a name="howInstall"></a>
-
-Get the files from:
-
-    https://github.com/davidrmiller/neural2d
-
-Put those into a directory. Expand the images files in the images/digits/ subdirectory. In the top level
-directory (where the Makefile lives), build the program with:
-
-     make
-
-That will produce an executable named neuron2d in the same directory.
-
-To test the installation, run:
-
-     make test
-
-If it succeeds, it will create a weights.txt file of non-zero size.
-
 **How do I run the command-line program?**<a name="howConsole"></a>
+
+Run neural2d with three arguments specifying the topology configuration, input data 
+configuration, and where to store the weights if training succeeds:
 
      ./neural2d topology.txt inputData.txt weights.txt
 
@@ -534,8 +561,10 @@ If your firewall complains, you may need to allow access to TCP port 24080.
 
 **How do I disable the GUI interface?**<a name="howDisableGui"></a>
 
-The easiest way is to add -DDISABLE_WEBSERVER to the g++ command line in the Makefile.
-Alternatively, you can undefine the macro ENABLE_WEBSERVER in neural2d.h.
+Run CMake with the -DWEBSERVER=OFF option. Or if you are using your own home-grown
+Makefiles, you can define the preprocessor macro DISABLE_WEBSERVER. For example, with
+gnu compilers, add -DDISABLE_WEBSERVER to the g++ command line. Alternatively, you can 
+undefine the macro ENABLE_WEBSERVER in neural2d.h.
 
 When the web server is disabled, there is no remaining dependency on POSIX sockets.
 
@@ -552,8 +581,8 @@ in an earlier section.
 **How do I use a trained net on new data?**<a name="howTrained"></a>
 
 It's all about the weights file. After the net has been successfully trained, save 
-the internal connection weights in a weights file.
-That's typically done in neural2d.cpp by calling the member function saveWeights(filename).
+the internal connection weights in a weights file.  That's typically done in neural2d.cpp 
+by calling the member function saveWeights(filename).
 
 The weights you saved can be loaded back into a neural net of the same topology using
 the member function loadWeights(filename). Once the net has been loaded with weights,
@@ -569,7 +598,7 @@ You'll need to prepare a new input data config file (default name inputData.txt)
 that contains a list of only those new input data images that you want the net to
 process.
 
-**How do I train on the MNIST handlwritten digits data set?**<a name="MNIST"></a>
+**How do I train on the MNIST handwritten digits data set?**<a name="MNIST"></a>
 
 See the [instructions in the wiki](https://github.com/davidrmiller/neural2d/wiki/MNIST_Handwritten_dataset).
 
@@ -605,8 +634,7 @@ The argument to tf can be "tanh", "logistic", "linear", "ramp", "gaussian", or "
 The transfer function you specify will be used by all the neurons in that layer.
 See neural2d-core.cpp for more information.
 
-In the topology config file, the tf parameter
-is specified as in this example:
+In the topology config file, the tf parameter is specified as in this example:
 
      layerHidden1 size 64x64 from input radius 3x3 tf linear
 

@@ -1,7 +1,0 @@
-# This is one possible neural net topology that works
-# for solving the demo digits training set:
-
-input size 32x32
-layer1 size 16x16 from input radius 2x2
-output size 10 from layer1
-
