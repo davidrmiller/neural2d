@@ -86,7 +86,7 @@ to a build directory under that, then click Configure and Generate. For example:
 ![CMake GUI example](https://raw.github.com/davidrmiller/neural2d/master/images/cmake-gui.png)
 
 If you are using CMake from the command line, cd to the neural2d top level
-directory, make a build directory, the run cmake from there:
+directory, make a build directory, then run cmake from there:
 
 ```
 git clone https://github.com/davidrmiller/neural2d
@@ -209,6 +209,16 @@ values for each image. The format looks like this example:
     images/thumbnails/test-921.bmp -1 -1 -1 -1 -1 1 -1 -1 -1 -1
 
 The path and filename cannot contain any spaces.
+
+The path_prefix directive can be used to specify a string to be added to the front of
+all subsequent filenames, or until the next path_prefix directive. For example, the
+previous example could be written:
+
+     path_prefix = ../images/thumbnails/
+     test-918.bmp
+     test-919.bmp
+     test-920.bmp
+     test-921.bmp
 
 If you are not using image files for input, you'll need to prepare an input config file
 (named inputData.txt by default) similar to the above but with the literal input values
@@ -707,6 +717,7 @@ Check out the [list of parameters in the wiki](https://github.com/davidrmiller/n
 Licenses<a name="Licenses"></a>
 --------
 
-The neural2d program and its documentation are copyrighted and licensed under the terms of the MIT license.
+The neural2d program and its documentation are copyrighted and licensed under the terms of the 
+[MIT license](http://opensource.org/licenses/MIT).
 
 The set of digits images in the images/digits/ subdirectory is released to the public domain.
