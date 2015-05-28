@@ -5,7 +5,7 @@ User Manual
 ===========
 
 Ver. 1.0  
-Updated 26-May-2015
+Updated 28-May-2015
 
 Intro video (11 min): [https://www.youtube.com/watch?v=yB43jj-wv8Q](https://www.youtube.com/watch?v=yB43jj-wv8Q)
 
@@ -83,7 +83,7 @@ If you are using the CMake graphical interface, run it and set the "source"
 directory to the neural2d top directory, and set the binary output directory 
 to a build directory under that, then click Configure and Generate. For example:
 
-![CMake GUI example](https://raw.github.com/davidrmiller/neural2d/neural2d-cmake/images/cmake-gui.png)
+![CMake GUI example](https://raw.github.com/davidrmiller/neural2d/master/images/cmake-gui.png)
 
 If you are using CMake from the command line, cd to the neural2d top level
 directory, make a build directory, the run cmake from there:
