@@ -63,7 +63,7 @@ endif()
 
 # Executables
 
-add_executable(neural2d src/neural2d.cpp)
+add_executable(neural2d src/neural2d.cpp images/digits/test-1.bmp)
 add_executable(unitTest EXCLUDE_FROM_ALL src/unitTest.cpp images/digits/test-1.bmp)
 
 
