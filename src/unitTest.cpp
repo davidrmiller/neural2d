@@ -21,6 +21,10 @@ const bool StopAtFirstError = false;
 
 unsigned numErrors = 0;
 
+// Some temporary files for us to use:
+const string topologyConfigFilename = "./topologyUnitTest.txt";
+const string inputDataConfigFilename = "./inputDataUnitTest.txt";
+
 class unitTestException : std::exception { };
 extern float pixelToNetworkInputRange(unsigned val);
 
@@ -604,47 +608,6 @@ void unitTestConfigParsers()
         ASSERT_EQ(spec->flatConvolveMatrix.size(), 10);
         ASSERT_EQ(spec->flatConvolveMatrix[0].size(), 3*5);
     }
-
-    {
-        LOG("input data config file, path_prefix directive");
-
-        string topologyConfig =
-            "input size 1\n"
-            "output from input\n";
-
-        string inputDataConfig =
-            "path_prefix = ../images/\n"
-            "8x8-test.bmp\n"
-            "path_prefix=\n"
-            "../images/8x8-test.bmp\n"
-            "path_prefix =../images/\n"
-            "8x8-test.bmp\n"
-            "8x8-test.bmp\n"
-            "path_prefix=\n"
-            "../images/8x8-test.bmp\n"
-            "path_prefix =\n"
-            "../images/8x8-test.bmp\n"
-            "path_prefix = \n"
-            "../images/8x8-test.bmp\n";
-
-        const string topologyConfigFilename = "./topologyUnitTest.txt";
-        const string inputDataConfigFilename = "./inputDataUnitTest.txt";
-
-        std::ofstream topologyConfigFile(topologyConfigFilename);
-        topologyConfigFile << topologyConfig;
-        topologyConfigFile.close();
-
-        std::ofstream inputDataConfigFile(inputDataConfigFilename);
-        inputDataConfigFile << inputDataConfig;
-        inputDataConfigFile.close();
-
-        Net myNet(topologyConfigFilename, false);
-        myNet.sampleSet.loadSamples(inputDataConfigFilename);
-
-        for (auto const &sample : myNet.sampleSet.samples) {
-            ASSERT_EQ(sample.imageFilename, "../images/8x8-test.bmp");
-        }
-    }
 }
 
 
@@ -715,8 +678,6 @@ void unitTestNet()
             "input size 1\n"
             "output size 1 from input radius 0x0 tf linear\n"; // One-to-one
 
-        const string topologyConfigFilename = "./topologyUnitTest.txt";
-
         std::ofstream topologyConfigFile(topologyConfigFilename);
         topologyConfigFile << topologyConfig;
         topologyConfigFile.close();
@@ -773,8 +734,6 @@ void unitTestNet()
         string topologyConfig =
             "input size 8x8 channel G\n"
             "output size 8x8 from input radius 0x1 tf linear\n"; // One col, 3 rows
-
-        const string topologyConfigFilename = "./topologyUnitTest.txt";
 
         std::ofstream topologyConfigFile(topologyConfigFilename);
         topologyConfigFile << topologyConfig;
@@ -907,9 +866,6 @@ void unitTestSparseConnections()
         string inputDataConfig =
             "../images/8x8-test11.bmp\n";
 
-        const string topologyConfigFilename = "./topologyUnitTest.txt";
-        const string inputDataConfigFilename = "./inputDataUnitTest.txt";
-
         std::ofstream topologyConfigFile(topologyConfigFilename);
         topologyConfigFile << topologyConfig;
         topologyConfigFile.close();
@@ -952,9 +908,6 @@ void unitTestSparseConnections()
 
         string inputDataConfig =
             "../images/8x8-test11.bmp\n";
-
-        const string topologyConfigFilename = "./topologyUnitTest.txt";
-        const string inputDataConfigFilename = "./inputDataUnitTest.txt";
 
         std::ofstream topologyConfigFile(topologyConfigFilename);
         topologyConfigFile << topologyConfig;
@@ -999,9 +952,6 @@ void unitTestConvolutionFiltering()
         string inputDataConfig =
             "../images/8x8-test11.bmp\n";
 
-        const string topologyConfigFilename = "./topologyUnitTest.txt";
-        const string inputDataConfigFilename = "./inputDataUnitTest.txt";
-
         std::ofstream topologyConfigFile(topologyConfigFilename);
         topologyConfigFile << topologyConfig;
         topologyConfigFile.close();
@@ -1038,9 +988,6 @@ void unitTestConvolutionFiltering()
 
         string inputDataConfig =
             "../images/8x8-test11.bmp 1\n";
-
-        const string topologyConfigFilename = "./topologyUnitTest.txt";
-        const string inputDataConfigFilename = "./inputDataUnitTest.txt";
 
         std::ofstream topologyConfigFile(topologyConfigFilename);
         topologyConfigFile << topologyConfig;
@@ -1122,9 +1069,6 @@ void unitTestConvolutionNetworking()
         string inputDataConfig =
             "{ 0.25 } 1.0\n";
 
-        const string topologyConfigFilename = "./topologyUnitTest.txt";
-        const string inputDataConfigFilename = "./inputDataUnitTest.txt";
-
         std::ofstream topologyConfigFile(topologyConfigFilename);
         topologyConfigFile << topologyConfig;
         topologyConfigFile.close();
@@ -1196,9 +1140,6 @@ void unitTestConvolutionNetworking()
 
         string inputDataConfig =
             "../images/8x8-test11.bmp\n";
-
-        const string topologyConfigFilename = "./topologyUnitTest.txt";
-        const string inputDataConfigFilename = "./inputDataUnitTest.txt";
 
         std::ofstream topologyConfigFile(topologyConfigFilename);
         topologyConfigFile << topologyConfig;
@@ -1297,9 +1238,6 @@ void unitTestConvolutionNetworking()
         string inputDataConfig =
             "../images/8x8-test.bmp\n";
 
-        const string topologyConfigFilename = "./topologyUnitTest.txt";
-        const string inputDataConfigFilename = "./inputDataUnitTest.txt";
-
         std::ofstream topologyConfigFile(topologyConfigFilename);
         topologyConfigFile << topologyConfig;
         topologyConfigFile.close();
@@ -1356,9 +1294,6 @@ void unitTestConvolutionNetworking()
         string inputDataConfig =
             "../images/8x8-test.bmp 1.0\n";
 
-        const string topologyConfigFilename = "./topologyUnitTest.txt";
-        const string inputDataConfigFilename = "./inputDataUnitTest.txt";
-
         std::ofstream topologyConfigFile(topologyConfigFilename);
         topologyConfigFile << topologyConfig;
         topologyConfigFile.close();
@@ -1411,9 +1346,6 @@ void unitTestConvolutionNetworking()
 
         string inputDataConfig =
             "../images/8x8-test.bmp\n";
-
-        const string topologyConfigFilename = "./topologyUnitTest.txt";
-        const string inputDataConfigFilename = "./inputDataUnitTest.txt";
 
         std::ofstream topologyConfigFile(topologyConfigFilename);
         topologyConfigFile << topologyConfig;
@@ -1494,9 +1426,6 @@ void unitTestImages()
         string inputDataConfig =
             "../images/8x8-test.bmp\n";
 
-        const string topologyConfigFilename = "./topologyUnitTest.txt";
-        const string inputDataConfigFilename = "./inputDataUnitTest.txt";
-
         std::ofstream topologyConfigFile(topologyConfigFilename);
         topologyConfigFile << topologyConfig;
         topologyConfigFile.close();
@@ -1534,9 +1463,6 @@ void unitTestImages()
 
         string inputDataConfig =
             "../images/8x8-test11.bmp\n";
-
-        const string topologyConfigFilename = "./topologyUnitTest.txt";
-        const string inputDataConfigFilename = "./inputDataUnitTest.txt";
 
         std::ofstream topologyConfigFile(topologyConfigFilename);
         topologyConfigFile << topologyConfig;
@@ -1602,9 +1528,6 @@ void unitTestImages()
         string inputDataConfig =
             "../images/8x8-test11.bmp\n";
 
-        const string topologyConfigFilename = "./topologyUnitTest.txt";
-        const string inputDataConfigFilename = "./inputDataUnitTest.txt";
-
         std::ofstream topologyConfigFile(topologyConfigFilename);
         topologyConfigFile << topologyConfig;
         topologyConfigFile.close();
@@ -1633,6 +1556,44 @@ void unitTestImages()
         auto const &outputLayer = *myNet.layers.back();
         ASSERT_EQ(outputLayer.neurons[0][0].output, 1*1 * pixelToNetworkInputRange(5) + 1.0);
     }
+
+    {
+        LOG("input data config file, path_prefix directive");
+
+        string topologyConfig =
+            "input size 1\n"
+            "output from input\n";
+
+        string inputDataConfig =
+            "path_prefix = ../images/\n"
+            "8x8-test.bmp\n"
+            "path_prefix=\n"
+            "../images/8x8-test.bmp\n"
+            "path_prefix =../images/\n"
+            "8x8-test.bmp\n"
+            "8x8-test.bmp\n"
+            "path_prefix=\n"
+            "../images/8x8-test.bmp\n"
+            "path_prefix =\n"
+            "../images/8x8-test.bmp\n"
+            "path_prefix = \n"
+            "../images/8x8-test.bmp\n";
+
+        std::ofstream topologyConfigFile(topologyConfigFilename);
+        topologyConfigFile << topologyConfig;
+        topologyConfigFile.close();
+
+        std::ofstream inputDataConfigFile(inputDataConfigFilename);
+        inputDataConfigFile << inputDataConfig;
+        inputDataConfigFile.close();
+
+        Net myNet(topologyConfigFilename, false);
+        myNet.sampleSet.loadSamples(inputDataConfigFilename);
+
+        for (auto const &sample : myNet.sampleSet.samples) {
+            ASSERT_EQ(sample.imageFilename, "../images/8x8-test.bmp");
+        }
+    }
 }
 
 
@@ -1648,9 +1609,6 @@ void unitTestPooling()
 
         string inputDataConfig =
             "../images/8x8-test11.bmp\n";
-
-        const string topologyConfigFilename = "./topologyUnitTest.txt";
-        const string inputDataConfigFilename = "./inputDataUnitTest.txt";
 
         std::ofstream topologyConfigFile(topologyConfigFilename);
         topologyConfigFile << topologyConfig;
@@ -1711,9 +1669,6 @@ void unitTestPooling()
 
         string inputDataConfig =
             "../images/8x8-test11.bmp\n";
-
-        const string topologyConfigFilename = "./topologyUnitTest.txt";
-        const string inputDataConfigFilename = "./inputDataUnitTest.txt";
 
         std::ofstream topologyConfigFile(topologyConfigFilename);
         topologyConfigFile << topologyConfig;
@@ -1780,9 +1735,6 @@ void unitTestPooling()
         string inputDataConfig =
             "../images/8x8-test.bmp\n";
 
-        const string topologyConfigFilename = "./topologyUnitTest.txt";
-        const string inputDataConfigFilename = "./inputDataUnitTest.txt";
-
         std::ofstream topologyConfigFile(topologyConfigFilename);
         topologyConfigFile << topologyConfig;
         topologyConfigFile.close();
@@ -1848,9 +1800,6 @@ void unitTestPooling()
 
         string inputDataConfig =
             "../images/8x8-test.bmp\n";
-
-        const string topologyConfigFilename = "./topologyUnitTest.txt";
-        const string inputDataConfigFilename = "./inputDataUnitTest.txt";
 
         std::ofstream topologyConfigFile(topologyConfigFilename);
         topologyConfigFile << topologyConfig;
@@ -2003,9 +1952,6 @@ void unitTestMisc()
 
         string inputDataConfig =
             "../images/8x8-test.bmp 0 0 0 0 0 0 0 0 0 0\n";
-
-        const string topologyConfigFilename = "./topologyUnitTest.txt";
-        const string inputDataConfigFilename = "./inputDataUnitTest.txt";
 
         std::ofstream topologyConfigFile(topologyConfigFilename);
         topologyConfigFile << topologyConfig;
