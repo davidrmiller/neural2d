@@ -101,7 +101,7 @@ void setAllWeights(Net &myNet, float w)
     }
 }
 
-void unitTestConfigParser()
+void unitTestConfigParsers()
 {
     LOG("unitTestConfigParser()");
 
@@ -603,6 +603,47 @@ void unitTestConfigParser()
 
         ASSERT_EQ(spec->flatConvolveMatrix.size(), 10);
         ASSERT_EQ(spec->flatConvolveMatrix[0].size(), 3*5);
+    }
+
+    {
+        LOG("input data config file, path_prefix directive");
+
+        string topologyConfig =
+            "input size 1\n"
+            "output from input\n";
+
+        string inputDataConfig =
+            "path_prefix = ../images/\n"
+            "8x8-test.bmp\n"
+            "path_prefix=\n"
+            "../images/8x8-test.bmp\n"
+            "path_prefix =../images/\n"
+            "8x8-test.bmp\n"
+            "8x8-test.bmp\n"
+            "path_prefix=\n"
+            "../images/8x8-test.bmp\n"
+            "path_prefix =\n"
+            "../images/8x8-test.bmp\n"
+            "path_prefix = \n"
+            "../images/8x8-test.bmp\n";
+
+        const string topologyConfigFilename = "./topologyUnitTest.txt";
+        const string inputDataConfigFilename = "./inputDataUnitTest.txt";
+
+        std::ofstream topologyConfigFile(topologyConfigFilename);
+        topologyConfigFile << topologyConfig;
+        topologyConfigFile.close();
+
+        std::ofstream inputDataConfigFile(inputDataConfigFilename);
+        inputDataConfigFile << inputDataConfig;
+        inputDataConfigFile.close();
+
+        Net myNet(topologyConfigFilename, false);
+        myNet.sampleSet.loadSamples(inputDataConfigFilename);
+
+        for (auto const &sample : myNet.sampleSet.samples) {
+            ASSERT_EQ(sample.imageFilename, "../images/8x8-test.bmp");
+        }
     }
 }
 
@@ -2095,7 +2136,7 @@ int main()
     NNet::err.pfile = &tmpFile;
 
     try {
-        NNet::unitTestConfigParser();
+        NNet::unitTestConfigParsers();
         NNet::unitTestImages();
         NNet::unitTestNet();
         NNet::unitTestSparseConnections();

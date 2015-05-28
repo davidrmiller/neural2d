@@ -315,11 +315,14 @@ void Sample::clearCache(void)
 // specifies explicit values is:
 //     { i1, i2, i3... } t1 t2 t3
 // where i1, i2... are the input values and t1, t2, etc. are the target output values.
+// We now honor the directive "path_prefix=", which is a string that gets prepended
+// to the front of every filename.
 //
 void SampleSet::loadSamples(const string &inputFilename)
 {
     string line;
     uint32_t lineNum = 0;
+    string pathPrefix = "";
 
     if (!isFileExists(inputFilename)) {
         err << "Error reading input samples config file \'" << inputFilename << "\'" << endl;
@@ -342,7 +345,20 @@ void SampleSet::loadSamples(const string &inputFilename)
 
         std::stringstream ss(line);
         ss >> token;
-        if (token == "{") {
+
+        if (token.find("path_prefix") == 0) {
+            if (token.size() == 11) {
+                ss >> delim;
+                token += delim; // Attach the equals sign, no spaces
+            }
+            if (token.size() == 12) {
+                string s;
+                ss >> s;
+                token += s; // Attach the path prefix string, no spaces
+            }
+            pathPrefix = token.substr(12); // "path_prefix=" is 12 chars
+            continue;
+        } else if (token == "{") {
             // This means we have literal values like "{ 0.2 0 -1.0}"
             sample.imageFilename="";   // "" means we have immediate data
 
@@ -359,7 +375,7 @@ void SampleSet::loadSamples(const string &inputFilename)
             ss >> delim;
         } else {
             // We may have an image filename (instead of an explicit list of values):
-            sample.imageFilename = token;
+            sample.imageFilename = pathPrefix + token;
             // Skip blank and comment lines:
             if (sample.imageFilename.size() == 0 || sample.imageFilename[0] == '#') {
                 continue;
