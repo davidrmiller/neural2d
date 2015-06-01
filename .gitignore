@@ -45,3 +45,5 @@ unitTestTempOutput
 unitTestSavedWeights.txt
 weights.txt
 
+# CMake related
+build/
