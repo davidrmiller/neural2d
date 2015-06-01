@@ -5,7 +5,7 @@ User Manual
 ===========
 
 Ver. 1.0  
-Updated 28-May-2015
+Updated 31-May-2015
 
 Intro video (11 min): [https://www.youtube.com/watch?v=yB43jj-wv8Q](https://www.youtube.com/watch?v=yB43jj-wv8Q)
 
@@ -344,8 +344,8 @@ inside the layer is replicated *N* times to train *N* separate kernels. A convol
 is said to have depth *N*. A convolution network layer has *depth* \* *X* \* *Y* neurons.
 
 Any layer other than the input or output layer can be configured as a convolution networking layer by 
-specifying a layer size with a depth > 1, and specifying the kernel size with a convolve parameter. 
-For example, to train 40 kernels of size 7x7 on an input image of 64x64 pixels:
+specifying a layer depth > 1, and specifying the kernel size with a convolve parameter. For example,
+to train 40 kernels of size 7x7 on an input image of 64x64 pixels:
 
       input size 64x64
       layerConv size 40*64x64 from input convolve 7x7
@@ -354,8 +354,6 @@ For example, to train 40 kernels of size 7x7 on an input image of 64x64 pixels:
 A **[pooling layer](http://en.wikipedia.org/wiki/Convolutional_neural_network#Pooling_layer)** 
 down-samples the previous layer by finding the average or maximum in patches of source neurons. 
 A pooling layer is defined in the topology config file by specifying a pool parameter on a layer. 
-Pooling layers can take their input from any other kind of layer of equal depth or from a
-regular layer of depth 1.
 
 In the topology config syntax, the pool parameter requires the argument "avg" or "max" followed by 
 the operator size, For example, in a convolution network pipeline of depth 20, you might have 
@@ -366,36 +364,33 @@ these layers:
       layerPool size 20*16x16 from layerConv pool max 4x4
       . . .
 
-If a convolution network or pooling layer is fed into a regular layer of depth 1, it will be
-fully connected.
-
 
 Layer depth<a name="LayerDepth"></a>
 ---------------------
 
-All layers have a depth. Regular layers and convolution filter layers have a depth of one. Convolution
-network layers and pooling layers can have a depth > 1 in order to train multiple kernels. Layer depth
-is specified in the topology config file in the layer size parameter. If the depth is not specified, it
-defaults to one. For example:
+All layers have a depth, whether explicit or implicit. Layer depth is specified in the topology 
+config file in the layer size parameter by an integer and asterisk before the layer size. If the
+depth is not specified, it defaults to one. For example:
 
 * size 10*64x64 means 64x64 neurons, depth 10
 
 * size 64x64 means 64x64 neurons, depth 1
 
-* size 1*64x64 means the same thing
+* size 1*64x64 also means 64x64 neurons, depth 1
 
 * size 10*64 means 64x1 neurons, depth 10 (the Y dimension defaults to 1)
 
-Layer depth affects how layers can be connected, as shown in the following table, where "any" means
-any depth, and "same" means the same depth. For example, a pooling layer can connect to a convolution
-network layer only of the same depth.
+The primary purpose of layer depth is to allow convolution network layers to train multiple kernels.
+However, the concept of layer depth is generalized in neural2d, allowing any layer to have any
+depth and connect to any other layer of any kind with any depth.
 
-From   to->  | regular        | convolution-filter | convolution-network | pooling 
-:------------|:--------------:|:------------------:|:-------------------:|:-----------------:
-regular      | 1->1           | 1->1               | 1->any              | 1->1
-conv-filter  | 1->1           | 1->1               | 1->any              | 1->1
-conv-network | any->1         | any->1             | any->same           | any->same
-pooling      | any->1         | any->1             | any->same           | any->same
+The way two layers are connected depends on the relationship of the source and destination layer
+depths as shown below:
+
+ Relationship | How connected
+------------- | -----------------
+src depth == dst depth  | connect only to the corresponding depth in source
+src depth != dst depth  | fully connect across all depths
 
 
 Topology config file format<a name="TopologyConfig"></a>
@@ -454,11 +449,6 @@ Rules:
 1. If a size parameter is omitted, the size is copied from the layer specified in the from parameter.
 
 1. A radius parameter cannot be used on the same line with a convolve or pool parameter.
-
-1. Pooling layers and convolution networking layers (which have depth > 1) can feed into a 
-pooling or convolution layer of the same depth, or into a regular layer. A pooling layer 
-fed into a regular layer will be fully connected to all the neurons in the entire depth of
-the layer, or sparsely 2D-connected at all depths if a radius parameter is specified.
 
 1. The same layer name can be defined multiple times with different "from" parameters.
 This allows source neurons from more than one layer to be combined in one 

@@ -4,8 +4,7 @@ https://github.com/davidrmiller/neural2d
 David R. Miller, 2015
 
 To use these unit tests, build with the Makefile target "unitTest," then
-execute in the same directory where you build neural2d. Everything must
-be compiled with the webserver disabled (-DDISABLE_WEBSERVER).
+execute in the same directory where you build neural2d.
 */
 
 #include "neural2d.h"
@@ -761,6 +760,168 @@ void unitTestNet()
         ASSERT_EQ(myNet.layers[1]->size.depth, 1);
         ASSERT_EQ(myNet.layers[1]->size.x, 8);
         ASSERT_EQ(myNet.layers[1]->size.y, 8);
+    }
+
+    {
+        LOG("Layer depth compatiblity");
+
+        // This tests all 64 ways of connecting pairs of these four kinds of layers:
+        //     regular, convolution filtering, convolution networking, pooling
+        // in these two depths:
+        //     depth = 1, and depth = 2
+
+        string topologyConfig =
+            "input size 3x4\n"
+            "layer1 from input radius 0x0 tf linear\n"                // regular depth 1  to regular depth 1
+            "layer2 size 2*3x4 from layer1 radius 0x0 tf linear\n"    // regular depth 1  to regular depth >1
+            "layer3 size 3x4 from layer2 radius 0x0 tf linear\n"      // regular depth >1 to regular depth 1
+            "layer4 size 1*3x4 from layer3 convolve {1}\n"            // regular depth 1  to conv-filter depth 1
+            "layer5 from layer4 convolve {1}\n"                       // conv-filter depth 1  to conv-filter depth 1
+            "layer6 size 3x4 from layer5 radius 0x0 tf linear\n"      // conv-filter depth 1  to regular depth 1
+            "layer7 size 2*3x4 from layer6 convolve {1}\n"            // regular depth 1  to conv-filter depth >1
+            "layer8 size 1*3x4 from layer7 convolve {1}\n"            // conv-filter depth >1 to conv-filter depth 1
+            "layer9 size 2*3x4 from layer8 convolve {1}\n"            // conv-filter depth 1  to conv-filter depth >1
+            "layer10 size 3x4 from layer9 radius 0x0 tf linear\n"     // conv-filter depth >1 to regular depth 1
+            "layer11 from layer10 convolve 1x1\n"                     // regular depth 1  to conv-net depth 1
+            "layer12 from layer11 convolve 1x1\n"                     // conv-net depth 1  to conv-net depth 1
+            "layer13 size 2*3x4 from layer12 convolve 1x1\n"          // conv-net depth 1  to conv-net depth >1
+            "layer14 size 1*3x4 from layer13 convolve 1x1\n"          // conv-net depth >1 to conv-net depth 1
+            "layer15 size 3x4 from layer14 radius 0x0 tf linear\n"    // conv-net depth 1  to regular depth 1
+            "layer16 size 2*3x4 from layer15 convolve 1x1\n"          // regular depth 1  to conv-net depth >1
+            "layer17 from layer16 convolve 1x1\n"                     // conv-net depth >1 to conv-net depth >1
+            "layer18 size 3x4 from layer17 radius 0x0 tf linear\n"    // conv-net depth >1 to regular depth 1
+            "layer19 size 1*3x4 from layer18 pool max 1x1\n"          // regular depth 1  to pooling depth 1
+            "layer20 from layer19 pool max 1x1\n"                     // pooling depth 1  to pooling depth 1
+            "layer21 size 2*3x4 from layer20 pool max 1x1\n"          // pooling depth 1  to pooling depth >1
+            "layer22 size 1*3x4 from layer21 pool max 1x1\n"          // pooling depth >1 to pooling depth 1
+            "layer23 size 3x4 from layer22 radius 0x0 tf linear\n"    // pooling depth 1  to regular depth 1
+            "layer24 size 2*3x4 from layer23 pool max 1x1\n"          // regular depth 1  to pooling depth >1
+            "layer25 from layer24 pool max 1x1\n"                     // pooling depth >1 to pooling depth >1
+            "layer26 size 3x4 from layer25 radius 0x0 tf linear\n"    // pooling depth >1 to regular depth 1
+            "layer27 size 2*3x4 from layer26 radius 0x0 tf linear\n"  // already checked before
+            "layer28 from layer27 radius 0x0 tf linear\n"             // regular depth >1 to regular depth >1
+            "layer29 size 1*3x4 from layer28 convolve {1}\n"          // regular depth >1 to conv-filter depth 1
+            "layer30 size 2*3x4 from layer29 radius 0x0 tf linear\n"  // conv-filter depth 1  to regular depth >1
+            "layer31 from layer30 convolve {1}\n"                     // regular depth >1 to conv-filter depth >1
+            "layer32 from layer31 convolve {1}\n"                     // conv-filter depth >1 to conv-filter depth >1
+            "layer33 from layer32 radius 0x0 tf linear\n"             // conv-filter depth >1 to regular depth >1
+            "layer34 size 1*3x4 from layer33 convolve 1x1\n"          // regular depth >1 to conv-net depth 1
+            "layer35 size 2*3x4 from layer34 radius 0x0 tf linear\n"  // conv-net depth 1  to regular depth >1
+            "layer36 from layer35 convolve 1x1\n"                     // regular depth >1 to conv-net depth >1
+            "layer37 size 1*3x4 from layer36 convolve {1}\n"          // conv-net depth >1 to conv-filter depth 1
+            "layer38 from layer37 convolve 1x1\n"                     // conv-filter depth  1 to conv-net depth 1
+            "layer39 from layer38 convolve {1}\n"                     // conv-net depth  1 to conv-filter depth 1
+            "layer40 size 2*3x4 from layer39 convolve 1x1\n"          // conv-filter depth  1 to conv-net depth >1
+            "layer41 from layer40 convolve {1}\n"                     // conv-net depth >1 to conv-filter depth >1
+            "layer42 size 1*3x4 from layer41 convolve 1x1\n"          // conv-filter depth >1 to conv-net depth 1
+            "layer43 size 2*3x4 from layer42 convolve {1}\n"          // conv-net depth  1 to conv-filter depth >1
+            "layer44 size 1*3x4 from layer43 pool max 1x1\n"          // conv-filter depth >1 to pooling depth 1
+            "layer45 size 2*3x4 from layer44 radius 0x0 tf linear\n"  // pooling depth 1  to regular depth >1
+            "layer46 size 1*3x4 from layer45 pool max 1x1\n"          // regular depth >1 to pooling depth 1
+            "layer47 from layer46 convolve {1}\n"                     // pooling depth 1  to conv-filter depth 1
+            "layer48 from layer47 pool max 1x1\n"                     // conv-filter depth  1 to pooling depth 1
+            "layer49 size 2*3x4 from layer48 convolve {1}\n"          // pooling depth 1  to conv-filter depth >1
+            "layer50 from layer49 convolve 1x1\n"                     // conv-filter depth >1 to conv-net depth >1
+            "layer51 from layer50 radius 0x0 tf linear\n"             // conv-net depth >1 to regular depth >1
+            "layer52 from layer51 pool max 1x1\n"                     // regular depth >1 to pooling depth >1
+            "layer53 from layer52 radius 0x0 tf linear\n"             // pooling depth >1 to regular depth >1
+            "layer54 from layer53 pool max 1x1\n"                     // already checked before
+            "layer55 size 1*3x4 from layer54 convolve {1}\n"          // pooling depth >1 to conv-filter depth 1
+            "layer56 size 2*3x4 from layer55 pool max 1x1\n"          // conv-filter depth  1 to pooling depth >1
+            "layer57 size 1*3x4 from layer56 convolve 1x1\n"          // pooling depth >1 to conv-net depth 1
+            "layer58 from layer57 pool max 1x1\n"                     // conv-net depth  1 to pooling depth 1
+            "layer59 from layer58 convolve 1x1\n"                     // pooling depth 1  to conv-net depth 1
+            "layer60 size 2*3x4 from layer59 pool max 1x1\n"          // conv-net depth  1 to pooling depth >1
+            "layer61 from layer60 convolve 1x1\n"                     // pooling depth >1 to conv-net depth >1
+            "layer62 size 1*3x4 from layer61 pool max 1x1\n"          // conv-net depth >1 to pooling depth 1
+            "layer63 size 2*3x4 from layer62 convolve 1x1\n"          // pooling depth 1  to conv-net depth >1
+            "layer64 from layer63 pool max 1x1\n"                     // conv-net depth >1 to pooling depth >1
+            "layer65 from layer64 convolve {1}\n"                     // pooling depth >1 to conv-filter depth >1
+            "layer66 from layer65 pool max 1x1\n"                     // conv-filter depth >1 to pooling depth >1
+            "output size 3x4 from layer66 radius 0x0 tf linear\n";
+
+        string inputDataConfig =
+            "{ 0.1 0.2 0.3 0.4 } \n";
+
+        std::ofstream topologyConfigFile(topologyConfigFilename);
+        topologyConfigFile << topologyConfig;
+        topologyConfigFile.close();
+
+        std::ofstream inputDataConfigFile(inputDataConfigFilename);
+        inputDataConfigFile << inputDataConfig;
+        inputDataConfigFile.close();
+
+        Net myNet(topologyConfigFilename, false);
+        myNet.debugShowNet();
+        setAllWeights(myNet, 1.0);
+
+        myNet.sampleSet.loadSamples(inputDataConfigFilename);
+        myNet.feedForward(myNet.sampleSet.samples[0]);
+
+        ASSERT_FEQ(myNet.layers[0]->neurons[0][flattenXY(0,0,2)].output, 0.1);
+
+        for (auto const &pLayer : myNet.layers) {
+            ASSERT_EQ(pLayer->size.x, 3);
+            ASSERT_EQ(pLayer->size.y, 4);
+            ASSERT_EQ(pLayer->neurons[0].size(), 3*4);
+        }
+
+        // We expect the following layers to have depth == 1:
+        vector<uint32_t> hasDepth1 { 0, 1, 3, 4, 5, 6, 8, 10, 11, 12, 14, 15, 18, 19, 20,
+                  22, 23, 26, 29, 34, 37, 38, 39, 42, 44, 46, 47, 48, 55, 57, 58, 59, 62, 67 };
+
+        // We expect the following layers to have depth == 2:
+        vector<uint32_t> hasDepth2 { 2, 7, 9, 13, 16, 17, 21, 24, 25, 27, 28, 30, 31,
+                  32, 33, 35, 36, 40, 41, 43, 45, 49, 50, 51, 52, 53, 54, 56, 60, 61, 63, 64, 65, 66 };
+
+        for (uint32_t layerNum : hasDepth1) {
+            ASSERT_EQ(myNet.layers[layerNum]->neurons.size(), 1);
+        }
+
+        for (uint32_t layerNum : hasDepth2) {
+            ASSERT_EQ(myNet.layers[layerNum]->neurons.size(), 2);
+        }
+
+        // We expect the following layers to have a one-to-one connection with a single
+        // plane of a XxY patch of source neurons (equals depth*X*Y connections) and no bias:
+        vector<uint32_t> singlePlaneOneToOneNoBias { 4, 5, 7, 9, 11, 12, 13, 16, 17, 19, 20, 21, 24, 25,
+                  31, 32, 36, 38, 39, 40, 41, 43, 47, 48, 49, 50, 52, 56, 58, 59, 60, 61, 63, 64, 65, 66 };
+
+        uint32_t expectedSize = 1*1; // patch size
+        for (uint32_t layerNum : singlePlaneOneToOneNoBias) {
+            Neuron const &exemplaryNeuron = myNet.layers[layerNum]->neurons[0][0];
+            ASSERT_EQ(exemplaryNeuron.backConnectionsIndices.size(), expectedSize);
+        }
+
+        // We expect the following layers to have a one-to-one connection with a single
+        // plane of a XxY patch of source neurons (equals depth*X*Y connections) plus a bias:
+        vector<uint32_t> singlePlaneOneToOnePlusBias { 2, 6, 15, 23, 28, 30, 33, 35, 45, 51, 53 };
+
+        expectedSize = 1*1 + 1; // patch size plus a bias
+        for (uint32_t layerNum : singlePlaneOneToOnePlusBias) {
+            Neuron const &exemplaryNeuron = myNet.layers[layerNum]->neurons[0][0];
+            ASSERT_EQ(exemplaryNeuron.backConnectionsIndices.size(), expectedSize);
+        }
+
+        // We expect the following layers to have a one-to-one connection with depth planes
+        // of a XxY patch of source neurons (equals depth*X*Y connections) and no bias:
+        vector<uint32_t> multiplePlaneOneToOneNoBias { 8, 14, 22, 29, 34, 37, 42, 44, 46, 55, 57, 62 };
+
+        expectedSize = 2*1*1; // depth * patch size, no bias
+        for (uint32_t layerNum : multiplePlaneOneToOneNoBias) {
+            Neuron const &exemplaryNeuron = myNet.layers[layerNum]->neurons[0][0];
+            ASSERT_EQ(exemplaryNeuron.backConnectionsIndices.size(), expectedSize);
+        }
+
+        // We expect the following layers to have a one-to-one connection with depth planes
+        // of a XxY patch of source neurons (equals depth*X*Y connections) plus a bias:
+        vector<uint32_t> multiplePlaneOneToOneWithBias { 3, 10, 18, 26 };
+
+        expectedSize = 2*1*1 + 1; // depth * patch size, plus a bias
+        for (uint32_t layerNum : multiplePlaneOneToOneWithBias) {
+            Neuron const &exemplaryNeuron = myNet.layers[layerNum]->neurons[0][0];
+            ASSERT_EQ(exemplaryNeuron.backConnectionsIndices.size(), expectedSize);
+        }
     }
 }
 

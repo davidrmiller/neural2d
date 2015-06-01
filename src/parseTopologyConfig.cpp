@@ -153,17 +153,12 @@ void extractConvolveFilterMatrix(topologyConfigSpec_t &params, std::istringstrea
         configErrorThrow(params, "Error in topology config file: inconsistent row size in convolve filter matrix spec");
     }
 
-    // We'll create (or recreate) a one-element flatConvolveMatrix in the params structure:
-    // Convolution filtering only needs a single convolve matrix, so only element zero is
-    // used in params.flatConvolveMatrix. That one element will be a flattened
-    // container of the 2D convolve matrix:
+    // We'll create one copy of the flatConvolveMatrix in the params structure.
+    // Typically a convolution filter layer has depth == 1.
+    // The caller will need to replicate this matrix if the layer has depth > 1
+    params.flatConvolveMatrix.push_back(vector<float>()); // Empty container for one kernel
+    params.flatConvolveMatrix.back().assign(mat.size() * mat[0].size(), 0); // Reserve enough elements
 
-    params.flatConvolveMatrix.clear();
-    params.flatConvolveMatrix.push_back(vector<float>()); // Start with one empty container for one kernel
-    params.flatConvolveMatrix.back().assign(mat.size() * mat[0].size(), 0);
-
-//    for (auto &row : mat) {
-//        for (auto val : row) {
     for (uint32_t row = 0; row < mat.size(); ++row) {
         for (uint32_t col = 0; col < mat[row].size(); ++col) {
             params.flatConvolveMatrix.back()[flattenXY(col, row, mat.size())] = mat[row][col];
@@ -305,7 +300,7 @@ bool extractOneLayerParams(topologyConfigSpec_t &params, const string &line)
 
     bool done = false;
     while (!done && !ss.eof() && (long)ss.tellg() != -1L) {
-        string stoken;
+        stoken.clear();
         ss >> stoken;
         if (stoken.size() == 0) {
             break;
@@ -349,12 +344,12 @@ bool extractOneLayerParams(topologyConfigSpec_t &params, const string &line)
         } else {
             configErrorThrow(params, "Unknown parameter");
         }
-
-        params.isRegularLayer =
-                   !params.isConvolutionFilterLayer
-                && !params.isConvolutionNetworkLayer
-                && !params.isPoolingLayer;
     }
+
+    params.isRegularLayer =
+               !params.isConvolutionFilterLayer
+            && !params.isConvolutionNetworkLayer
+            && !params.isPoolingLayer;
 
     return true;
 }
@@ -402,20 +397,20 @@ void consistency(vector<topologyConfigSpec_t> &params)
         auto &spec = *it;
 
         // If no tf parameter was specified, set a default.
-        // A transfer function is permitted on all layers except the input
-        // and convolution filter layers:
+        // A transfer function can be specified for any layer. By default,
+        // it is tanh for regular layers, linear for all other layers.
 
         if (!spec.tfSpecified) {
-            if (spec.isConvolutionFilterLayer) {
-                spec.transferFunctionName = "linear";
-            } else {
+            if (spec.isRegularLayer) {
                 spec.transferFunctionName = "tanh";
+            } else {
+                spec.transferFunctionName = "linear";
             }
         }
 
         // Check from parameter:
         if (spec.fromLayerName.size() == 0) {
-            err << "All hidden and output layers need a from parameter" << endl;
+            err << "Layer " << spec.layerName << " needs a from parameter" << endl;
             throw exceptionConfigFile();
         }
 
@@ -461,6 +456,17 @@ void consistency(vector<topologyConfigSpec_t> &params)
             throw exceptionConfigFile();
         }
 
+        if (spec.isConvolutionFilterLayer) {
+            // Convolution filtering typically only needs a single convolve matrix (depth == 1),
+            // but we allow a convolution filter layer to be a greater depth if desired. One copy
+            // of the matrix was already saved in spec. If this layer has depth > 1, we'll 
+            // replicate the matrix depth-1 more times:
+
+            for (uint32_t depth = 1; depth < spec.size.depth; ++depth) {
+                spec.flatConvolveMatrix.push_back(spec.flatConvolveMatrix[0]);
+            }
+        }
+
         // Initialize convolution network kernels if needed: Construct a matrix of the
         // correct size, and make depth copies
         if (spec.isConvolutionNetworkLayer) {
@@ -470,16 +476,6 @@ void consistency(vector<topologyConfigSpec_t> &params)
                 w = randomFloat() / 100.0f; // Do something more intelligent here
             });
             spec.flatConvolveMatrix.assign(spec.size.depth, flatMatrix);
-        }
-    }
-
-    // Specific only to hidden layers:
-    for (auto it = params.begin() + 1; it != params.end() - 1; ++it) {
-        auto &spec = *it;
-        // Verify that if a depth was specified > 1, then there must be a convolve or pool param:
-        if (spec.size.depth > 1 && !(spec.isConvolutionNetworkLayer || spec.isPoolingLayer)) {
-            err << "A layer with depth > 1 must be a convolution networking or pooling layer" << endl;
-            throw exceptionConfigFile();
         }
     }
 

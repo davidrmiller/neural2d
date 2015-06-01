@@ -619,24 +619,17 @@ void Layer::connectOneNeuronAllDepths(Layer &fromLayer, Neuron &toNeuron,
 
     // The way we connect to the source layer depends on the depth of the source layer:
     //
-    //       src depth = 1          -- connect only to source depth 0
-    //   1 < src depth < my depth   -- unsupported
-    //       src depth == my depth  -- connect only to same depth in source
-    //       src depth > my depth   -- fully connect to all depths (regular) or unsupported (all others)
+    //   src depth == my depth  -- connect only to same depth in source
+    //   src depth != my depth  -- fully connect to all depths
 
     uint32_t sourceDepthMin = 0;
     uint32_t sourceDepthMax = 0;
 
-    if (fromLayer.size.depth == 1) { // Pooling layer may impose additional requirements?
-        sourceDepthMin = sourceDepthMax = 0;
-    } else if (fromLayer.size.depth == layerTo.size.depth) {
+    if (fromLayer.size.depth == layerTo.size.depth) {
         sourceDepthMin = sourceDepthMax = destDepth;
-    } else if (isRegularLayer && fromLayer.size.depth > layerTo.size.depth) {
+    } else {
         sourceDepthMin = 0;
         sourceDepthMax = fromLayer.size.depth - 1;
-    } else {
-        err << "Internal error: This topology should have been rejected due to incompatible layer depths" << endl;
-        exit(1);
     }
 
     for (int32_t srcX = xmin; srcX <= xmax; ++srcX) {
@@ -886,7 +879,7 @@ void LayerRegular::debugShow(bool details)
 //         << " neurons arranged in " << l.size.x << "x" << l.size.y
 //         << " depth " << l.size.depth << ":" << endl;
 
-    info << l.layerName << ": 1*" << l.size.x << "x" << l.size.y
+    info << l.layerName << ": " << l.size.depth << "*" << l.size.x << "x" << l.size.y
          << " = " << l.neurons.size() * l.neurons[0].size() << " neurons";
 
     for (size_t depth = 0; depth < l.size.depth; ++depth) {
@@ -927,7 +920,7 @@ void LayerRegular::debugShow(bool details)
         }
 
         if (!details) {
-            info << ", " << numBackConnections << " back, "
+            info << "\t, " << numBackConnections << " back, "
                  << numFwdConnections << " forward connections";
         }
 
