@@ -104,10 +104,35 @@ void setAllWeights(Net &myNet, float w)
     }
 }
 
+
+// Given a layer specification object and a layer name, return a ptr to the spec with that name.
+// Assumes a valid layer name.
+//
+topologyConfigSpec_t const *specNamed(vector<topologyConfigSpec_t> const &specs, std::string layerName)
+{
+    auto it = find_if(specs.begin(), specs.end(), [layerName](topologyConfigSpec_t const &spec) {
+            return spec.layerName == layerName;
+        });
+
+    return &*it;
+}
+
+
+// Given a Net object and a layer name, return a ptr to the layer with that name.
+// Assumes a valid layer name.
+//
+Layer const *layerNamed(Net const &myNet, std::string layerName)
+{
+    auto it = find_if(myNet.layers.begin(), myNet.layers.end(), [layerName](unique_ptr<Layer> const &pLayer) {
+            return pLayer->layerName == layerName;
+        });
+
+    return (*it).get();
+}
+
+
 void unitTestConfigParsers()
 {
-    LOG("unitTestConfigParser()");
-
     // Make an uninitialized Net to use in this section:
     Net myNet("", false);
 
@@ -270,7 +295,8 @@ void unitTestConfigParsers()
         istringstream ss(config);
         auto specs = myNet.parseTopologyConfig(ss);
         ASSERT_EQ(specs.size(), 8);
-        auto *spec = &specs[0];
+
+        auto const *spec = &specs[0];
         ASSERT_EQ(spec->fromLayerName.size(), 0);
         ASSERT_EQ(spec->configLineNum, 1);
         ASSERT_EQ(spec->channel, NNet::BW);
@@ -285,7 +311,7 @@ void unitTestConfigParsers()
         ASSERT_EQ(spec->size.x, 1);
         ASSERT_EQ(spec->size.y, 1);
 
-        spec = &specs[1];   // layer1 size 1 from input
+        spec = specNamed(specs, "layer1");
         ASSERT_EQ(spec->fromLayerName.size(), sizeof "input" - 1);
         ASSERT_EQ(spec->configLineNum, 2);
         ASSERT_EQ(spec->channel, NNet::BW);
@@ -301,7 +327,7 @@ void unitTestConfigParsers()
         ASSERT_EQ(spec->size.y, 1);
         ASSERT_EQ(spec->transferFunctionName.size(), sizeof "tanh" - 1);
 
-        spec = &specs[2];   // layer2 size 2x2 from layer1
+        spec = specNamed(specs, "layer2");
         ASSERT_EQ(spec->fromLayerName.size(), sizeof "layer1" - 1);
         ASSERT_EQ(spec->configLineNum, 3);
         ASSERT_EQ(spec->channel, NNet::BW);
@@ -317,7 +343,7 @@ void unitTestConfigParsers()
         ASSERT_EQ(spec->size.y, 2);
         ASSERT_EQ(spec->transferFunctionName.size(), sizeof "tanh" - 1);
 
-        spec = &specs[3];   // layer3 size 7x8 from input
+        spec = specNamed(specs, "layer3");
         ASSERT_EQ(spec->fromLayerName.size(), sizeof "input" - 1);
         ASSERT_EQ(spec->configLineNum, 4);
         ASSERT_EQ(spec->channel, NNet::BW);
@@ -333,7 +359,7 @@ void unitTestConfigParsers()
         ASSERT_EQ(spec->size.y, 8);
         ASSERT_EQ(spec->transferFunctionName.size(), sizeof "tanh" - 1);
 
-        spec = &specs[4];   // layer4 size 2x2 from layer3
+        spec = specNamed(specs, "layer4");
         ASSERT_EQ(spec->fromLayerName.size(), sizeof "layer3" - 1);
         ASSERT_EQ(spec->configLineNum, 5);
         ASSERT_EQ(spec->channel, NNet::BW);
@@ -362,15 +388,19 @@ void unitTestConfigParsers()
 
         istringstream ss(config);
         auto specs = myNet.parseTopologyConfig(ss);
+
         auto *spec = &specs[1];
         ASSERT_EQ(spec->radius.x, 2);
         ASSERT_EQ(spec->radius.y, 3);
+
         spec = &specs[2];
         ASSERT_EQ(spec->radius.x, 4);
         ASSERT_EQ(spec->radius.y, 1);
+
         spec = &specs[3];
         ASSERT_EQ(spec->radius.x, 0);
         ASSERT_EQ(spec->radius.y, 4);
+
         spec = &specs[4];
         ASSERT_GE(spec->radius.x, 0.0);
         ASSERT_GE(spec->radius.y, 0.0);
@@ -388,6 +418,7 @@ void unitTestConfigParsers()
 
         istringstream ss(config);
         auto specs = myNet.parseTopologyConfig(ss);
+
         auto *spec = &specs[1];
         ASSERT_EQ(spec->transferFunctionName, "linear");
         spec = &specs[2];
@@ -413,25 +444,24 @@ void unitTestConfigParsers()
         istringstream ss(config);
         auto specs = myNet.parseTopologyConfig(ss);
 
-        auto *spec = &specs[1];
+        auto const *spec = specNamed(specs, "layer1");
         ASSERT_EQ(spec->size.depth, 1);
         ASSERT_EQ(spec->size.x, 2);
         ASSERT_EQ(spec->size.y, 3);
 
-        spec = &specs[3];
+        spec = specNamed(specs, "layer3");
         ASSERT_EQ(spec->size.depth, 1);
         ASSERT_EQ(spec->size.x, 4);
         ASSERT_EQ(spec->size.y, 5);
 
-        spec = &specs[5];
+        spec = specNamed(specs, "layer5");
         ASSERT_EQ(spec->size.depth, 2);
         ASSERT_EQ(spec->size.x, 3);
         ASSERT_EQ(spec->size.y, 4);
 
-        spec = &specs[6];
-        ASSERT_EQ(spec->size.depth, 1);
-        ASSERT_EQ(spec->size.x, 1);
-        ASSERT_EQ(spec->size.y, 1);
+        ASSERT_EQ(specs.back().size.depth, 1);
+        ASSERT_EQ(specs.back().size.x, 1);
+        ASSERT_EQ(specs.back().size.y, 1);
     }
 
     {
@@ -443,6 +473,7 @@ void unitTestConfigParsers()
 
         istringstream ss(config);
         auto specs = myNet.parseTopologyConfig(ss);
+
         auto *spec = &specs[1];
         ASSERT_EQ(spec->size.depth, 1);
         ASSERT_EQ(spec->size.x, 1);
@@ -459,6 +490,7 @@ void unitTestConfigParsers()
 
         istringstream ss(config);
         auto specs = myNet.parseTopologyConfig(ss);
+
         auto *spec = &specs[1];
         ASSERT_EQ(spec->isConvolutionFilterLayer, true);
         ASSERT_EQ(spec->isConvolutionNetworkLayer, false);
@@ -477,6 +509,7 @@ void unitTestConfigParsers()
 
         istringstream ss(config);
         auto specs = myNet.parseTopologyConfig(ss);
+
         auto *spec = &specs[1];
         ASSERT_EQ(spec->isConvolutionFilterLayer, true);
         ASSERT_EQ(spec->isConvolutionNetworkLayer, false);
@@ -498,6 +531,7 @@ void unitTestConfigParsers()
 
         istringstream ss(config);
         auto specs = myNet.parseTopologyConfig(ss);
+
         auto *spec = &specs[1];
         ASSERT_EQ(spec->isConvolutionFilterLayer, true);
         ASSERT_EQ(spec->isConvolutionNetworkLayer, false);
@@ -519,6 +553,7 @@ void unitTestConfigParsers()
 
         istringstream ss(config);
         auto specs = myNet.parseTopologyConfig(ss);
+
         auto *spec = &specs[1];
         ASSERT_EQ(spec->isConvolutionFilterLayer, true);
         ASSERT_EQ(spec->isConvolutionNetworkLayer, false);
@@ -542,6 +577,7 @@ void unitTestConfigParsers()
 
         istringstream ss(config);
         auto specs = myNet.parseTopologyConfig(ss);
+
         auto *spec = &specs[1];
         ASSERT_EQ(spec->size.depth, 10);
         ASSERT_EQ(spec->size.x, 16);
@@ -581,6 +617,7 @@ void unitTestConfigParsers()
 
         istringstream ss(config);
         auto specs = myNet.parseTopologyConfig(ss);
+
         auto *spec = &specs[1];
         ASSERT_EQ(spec->size.depth, 10);
         ASSERT_EQ(spec->poolMethod, POOL_MAX);
@@ -599,6 +636,7 @@ void unitTestConfigParsers()
 
         istringstream ss(config);
         auto specs = myNet.parseTopologyConfig(ss);
+
         auto *spec = &specs[1];
         ASSERT_EQ(spec->kernelSize.x, 3);
         ASSERT_EQ(spec->kernelSize.y, 5);
@@ -606,6 +644,42 @@ void unitTestConfigParsers()
 
         ASSERT_EQ(spec->flatConvolveMatrix.size(), 10);
         ASSERT_EQ(spec->flatConvolveMatrix[0].size(), 3*5);
+    }
+
+    {
+        LOG("layer spec reordering");
+
+        // The reordering should put the input spec first, and the output spec(s) last,
+        // and reorder the hidden layers by their from parameter.
+
+        string config =
+            "output from layer3\n"
+            "layer1 from input\n"
+            "output from layer5\n"
+            "output from layer2\n"
+            "output from layer4\n"
+            "input size 1\n"
+            "layer3 from layer2\n"
+            "output from layer1\n"
+            "layer2 from layer1\n"
+            "layer5 from layer4\n"
+            "layer4 from layer3\n";
+
+        istringstream ss(config);
+        auto specs = myNet.parseTopologyConfig(ss);
+
+        ASSERT_EQ(specs.size(), 11);  // in, out, 5 hidden, plus 4 extra output specs
+        ASSERT_EQ(specs[0].layerName, "input");
+        ASSERT_EQ(specs[1].layerName, "layer1");
+        ASSERT_EQ(specs[2].layerName, "layer2");
+        ASSERT_EQ(specs[3].layerName, "layer3");
+        ASSERT_EQ(specs[4].layerName, "layer4");
+        ASSERT_EQ(specs[5].layerName, "layer5");
+        ASSERT_EQ(specs[6].layerName, "output");
+        ASSERT_EQ(specs[7].layerName, "output");
+        ASSERT_EQ(specs[8].layerName, "output");
+        ASSERT_EQ(specs[9].layerName, "output");
+        ASSERT_EQ(specs[10].layerName, "output");
     }
 }
 
@@ -628,6 +702,7 @@ void unitTestNet()
         istringstream ss(config);
         Net myNet("", false);
         myNet.configureNetwork(myNet.parseTopologyConfig(ss));
+
         ASSERT_FEQ(myNet.alpha, 0.1f);
         ASSERT_EQ(myNet.bias.output, 1.0);
         ASSERT_EQ(myNet.layers.size(), 2);
@@ -1487,24 +1562,22 @@ void unitTestConvolutionNetworking()
         // verify some structural stuff:
         ASSERT_EQ(myNet.layers.size(), 8);
         ASSERT_EQ(myNet.layers[0]->neurons.size(), 1);  // input size 1*8x8
-        ASSERT_EQ(myNet.layers[1]->neurons.size(), 10); // layerConvolve1 size 10*8x8
-        ASSERT_EQ(myNet.layers[2]->neurons.size(), 10); // layerPool1 size 10*6x6
-        ASSERT_EQ(myNet.layers[3]->neurons.size(), 10); // layerConvolve2 size 10*6x6
-        ASSERT_EQ(myNet.layers[4]->neurons.size(), 10); // layerPool2 size 10*4x4
-        ASSERT_EQ(myNet.layers[5]->neurons.size(), 1);  // layerReduce size 10
-        ASSERT_EQ(myNet.layers[6]->neurons.size(), 1);  // layerHidden size 10
-        ASSERT_EQ(myNet.layers[7]->neurons.size(), 1);  // output size 3
+        ASSERT_EQ(layerNamed(myNet, "layerConvolve1")->neurons.size(), 10); // layerConvolve1 size 10*8x8
+        ASSERT_EQ(layerNamed(myNet, "layerPool1")->neurons.size(), 10);     // layerPool1 size 10*6x6
+        ASSERT_EQ(layerNamed(myNet, "layerConvolve2")->neurons.size(), 10); // layerConvolve2 size 10*6x6
+        ASSERT_EQ(layerNamed(myNet, "layerPool2")->neurons.size(), 10);     // layerPool2 size 10*4x4
+        ASSERT_EQ(layerNamed(myNet, "layerReduce")->neurons.size(), 1);     // layerReduce size 10
+        ASSERT_EQ(layerNamed(myNet, "layerHidden")->neurons.size(), 1);     // layerHidden size 10
+        ASSERT_EQ(myNet.layers.back()->neurons.size(), 1);       // output size 3
 
         ASSERT_EQ(myNet.layers[0]->neurons[0].size(), 8*8); // input size 1*8x8
-        ASSERT_EQ(myNet.layers[1]->neurons[0].size(), 8*8); // layerConvolve1 size 10*8x8
-        ASSERT_EQ(myNet.layers[1]->neurons[9].size(), 8*8);
-        ASSERT_EQ(myNet.layers[2]->neurons[0].size(), 6*6); // layerPool1 size 10*6x6
-        ASSERT_EQ(myNet.layers[2]->neurons[9].size(), 6*6);
-        ASSERT_EQ(myNet.layers[3]->neurons[0].size(), 6*6); // layerConvolve2 size 10*6x6
-        ASSERT_EQ(myNet.layers[4]->neurons[0].size(), 4*4); // layerPool2 size 10*4x4
-        ASSERT_EQ(myNet.layers[5]->neurons[0].size(), 10);  // layerReduce size 10
-        ASSERT_EQ(myNet.layers[6]->neurons[0].size(), 10);  // layerHidden size 10
-        ASSERT_EQ(myNet.layers[7]->neurons[0].size(), 3);   // output size 3
+        ASSERT_EQ(layerNamed(myNet, "layerConvolve1")->neurons[0].size(), 8*8); // layerConvolve1 size 10*8x8
+        ASSERT_EQ(layerNamed(myNet, "layerPool1")->neurons[0].size(), 6*6);     // layerPool1 size 10*6x6
+        ASSERT_EQ(layerNamed(myNet, "layerConvolve2")->neurons[0].size(), 6*6); // layerConvolve2 size 10*6x6
+        ASSERT_EQ(layerNamed(myNet, "layerPool2")->neurons[0].size(), 4*4);     // layerPool2 size 10*4x4
+        ASSERT_EQ(layerNamed(myNet, "layerReduce")->neurons[0].size(), 10);     // layerReduce size 10
+        ASSERT_EQ(layerNamed(myNet, "layerHidden")->neurons[0].size(), 10);     // layerHidden size 10
+        ASSERT_EQ(myNet.layers.back()->neurons[0].size(), 3);                   // output size 3
 
         // To do:  more tests!
     }
@@ -1568,8 +1641,8 @@ void unitTestConvolutionNetworking()
 
         string topologyConfig =
             "input size 32x32\n"
-            "layerConv size 20*32x32 from input convolve 7x7\n"
-            "layerPool size 20*8x8 from layerConv pool max 2x2\n"
+            "layerConv size 10*32x32 from input convolve 7x7\n"
+            "layerPool size 10*8x8 from layerConv pool max 2x2\n"
             "layerMix1 size 8x8 from layerPool\n"
             "layerGauss size 8x8 from input radius 1x3 tf gaussian\n"
             "layerMix2 size 4x4 from layerMix1\n"
@@ -1601,19 +1674,19 @@ void unitTestConvolutionNetworking()
         ASSERT_EQ(input.neurons[0].size(), 32*32);
         ASSERT_EQ(input.neurons[0][0].backConnectionsIndices.size(), 0);
         ASSERT_EQ(input.neurons[0].back().backConnectionsIndices.size(), 0);
-        ASSERT_EQ(input.neurons[0][7*16+7].forwardConnectionsIndices.size(), 20*7*7);
+        ASSERT_EQ(input.neurons[0][7*16+7].forwardConnectionsIndices.size(), 10*7*7);
 
         // layerMix2 combines two source layers:
-        auto const &layerMix2 = *myNet1.layers[5]; // size 4x4 from layerMix1 plus from layerGauss
+        auto const &layerMix2 = *layerNamed(myNet1, "layerMix2"); // size 4x4 from layerMix1 plus from layerGauss
         ASSERT_EQ(layerMix2.size.depth, 1);
         ASSERT_EQ(layerMix2.neurons.size(), 1);
         ASSERT_EQ(layerMix2.neurons[0].size(), 4*4);
         ASSERT_EQ(layerMix2.neurons[0][flattenXY(2,2,4)].backConnectionsIndices.size(),
                   8*8 + 8*8 + 1); // two source layers plus a bias
 
-        auto const &layerConv = *myNet1.layers[1]; // size 20*32x32 from input convolve 7x7
-        ASSERT_EQ(layerConv.size.depth, 20);
-        ASSERT_EQ(layerConv.neurons.size(), 20);
+        auto const &layerConv = *layerNamed(myNet1, "layerConv"); // size 10*32x32 from input convolve 7x7
+        ASSERT_EQ(layerConv.size.depth, 10);
+        ASSERT_EQ(layerConv.neurons.size(), 10);
         ASSERT_EQ(layerConv.neurons[0].size(), 32*32);
         ASSERT_EQ(layerConv.neurons[0][16*32+16].backConnectionsIndices.size(), 7*7);
 
@@ -2047,62 +2120,65 @@ void unitTestPooling()
         myNet.sampleSet.loadSamples(inputDataConfigFilename);
         myNet.feedForward(myNet.sampleSet.samples[0]);
 
-        auto const &pl = *myNet.layers[2]; // the pooling layer
+        auto const &pInput = myNet.layers.front();
+        auto const *pConv = layerNamed(myNet, "layerConvPassthrough");
+        auto const *pPool = layerNamed(myNet, "layerPool");
+        auto const &pOutput = myNet.layers.back();
 
         // verify some structural stuff:
         ASSERT_EQ(myNet.layers.size(), 4);
-        ASSERT_EQ(myNet.layers[0]->neurons.size(), 1); // depth = 1
-        ASSERT_EQ(myNet.layers[1]->neurons.size(), 2); // depth = 2
-        ASSERT_EQ(myNet.layers[2]->neurons.size(), 2); // depth = 2
-        ASSERT_EQ(myNet.layers[3]->neurons.size(), 1); // depth = 1
+        ASSERT_EQ(pInput->neurons.size(), 1); // depth = 1
+        ASSERT_EQ(pConv->neurons.size(), 2); // depth = 2
+        ASSERT_EQ(pPool->neurons.size(), 2); // depth = 2
+        ASSERT_EQ(pOutput->neurons.size(), 1); // depth = 1
 
-        ASSERT_EQ(myNet.layers[0]->neurons[0].size(), 8*8);
-        ASSERT_EQ(myNet.layers[1]->neurons[0].size(), 8*8);
-        ASSERT_EQ(myNet.layers[1]->neurons[1].size(), 8*8);
-        ASSERT_EQ(myNet.layers[2]->neurons[0].size(), 2*2);
-        ASSERT_EQ(myNet.layers[2]->neurons[1].size(), 2*2);
-        ASSERT_EQ(myNet.layers[3]->neurons[0].size(), 1);
+        ASSERT_EQ(pInput->neurons[0].size(), 8*8);
+        ASSERT_EQ(pConv->neurons[0].size(), 8*8);
+        ASSERT_EQ(pConv->neurons[1].size(), 8*8);
+        ASSERT_EQ(pPool->neurons[0].size(), 2*2);
+        ASSERT_EQ(pPool->neurons[1].size(), 2*2);
+        ASSERT_EQ(pOutput->neurons[0].size(), 1);
 
-        ASSERT_EQ(myNet.layers[0]->neurons[0][0].forwardConnectionsIndices.size(), 2); // input splits into two
+        ASSERT_EQ(pInput->neurons[0][0].forwardConnectionsIndices.size(), 2); // input splits into two
 
-        for (uint32_t nIdx = 0; nIdx < myNet.layers[1]->size.x * myNet.layers[1]->size.y; ++nIdx) {
-            ASSERT_EQ(myNet.layers[1]->neurons[0][nIdx].backConnectionsIndices.size(), 1); // one source, no bias
-            ASSERT_EQ(myNet.layers[1]->neurons[1][nIdx].backConnectionsIndices.size(), 1);
-            ASSERT_EQ(myNet.layers[1]->neurons[0][nIdx].forwardConnectionsIndices.size(), 1);
-            ASSERT_EQ(myNet.layers[1]->neurons[1][nIdx].forwardConnectionsIndices.size(), 1);
+        for (uint32_t nIdx = 0; nIdx < pConv->size.x * pConv->size.y; ++nIdx) {
+            ASSERT_EQ(pConv->neurons[0][nIdx].backConnectionsIndices.size(), 1); // one source, no bias
+            ASSERT_EQ(pConv->neurons[1][nIdx].backConnectionsIndices.size(), 1);
+            ASSERT_EQ(pConv->neurons[0][nIdx].forwardConnectionsIndices.size(), 1);
+            ASSERT_EQ(pConv->neurons[1][nIdx].forwardConnectionsIndices.size(), 1);
         }
 
-        // size 2*2x2 from layerConvPassthrough pool avg 4x4
-        for (uint32_t nIdx = 0; nIdx < myNet.layers[2]->size.x * myNet.layers[2]->size.y; ++nIdx) {
-            ASSERT_EQ(myNet.layers[2]->neurons[0][nIdx].backConnectionsIndices.size(), 4*4); // no bias on pooling layers
-            ASSERT_EQ(myNet.layers[2]->neurons[1][nIdx].backConnectionsIndices.size(), 4*4);
-            ASSERT_EQ(myNet.layers[2]->neurons[0][nIdx].forwardConnectionsIndices.size(), 1);
-            ASSERT_EQ(myNet.layers[2]->neurons[1][nIdx].forwardConnectionsIndices.size(), 1);
+        // layerPool size 2*2x2 from layerConvPassthrough pool avg 4x4
+        for (uint32_t nIdx = 0; nIdx < pPool->size.x * pPool->size.y; ++nIdx) {
+            ASSERT_EQ(pPool->neurons[0][nIdx].backConnectionsIndices.size(), 4*4); // no bias on pooling layers
+            ASSERT_EQ(pPool->neurons[1][nIdx].backConnectionsIndices.size(), 4*4);
+            ASSERT_EQ(pPool->neurons[0][nIdx].forwardConnectionsIndices.size(), 1);
+            ASSERT_EQ(pPool->neurons[1][nIdx].forwardConnectionsIndices.size(), 1);
         }
 
         ASSERT_EQ(myNet.layers[3]->neurons[0][0].backConnectionsIndices.size(), 2*2*2 + 1);
 
-        auto idx = myNet.layers[2]->neurons[0][flattenXY(0,0,2)].backConnectionsIndices[0];
-        ASSERT_EQ(&myNet.connections[idx].fromNeuron, &myNet.layers[1]->neurons[0][flattenXY(0,0,8)]);
-        idx = myNet.layers[2]->neurons[1][flattenXY(0,0,2)].backConnectionsIndices[0];
-        ASSERT_EQ(&myNet.connections[idx].fromNeuron, &myNet.layers[1]->neurons[1][flattenXY(0,0,8)]);
+        auto idx = pPool->neurons[0][flattenXY(0,0,2)].backConnectionsIndices[0];
+        ASSERT_EQ(&myNet.connections[idx].fromNeuron, &pConv->neurons[0][flattenXY(0,0,8)]);
+        idx = pPool->neurons[1][flattenXY(0,0,2)].backConnectionsIndices[0];
+        ASSERT_EQ(&myNet.connections[idx].fromNeuron, &pConv->neurons[1][flattenXY(0,0,8)]);
 
         // The NW (upper left) pooling layer neuron covers the upper left quadrant of the input image
-        auto const &neuronNW0 = pl.neurons[0][flattenXY(0,0,2)];
-        auto const &neuronNE0 = pl.neurons[0][flattenXY(1,0,2)];
-        auto const &neuronSW0 = pl.neurons[0][flattenXY(0,1,2)];
-        auto const &neuronSE0 = pl.neurons[0][flattenXY(1,1,2)];
+        auto const &neuronNW0 = pPool->neurons[0][flattenXY(0,0,2)];
+        auto const &neuronNE0 = pPool->neurons[0][flattenXY(1,0,2)];
+        auto const &neuronSW0 = pPool->neurons[0][flattenXY(0,1,2)];
+        auto const &neuronSE0 = pPool->neurons[0][flattenXY(1,1,2)];
 
-        auto const &neuronNW1 = pl.neurons[1][flattenXY(0,0,2)];
-        auto const &neuronNE1 = pl.neurons[1][flattenXY(1,0,2)];
-        auto const &neuronSW1 = pl.neurons[1][flattenXY(0,1,2)];
-        auto const &neuronSE1 = pl.neurons[1][flattenXY(1,1,2)];
+        auto const &neuronNW1 = pPool->neurons[1][flattenXY(0,0,2)];
+        auto const &neuronNE1 = pPool->neurons[1][flattenXY(1,0,2)];
+        auto const &neuronSW1 = pPool->neurons[1][flattenXY(0,1,2)];
+        auto const &neuronSE1 = pPool->neurons[1][flattenXY(1,1,2)];
 
         // might as well verify some of the outputs of layerConvPassthrough
-        ASSERT_EQ(myNet.layers[1]->neurons[0][flattenXY(0,0,8)].output, pixelToNetworkInputRange(10));
-        ASSERT_EQ(myNet.layers[1]->neurons[1][flattenXY(0,0,8)].output, pixelToNetworkInputRange(10));
-        ASSERT_EQ(myNet.layers[1]->neurons[0][flattenXY(1,1,8)].output, pixelToNetworkInputRange(101));
-        ASSERT_EQ(myNet.layers[1]->neurons[1][flattenXY(1,1,8)].output, pixelToNetworkInputRange(101));
+        ASSERT_EQ(pConv->neurons[0][flattenXY(0,0,8)].output, pixelToNetworkInputRange(10));
+        ASSERT_EQ(pConv->neurons[1][flattenXY(0,0,8)].output, pixelToNetworkInputRange(10));
+        ASSERT_EQ(pConv->neurons[0][flattenXY(1,1,8)].output, pixelToNetworkInputRange(101));
+        ASSERT_EQ(pConv->neurons[1][flattenXY(1,1,8)].output, pixelToNetworkInputRange(101));
 
         // NW quadrant avg:
         float expectedOutput =
@@ -2174,8 +2250,8 @@ void unitTestMisc()
 
         string topologyConfig =
             "input size 32x32\n"
-            "layerConv size 20*32x32 from input convolve 7x7\n"
-            "layerPool size 20*8x8 from layerConv pool max 2x2\n"
+            "layerConv size 10*32x32 from input convolve 7x7\n"
+            "layerPool size 5*8x8 from layerConv pool max 2x2\n"
             "layerMix size 8x8 from layerPool\n"
             "layerGauss size 8x8 from input radius 1x3 tf gaussian\n"
             "layerCombine size 4x4 from layerMix\n"
@@ -2207,8 +2283,8 @@ void unitTestMisc()
         // input layer has no incoming weights
 
         // layerConv:
-        auto const &conv1kernels = myNet1.layers[1]->flatConvolveMatrix;
-        auto const &conv2kernels = myNet2.layers[1]->flatConvolveMatrix;
+        auto const &conv1kernels = layerNamed(myNet1, "layerConv")->flatConvolveMatrix;
+        auto const &conv2kernels = layerNamed(myNet2, "layerConv")->flatConvolveMatrix;
         for (uint32_t depthNum = 0; depthNum < conv1kernels.size(); ++depthNum) {
             auto const &kernel1Flat = conv1kernels[depthNum];
             auto const &kernel2Flat = conv2kernels[depthNum];
@@ -2220,8 +2296,8 @@ void unitTestMisc()
         // layerPool has no incoming weights
 
         // layerMix size 8x8 from layerPool
-        auto const &mix1 = *myNet1.layers[3];
-        auto const &mix2 = *myNet2.layers[3];
+        auto const &mix1 = *layerNamed(myNet1, "layerMix");
+        auto const &mix2 = *layerNamed(myNet2, "layerMix");
         for (uint32_t neuronNum = 0; neuronNum < mix1.neurons[0].size(); ++neuronNum) {
             auto const &neuron1 = mix1.neurons[0][neuronNum];
             auto const &neuron2 = mix2.neurons[0][neuronNum];
@@ -2232,8 +2308,8 @@ void unitTestMisc()
         }
 
         // layerGauss size 8x8 from input radius 1x3
-        auto const &gauss1 = *myNet1.layers[3];
-        auto const &gauss2 = *myNet2.layers[3];
+        auto const &gauss1 = *layerNamed(myNet1, "layerGauss"); // myNet1.layers[3];
+        auto const &gauss2 = *layerNamed(myNet2, "layerGauss"); // myNet2.layers[3];
         for (uint32_t neuronNum = 0; neuronNum < gauss1.neurons[0].size(); ++neuronNum) {
             auto const &neuron1 = gauss1.neurons[0][neuronNum];
             auto const &neuron2 = gauss2.neurons[0][neuronNum];
@@ -2244,8 +2320,8 @@ void unitTestMisc()
         }
 
         // layerCombine size 4x4
-        auto const &combine1 = *myNet1.layers[3];
-        auto const &combine2 = *myNet2.layers[3];
+        auto const &combine1 = *layerNamed(myNet1, "layerCombine");
+        auto const &combine2 = *layerNamed(myNet2, "layerCombine");
         for (uint32_t neuronNum = 0; neuronNum < combine1.neurons[0].size(); ++neuronNum) {
             auto const &neuron1 = combine1.neurons[0][neuronNum];
             auto const &neuron2 = combine2.neurons[0][neuronNum];
@@ -2256,8 +2332,8 @@ void unitTestMisc()
         }
 
         // output size 10
-        auto const &output1 = *myNet1.layers[3];
-        auto const &output2 = *myNet2.layers[3];
+        auto const &output1 = *myNet1.layers.back();
+        auto const &output2 = *myNet2.layers.back();
         for (uint32_t neuronNum = 0; neuronNum < output1.neurons[0].size(); ++neuronNum) {
             auto const &neuron1 = output1.neurons[0][neuronNum];
             auto const &neuron2 = output2.neurons[0][neuronNum];

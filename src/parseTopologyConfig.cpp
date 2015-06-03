@@ -459,7 +459,7 @@ void consistency(vector<topologyConfigSpec_t> &params)
         if (spec.isConvolutionFilterLayer) {
             // Convolution filtering typically only needs a single convolve matrix (depth == 1),
             // but we allow a convolution filter layer to be a greater depth if desired. One copy
-            // of the matrix was already saved in spec. If this layer has depth > 1, we'll 
+            // of the matrix was already saved in spec. If this layer has depth > 1, we'll
             // replicate the matrix depth-1 more times:
 
             for (uint32_t depth = 1; depth < spec.size.depth; ++depth) {
@@ -492,6 +492,63 @@ void consistency(vector<topologyConfigSpec_t> &params)
 }
 
 
+// Reorder the list according to the partial ordering provide by the 'from' parameters.
+// After reording, the input layer spec will be at element 0, the output layer spec(s)
+// will be at the end of the container, and the hidden layers will be in logical order
+// based on their from parameters.
+//
+void sortLayers(vector<topologyConfigSpec_t> &specs)
+{
+    std::vector<topologyConfigSpec_t> orderedSpecs;
+    orderedSpecs.reserve(specs.size()); // Reserve enough room
+
+    // Seed the new sorted container with the input layer spec:
+
+    auto itInput = std::find_if(specs.begin(), specs.end(), [](topologyConfigSpec_t &spec) {
+        return spec.layerName == "input";
+    });
+
+    if (itInput == specs.end()) {
+        err << "Topology config file is missing an input layer" << endl;
+        throw exceptionConfigFile();
+    } else {
+        orderedSpecs.push_back(*itInput);
+    }
+
+    // For each element in the sorted container, find the specs that reference the
+    // layer name and append those to the ordered list. This is O(n^2) operation,
+    // but we typically have only a few elements. We'll skip the output layer
+    // specifications and append those later.
+
+    for (auto itOrdered = orderedSpecs.begin(); itOrdered != orderedSpecs.end(); ++itOrdered) {
+        string const &layerName = itOrdered->layerName;
+        // Find all references to layerName:
+        for (auto itSpec = specs.begin(); itSpec != specs.end(); ++itSpec) {
+            if (itSpec->layerName != "output" && itSpec->fromLayerName == layerName) {
+                orderedSpecs.push_back(*itSpec);
+            }
+        }
+    }
+
+    // Finally, append the output spec(s) so that it/they are last:
+    for (auto itSpec = specs.begin(); itSpec != specs.end(); ++itSpec) {
+        if (itSpec->layerName == "output") {
+            orderedSpecs.push_back(*itSpec);
+        }
+    }
+
+    // If the topology specs were legal, we should have the same number of elements in both containers:
+    if (specs.size() != orderedSpecs.size()) {
+        err << "Topology config has improperly connected layers. Check the from parameters" << endl;
+        throw exceptionConfigFile();
+    }
+
+    // Copy the results back into the argument container for the caller:
+    specs.clear();
+    std::copy(orderedSpecs.begin(), orderedSpecs.end(), std::back_inserter(specs));
+}
+
+
 // Returns an array (vector) of topologyConfigSpec_t objects containing all
 // the layer parameters for all the layers, extracted or derived from the
 // topology config file.
@@ -520,6 +577,8 @@ vector<topologyConfigSpec_t> Net::parseTopologyConfig(std::istream &cfg)
             }
         }
     }
+
+    sortLayers(allLayers);       // Order layers by examining "from" parameters
     consistency(allLayers);      // Add missing fields
 
     return allLayers;

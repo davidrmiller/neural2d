@@ -1431,7 +1431,7 @@ void Net::feedForward(Sample &sample)
 
     // Start the forward propagation at the first hidden layer:
 
-    std::for_each(layers.begin() + 1, layers.end(), [](std::unique_ptr<Layer> &pLayer) {
+    std::for_each(layers.begin() + 1, layers.end(), [](std::unique_ptr<Layer> const &pLayer) {
         pLayer->feedForward();
     });
 
