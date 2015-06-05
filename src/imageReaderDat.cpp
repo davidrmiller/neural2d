@@ -109,6 +109,8 @@ xySize ImageReaderDat::getData(std::string const &filename,
             dataContainer[i] = bigEndian(&n);
         }
     }
+
+    return { hdr.width, hdr.height };
 }
 
 } // end namespace NNet
