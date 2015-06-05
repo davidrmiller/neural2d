@@ -42,7 +42,9 @@ set(CMAKE_INSTALL_PREFIX ${PROJECT_BINARY_DIR} CACHE PATH "install path" FORCE)
 
 set(NEURAL2D_CORE_LIB_SOURCES
     src/neural2d-core.cpp
-    src/parseTopologyConfig.cpp)
+    src/parseTopologyConfig.cpp
+    src/imageReaderBMP.cpp
+    src/imageReaderDat.cpp)
 
 set(NEURAL2D_CORE_WEBSERVER_LIB_SOURCES
     src/messagequeue.cpp

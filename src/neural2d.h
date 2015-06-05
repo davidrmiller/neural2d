@@ -177,40 +177,6 @@ class exceptionWeightsFile      : public std::exception { };
 class exceptionRuntime          : public std::exception { };
 
 
-enum ColorChannel_t { COLOR_NONE, R, G, B, BW };
-enum poolMethod_t { POOL_NONE, POOL_MAX, POOL_AVG };
-
-
-// One Sample holds one set of neural net input values, and the expected output
-// values (if known in advance). If the input data was extracted from a 2D image,
-// the pixel values are stored flattened (linearized) in member .data.
-//
-class Sample
-{
-public:
-    string imageFilename;
-    vector<float> &getData(ColorChannel_t colorChannel);
-    void clearCache(void);
-    vector<float> targetVals;
-    vector<float> data; // Pixel data converted to floats and flattened to a 1D array
-};
-
-
-// A SampleSet object holds a container of all the input samples to be processed
-// by the neural net:
-//
-class SampleSet
-{
-public:
-    SampleSet() { samples.clear(); };
-    void loadSamples(const string &inputDataConfigFilename);
-    void shuffle(void);
-    void clearCache(void);
-    void clearImageCache(void); // Clear only cached image data; retain explicit inputs values
-    vector<Sample> samples;
-};
-
-
 // Little structure to hold a value consisting of a depth and X and Y:
 struct dxySize {
     uint32_t depth;  // Only convolution network layers have nonzero depth
@@ -222,6 +188,77 @@ struct dxySize {
 struct xySize {
     uint32_t x;
     uint32_t y;
+};
+
+
+enum ColorChannel_t { COLOR_NONE, R, G, B, BW };
+enum poolMethod_t { POOL_NONE, POOL_MAX, POOL_AVG };
+
+float pixelToNetworkInputRange(unsigned val);  // Converts uint8_t to float
+
+
+// ImageReader objects are used to read various image file formats and extract the
+// image data. A subclass of ImageReader must be defined for each supported file
+// format. When .getData() is called, the image reader will attempt to read
+// the image data in the file. If successful, the image data is converted to
+// floating point, and saved in dataContainer as a flattened 1D array. If successful,
+// the function returns the nonzero image size. If the image reader cannot read
+// the image data for any reason, it will silently return a size of 0, 0. The
+// caller takes care of all the other details.
+//
+class ImageReader
+{
+public:
+    virtual xySize
+    getData(string const &filename, vector<float> &dataContainer, ColorChannel_t channel = NNet::R) = 0;
+};
+
+class ImageReaderBMP : public ImageReader
+{
+public:
+    xySize getData(string const &filename, vector<float> &dataContainer, ColorChannel_t channel) override;
+};
+
+class ImageReaderDat : public ImageReader
+{
+public:
+    xySize getData(string const &filename, vector<float> &dataContainer, ColorChannel_t channel) override;
+};
+
+
+// One Sample holds one set of neural net input values, and the expected output
+// values (if known in advance).
+//
+class Sample
+{
+public:
+    // Returns a reference to the cached image data, flattened in a 1D container:
+    vector<float> const &getData(ColorChannel_t channel);
+
+    // Clear all cached image data (does not clear data that was explicitly defined):
+    void clearImageCache(void);
+
+    string imageFilename; // Ignored for explicit data
+    xySize size;  // X, Y image dimensions, nonzero if valid
+
+    // Data caches:
+    vector<float> targetVals;
+    vector<float> data;
+};
+
+
+// A SampleSet object holds a container of all the input samples to be processed
+// by the neural net. It also manages the image file readers.
+//
+class SampleSet
+{
+public:
+    void loadSamples(string const &inputDataConfigFilename);
+    void shuffle(void);          // Shuffles the samples container
+    void clearImageCache(void);  // Only image data is cleared, not explicit input data
+
+    static vector<ImageReader *> imageReaders; // One for each supported image format
+    vector<Sample> samples;
 };
 
 
@@ -521,9 +558,11 @@ public: // This public section exposes the complete public API for class Net
     void reportResults(const Sample &sample) const;
     void debugShowNet(bool details = false);      // Display details of net topology
 
+    SampleSet sampleSet;     // Manages all things about input data
+
 public: // These members are public only for convenience of unit testing:
     uint32_t inputSampleNumber; // Increments each time feedForward() is called
-    SampleSet sampleSet;     // List of input images and access to their data
+
     static const uint32_t HUGE_RADIUS = (uint32_t)1e9; // Magic value
 
     // Here is where we store all the weighted connections. The container can get
