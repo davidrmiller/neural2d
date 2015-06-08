@@ -9,11 +9,10 @@ Also see neural2d.h for more information.
 
 namespace NNet {
 
-// Converts the value if needed. No conversion happens if we're
-// already in a big-endian environment.
+// Reverses the byte order if needed in the current environment:
 //
 template <class T>
-T bigEndian(T *pN)
+T fixEndianness(T *pN)
 {
     uint8_t test = 0x0001;
     if (*(uint8_t *)&test == 0) { // This is a very fast test
@@ -25,8 +24,10 @@ T bigEndian(T *pN)
     }
 }
 
-// Fields in the datHeader are big-endian.  (Arbitrary choice)
-// Data that follows the header is big-endian.  (Arbitrary choice)
+// Fields in datHeader are big-endian.
+// Floating point data starts at the specified offset and is big-endian.
+// The purpose of the offsetToData member is to allow the header to expand to
+// provide space for arbitrary user-defined data, which neural2d will ignore.
 //
 struct datHeader
 {
@@ -51,32 +52,24 @@ xySize ImageReaderDat::getData(std::string const &filename,
 
     f.read((char *)&hdr, sizeof(hdr));
     if (f.gcount() != sizeof(datHeader)) {
-        f.close();
         return { 0, 0 };
     }
 
-    if (bigEndian(&hdr.magic) != 0x6c89f6ad) {
-        f.close();
+    if (fixEndianness(&hdr.magic) != 0x6c89f6ad) {
         return { 0, 0 };
     }
 
-    // Convert the other 32-bit fields to big-endian:
+    // Fix the endianness of the other 32-bit header fields:
     for (uint32_t *p32 = (uint32_t *)&hdr + 1;
                 p32 < (uint32_t *)&hdr + sizeof(hdr) / sizeof(uint32_t); ++p32) {
-        bigEndian(p32);
+        fixEndianness(p32);
     }
 
-    if (hdr.width == 0 || hdr.height == 0) {
-        f.close();
+    if (hdr.width == 0 || hdr.height == 0 || hdr.offsetToData < sizeof(hdr)) {
         return { 0, 0 };
     }
 
-    if (hdr.offsetToData < sizeof(hdr)) {
-        f.close();
-        return { 0, 0 };
-    }
-
-    // Map the color channel enumeration to a channel number:
+    // Map the color channel enumeration to a channel index:
     uint32_t colorChannelNumber;
     switch (colorChannel) {
     case NNet::R: colorChannelNumber = 0; break;
@@ -90,24 +83,39 @@ xySize ImageReaderDat::getData(std::string const &filename,
 
     if (colorChannelNumber >= hdr.numChannels) {
         err << "The color channel specified for " << filename << " does not exist" << std::endl;
-        f.close();
         //return { 0, 0 };
         throw exceptionInputSamplesFile();
     }
 
     // Position the stream at the start of the image data:
-    f.seekg(hdr.offsetToData + colorChannelNumber * hdr.width * hdr.height);
+    f.seekg(hdr.offsetToData + colorChannelNumber * hdr.bytesPerElement * hdr.width * hdr.height);
 
     // Clear dataContainer and reserve enough space:
     dataContainer.clear();
-    dataContainer.reserve(hdr.bytesPerElement * hdr.width * hdr.height);
+    dataContainer.assign(hdr.width * hdr.height, 0.0);
 
     if (hdr.bytesPerElement == sizeof(float)) {
-        for (uint32_t i = 0; i < hdr.width * hdr.height; ++i) {
-            float n;
-            f.read((char *)&n, sizeof(float));
-            dataContainer[i] = bigEndian(&n);
+        for (uint32_t y = 0; y < hdr.height; ++y) {
+            for (uint32_t x = 0; x < hdr.width; ++x) {
+                float n;
+                f.read((char *)&n, sizeof n);
+                fixEndianness(&n);
+                dataContainer[flattenXY(x, y, hdr.height)] = n;
+            }
         }
+    } else if (hdr.bytesPerElement == sizeof(double)) {
+        for (uint32_t y = 0; y < hdr.height; ++y) {
+            for (uint32_t x = 0; x < hdr.width; ++x) {
+                double n;
+                f.read((char *)&n, sizeof n);
+                fixEndianness(&n);
+                dataContainer[flattenXY(x, y, hdr.height)] = n;
+            }
+        }
+    } else {
+        err << "In " << filename << ", " << hdr.bytesPerElement
+            << " bytes per element is not supported." << std::endl;
+        throw exceptionInputSamplesFile();
     }
 
     return { hdr.width, hdr.height };

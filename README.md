@@ -198,10 +198,12 @@ can mouse-over the images to zoom in.
 How to use your own data<a name="YourOwnData"></a>
 ------------------------
 
-If you are inputting data from image files, you'll need to prepare a set of BMP image files
-and an input data config file. The config file (named inputData.txt by default) is a list
-of image filenames to use as inputs to the neural net, and optionally the target output
-values for each image. The format looks like this example:
+To use your own data, prepare an input data configuration file, called inputData.txt
+by default. It specifies the source of the input data, one sample per line.
+
+To input data from .bmp image files or .dat binary data files, prepare an inputData.txt
+config file like the example below. The numbers after the file name are the target output 
+values for each input sample:
 
     images/thumbnails/test-918.bmp -1 1 -1 -1 -1 -1 -1 -1 -1 -1
     images/thumbnails/test-919.bmp -1 -1 -1 -1 -1 -1 -1 -1 1 -1
@@ -210,27 +212,29 @@ values for each image. The format looks like this example:
 
 The path and filename cannot contain any spaces.
 
+See the neural2d wiki for details about the .dat binary data file format.
+
 The path_prefix directive can be used to specify a string to be added to the front of
 all subsequent filenames, or until the next path_prefix directive. For example, the
 previous example could be written:
 
-     path_prefix = ../images/thumbnails/
+     path_prefix = images/thumbnails/
      test-918.bmp
      test-919.bmp
      test-920.bmp
      test-921.bmp
 
-If you are not using image files for input, you'll need to prepare an input config file
+If you are not using .bmp or .dat files for input, you'll need to prepare an input config file
 (named inputData.txt by default) similar to the above but with the literal input values
 inside curly braces. For example, for a net with eight inputs and two outputs, the format
 is like this:
 
      { 0.32 0.98 0.12 0.44 0.98 1.2 1 -1 } -1 1 
 
-You'll also need a topology config file (named topology.txt by default). It
-contains a specification of the neural net topology (the number and arrangement of neurons 
-and connections). Its format is described in a later section. A typical one looks
-something like this:
+In addition to the input data config file, you'll also need a topology config file (named 
+topology.txt by default) to define your neural net topology (the number and arrangement of neurons 
+and connections). Its format is described in a later section. A typical one looks like this 
+example:
 
     input size 32x32  
     layer1 size 32x32 from input radius 8x8  
@@ -313,9 +317,6 @@ identity function.
 The elements of the convolution matrix are stored as connection weights to the source
 neurons. Connection weights on convolution layers are not updated by the back propagation
 algorithm, so they remain constant for the life of the net.
-
-The results are undefined if a layer is defined as both a convolution layer and a
-regular layer.
 
 For illustrations of various convolution kernels, see
 [this Wikipedia article](http://en.wikipedia.org/wiki/Kernel_%28image_processing%29)
@@ -570,13 +571,14 @@ When the web server is disabled, there is no remaining dependency on POSIX socke
 
 **How do I use my own data instead of the digits images?**<a name="howOwnData"></a>
 
-Create your own directory of BMP images, and a config file that follows the same format as
-shown in the provided default inputData.txt. Then define a topology config file with the
-appropriate number of network inputs and outputs, then run the neural2d program.
+Create your own directory of BMP image files or .dat binary filess, and an input data 
+config file that follows the same format as shown in the examples elsewhere. Then define 
+a topology config file with the appropriate number of network inputs and outputs, then 
+run the neural2d program.
 
-Or if you don't want to use image files for input, make an input config file containing
-all the literal input values and the target output values. The format is described
-in an earlier section.
+Or if you don't want to use .bmp image files or .dat binary files for input, make an 
+input config file containing all the literal input values and the target output values. 
+The format is described in an earlier section.
 
 **How do I use a trained net on new data?**<a name="howTrained"></a>
 
@@ -670,13 +672,13 @@ followed by the operator size, e.g.:
 
 **How do the color image pixels get converted to floating point for the input layer?**<a name="howRgb"></a>
 
-That's in the ReadBMP() function in neural2d-core.cpp. The default version of ReadBMP()
-converts each RGB pixel to a single floating point value in the range 0.0 to 1.0.
+That's in the ImageReaderBMP class in neural2d-core.cpp. The default version provided
+converts each RGB pixel to a single floating point value in the range -1.0 to 1.0.
 
-By default, the RGB color pixels are converted to monochrome and normalized to the
-range 0.0 to 1.0. That can be changed at runtime by setting the colorChannel
-member of the Net object to R, G, B, or BW prior to calling feedForward().
-E.g., to use only the green color channel of the images, use:
+By default, the three color channels are converted to monochrome and normalized to the range
+-1.0 to 1.0. That can be changed at runtime by setting the colorChannel member of the Net 
+object to R, G, B, or BW prior to calling feedForward(). E.g., to use only the green color 
+channel of the images, use:
 
     myNet.colorChannel = NNet::G;
 
@@ -685,13 +687,17 @@ line that defines the input layer by setting the "channel" parameter to R, G, B,
 
     input size 64x64 channel G
 
+There is no conversion when inputting floating point data directly from a .dat file, or
+from literal values embedded in the input data config file.
+
 **How can I use .jpg and .png images as inputs to the net?**<a name="howJpg"></a>
 
-Currently only .bmp images are supported. This is because the uncompressed BMP format is so simple
-that we can use simple, standard C/C++ to read the image data without any dependencies on third-party
-image libraries. To add an adapter for other image formats, follow the example of the
-ReadBMP() function and write a new adapter such as ReadJPG(), ReadPNG(), etc., using your
-favorite image library, then replace the call to ReadBMP() with your new function.
+Currently only .bmp images files are supported. This is because the uncompressed BMP format 
+is so simple that we can use simple, standard C/C++ to read the image data without any 
+dependencies on third-party image libraries.
+
+To support a new input file format, derive a new subclass from class ImageReader and implement
+its getData() member following the examples of the existing image readers.
 
 **Why does the net error rate stay high? Why doesn't my net learn?**<a name="howLearn"></a>
 
@@ -708,6 +714,6 @@ Licenses<a name="Licenses"></a>
 --------
 
 The neural2d program and its documentation are copyrighted and licensed under the terms of the 
-[MIT license](http://opensource.org/licenses/MIT).
+[MIT license](http://opensource.org/licenses/MIT). See the LICENSE file for more information.
 
 The set of digits images in the images/digits/ subdirectory is released to the public domain.
