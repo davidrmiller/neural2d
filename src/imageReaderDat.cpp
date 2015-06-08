@@ -109,7 +109,7 @@ xySize ImageReaderDat::getData(std::string const &filename,
                 double n;
                 f.read((char *)&n, sizeof n);
                 fixEndianness(&n);
-                dataContainer[flattenXY(x, y, hdr.height)] = n;
+                dataContainer[flattenXY(x, y, hdr.height)] = (float)n;
             }
         }
     } else {

@@ -543,7 +543,9 @@ void Layer::connectOneNeuronAllDepths(Layer &fromLayer, Neuron &toNeuron,
             // Some layer types may allow either a rectangular or elliptical project pattern:
             if (isRegularLayer) {
                 if (!projectRectangular
-                        && elliptDist(srcCenterX - srcX, srcCenterY - srcY, layerTo.radius.x, layerTo.radius.y) >= 1.0f) {
+                            && elliptDist(srcCenterX - (float)srcX, 
+                                          srcCenterY - (float)srcY, 
+                                          (float)layerTo.radius.x, (float)layerTo.radius.y) >= 1.0f) {
                     continue; // Skip this location, it's outside the ellipse
                 }
             } else if (!isRegularLayer) {
@@ -730,7 +732,7 @@ LayerRegular::LayerRegular(const topologyConfigSpec_t &params) : Layer(params)
     if (params.radiusSpecified) {
         radius = params.radius;
     } else {
-        radius.x = radius.y = 1e9;
+        radius.x = radius.y = 999999;
     }
 }
 

@@ -96,9 +96,9 @@ xySize ImageReaderBMP::getData(std::string const &filename, std::vector<float> &
                 val = imageData[x * 3 + 0]; // Blue
             } else if (colorChannel == NNet::BW) {
                 // Rounds down:
-                val =  0.3 * imageData[x*3 + 2] +   // Red
-                       0.6 * imageData[x*3 + 1] +   // Green
-                       0.1 * imageData[x*3 + 0];    // Blue
+                val = (unsigned)(0.3 * imageData[x*3 + 2] +   // Red
+                                 0.6 * imageData[x*3 + 1] +   // Green
+                                 0.1 * imageData[x*3 + 0]);   // Blue
             } else {
                 err << "Error: unknown pixel conversion" << endl;
                 throw exceptionImageFile();
