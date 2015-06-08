@@ -113,6 +113,8 @@ xySize ImageReaderBMP::getData(std::string const &filename, std::vector<float> &
     }
 
     fclose(f);
+
+    return { width, height };
 }
 
 } // end namespace NNet
