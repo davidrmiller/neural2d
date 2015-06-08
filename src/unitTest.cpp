@@ -1899,6 +1899,68 @@ void unitTestImages()
             ASSERT_EQ(sample.imageFilename, "../images/8x8-test.bmp");
         }
     }
+
+    {
+        LOG("8x8-test.dat orientation channel R single precision");
+
+        string topologyConfig =
+            "input size 8x8 channel R\n"
+            "output from input radius 0x0\n";
+
+        string inputDataConfig =
+            "../images/8x8-test.dat\n";
+
+        std::ofstream topologyConfigFile(topologyConfigFilename);
+        topologyConfigFile << topologyConfig;
+        topologyConfigFile.close();
+
+        std::ofstream inputDataConfigFile(inputDataConfigFilename);
+        inputDataConfigFile << inputDataConfig;
+        inputDataConfigFile.close();
+
+        Net myNet(topologyConfigFilename, false);
+
+        myNet.sampleSet.loadSamples(inputDataConfigFilename);
+        myNet.feedForward(myNet.sampleSet.samples[0]);
+
+        auto const &inputs = myNet.layers[0]->neurons[0];
+        ASSERT_FEQ(inputs[flattenXY(0,0,8)].output, pixelToNetworkInputRange(10));
+        ASSERT_FEQ(inputs[flattenXY(7,0,8)].output, pixelToNetworkInputRange(20));
+        ASSERT_FEQ(inputs[flattenXY(0,7,8)].output, pixelToNetworkInputRange(30));
+        ASSERT_FEQ(inputs[flattenXY(7,7,8)].output, pixelToNetworkInputRange(40));
+        ASSERT_FEQ(inputs[flattenXY(2,4,8)].output, pixelToNetworkInputRange(101));
+    }
+
+    {
+        LOG("8x8-test.dat orientation channel G double precision");
+
+        string topologyConfig =
+            "input size 8x8 channel G\n"
+            "output from input radius 0x0\n";
+
+        string inputDataConfig =
+            "../images/8x8-test-doubleprecision.dat\n";
+
+        std::ofstream topologyConfigFile(topologyConfigFilename);
+        topologyConfigFile << topologyConfig;
+        topologyConfigFile.close();
+
+        std::ofstream inputDataConfigFile(inputDataConfigFilename);
+        inputDataConfigFile << inputDataConfig;
+        inputDataConfigFile.close();
+
+        Net myNet(topologyConfigFilename, false);
+
+        myNet.sampleSet.loadSamples(inputDataConfigFilename);
+        myNet.feedForward(myNet.sampleSet.samples[0]);
+
+        auto const &inputs = myNet.layers[0]->neurons[0];
+        ASSERT_FEQ(inputs[flattenXY(0,0,8)].output, pixelToNetworkInputRange(11));
+        ASSERT_FEQ(inputs[flattenXY(7,0,8)].output, pixelToNetworkInputRange(21));
+        ASSERT_FEQ(inputs[flattenXY(0,7,8)].output, pixelToNetworkInputRange(31));
+        ASSERT_FEQ(inputs[flattenXY(7,7,8)].output, pixelToNetworkInputRange(41));
+        ASSERT_FEQ(inputs[flattenXY(2,4,8)].output, pixelToNetworkInputRange(101));
+    }
 }
 
 
