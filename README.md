@@ -5,9 +5,11 @@ User Manual
 ===========
 
 Ver. 1.0  
-Updated 31-May-2015
+Updated 2-Jul-2015
 
 Intro video (11 min): [https://www.youtube.com/watch?v=yB43jj-wv8Q](https://www.youtube.com/watch?v=yB43jj-wv8Q)
+
+Blog: [neural2d.net](http://neural2d.net)
 
 Features
 --------
