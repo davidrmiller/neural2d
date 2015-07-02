@@ -173,124 +173,28 @@ unsigned networkInputValToPixelRange(float val)
 }
 
 
-// Given an image filename and a data container, fill the container with
-// data extracted from the image, using the conversion function specified
-// in colorChannel: This version is for a 24-bit BMP format.
-//
-void ReadBMP(const string &filename, vector<float> &dataContainer, ColorChannel_t colorChannel)
-{
-    FILE* f = fopen(filename.c_str(), "rb");
-
-    if (f == NULL) {
-        err << "Error reading image file \'" << filename << "\'" << endl;
-        // To do: add appropriate error recovery here
-        throw exceptionImageFile();
-    }
-
-    // Read the BMP header to get the image dimensions:
-
-    unsigned char info[54];
-    if (fread(info, sizeof(unsigned char), 54, f) != 54) {
-        err << "Error reading the image header from \'" << filename << "\'" << endl;
-        throw exceptionImageFile();
-    }
-
-    if (info[0] != 'B' || info[1] != 'M') {
-        err << "Error: invalid BMP file \'" << filename << "\'" << endl;
-        throw exceptionImageFile();
-    }
-
-    // Verify the offset to the pixel data. It should be the same size as the info[] data read above.
-
-    size_t dataOffset = (info[13] << 24)
-                      + (info[12] << 16)
-                      + (info[11] << 8)
-                      +  info[10];
-
-    // Verify that the file contains 24 bits (3 bytes) per pixel (red, green blue at 8 bits each):
-
-    int pixelDepth = (info[29] << 8) + info[28];
-    if (pixelDepth != 24) {
-        err << "Error: Sorry we only support 24-bit BMP format" << endl;
-        throw exceptionImageFile();
-    }
-
-    // This method of converting 4 bytes to a uint32_t is portable for little- or
-    // big-endian environments:
-
-    uint32_t width = (info[21] << 24)
-                   + (info[20] << 16)
-                   + (info[19] << 8)
-                   +  info[18];
-
-    uint32_t height = (info[25] << 24)
-                    + (info[24] << 16)
-                    + (info[23] << 8)
-                    +  info[22];
-
-    // Position the read pointer to the first byte of pixel data:
-
-    if (fseek(f, dataOffset, SEEK_SET) != 0) {
-        err << "Error seeking in BMP file" << endl;
-        throw exceptionImageFile();
-    }
-
-    uint32_t rowLen_padded = (width*3 + 3) & (~3);
-    std::unique_ptr<unsigned char[]> imageData {new unsigned char[rowLen_padded]};
-
-    dataContainer.clear();
-    dataContainer.assign(width * height, 0); // Pre-allocate to make random access easy
-
-    // Fill the data container with 8-bit data taken from the image data:
-
-    for (uint32_t y = 0; y < height; ++y) {
-        if (fread(imageData.get(), sizeof(unsigned char), rowLen_padded, f) != rowLen_padded) {
-            err << "Error reading \'" << filename << "\' row " << y << endl;
-            // To do: add appropriate error recovery here
-            throw exceptionImageFile();
-        }
-
-        // BMP pixels are arranged in memory in the order (B, G, R):
-
-        unsigned val = 0;
-
-        for (uint32_t x = 0; x < width; ++x) {
-            if (colorChannel == NNet::R) {
-                val = imageData[x * 3 + 2]; // Red
-            } else if (colorChannel == NNet::G) {
-                val = imageData[x * 3 + 1]; // Green
-            } else if (colorChannel == NNet::B) {
-                val = imageData[x * 3 + 0]; // Blue
-            } else if (colorChannel == NNet::BW) {
-                // Rounds down:
-                val =  0.3 * imageData[x*3 + 2] +   // Red
-                       0.6 * imageData[x*3 + 1] +   // Green
-                       0.1 * imageData[x*3 + 0];    // Blue
-            } else {
-                err << "Error: unknown pixel conversion" << endl;
-                throw exceptionImageFile();
-            }
-
-            // Convert the pixel from the range 0..256 to a smaller
-            // range that we can input into the neural net:
-            // Also we'll invert the rows so that the origin is the upper left at 0,0:
-
-            dataContainer[flattenXY(x, (height - y) - 1, height)] = pixelToNetworkInputRange(val);
-        }
-    }
-
-    fclose(f);
-}
+// ***********************************  class Sample  ***********************************
 
 
 // If the data is available, we'll return it. If this is the first time getData()
 // is called for inputs that come from an image, we'll open the image file and
 // cache the pixel data in memory. Returns a reference to the container of input data.
 //
-vector<float> &Sample::getData(ColorChannel_t colorChannel)
+vector<float> const &Sample::getData(ColorChannel_t channel)
 {
    if (data.size() == 0 && imageFilename != "") {
-       ReadBMP(imageFilename, data, colorChannel);
+       // Try all the image readers until we find one that succeeds:
+       for (auto imageReader : SampleSet::imageReaders) {
+           size = imageReader->getData(imageFilename, data, channel);
+           if (size.x != 0) {
+               break;
+           }
+       }
+
+       if (size.x == 0) {
+           err << "Unsupported image file format in " << imageFilename << std::endl;
+           throw exceptionInputSamplesFile();
+       }
    }
 
    // If we get here, we can assume there is something in the .data member
@@ -299,10 +203,19 @@ vector<float> &Sample::getData(ColorChannel_t colorChannel)
 }
 
 
-void Sample::clearCache(void)
+void Sample::clearImageCache(void)
 {
     data.clear();
 }
+
+
+vector<ImageReader *> SampleSet::imageReaders = {
+        new ImageReaderDat(),
+        new ImageReaderBMP()
+};
+
+
+// ***********************************  class SampleSet  ***********************************
 
 
 // Given the name of an input sample config file, open it and save the contents
@@ -408,18 +321,11 @@ void SampleSet::shuffle(void)
 // By clearing the cache, future image access will cause the pixel data to
 // be re-read and converted by whatever color conversion is in effect then.
 //
-void SampleSet::clearCache(void)
-{
-    for (auto &samp : samples) {
-        samp.clearCache();
-    }
-}
-
 void SampleSet::clearImageCache(void)
 {
     for (auto &samp : samples) {
         if (samp.imageFilename != "")
-            samp.clearCache();
+            samp.clearImageCache();
     }
 }
 
@@ -637,7 +543,9 @@ void Layer::connectOneNeuronAllDepths(Layer &fromLayer, Neuron &toNeuron,
             // Some layer types may allow either a rectangular or elliptical project pattern:
             if (isRegularLayer) {
                 if (!projectRectangular
-                        && elliptDist(srcCenterX - srcX, srcCenterY - srcY, layerTo.radius.x, layerTo.radius.y) >= 1.0f) {
+                            && elliptDist(srcCenterX - (float)srcX, 
+                                          srcCenterY - (float)srcY, 
+                                          (float)layerTo.radius.x, (float)layerTo.radius.y) >= 1.0f) {
                     continue; // Skip this location, it's outside the ellipse
                 }
             } else if (!isRegularLayer) {
@@ -824,7 +732,7 @@ LayerRegular::LayerRegular(const topologyConfigSpec_t &params) : Layer(params)
     if (params.radiusSpecified) {
         radius = params.radius;
     } else {
-        radius.x = radius.y = 1e9;
+        radius.x = radius.y = 999999;
     }
 }
 

@@ -73,6 +73,7 @@ extern float pixelToNetworkInputRange(unsigned val);
         (c); \
     } \
     catch (e &e_) { \
+        (void)e_; \
         caught = true; \
     } \
     if (!caught) { \
@@ -933,7 +934,7 @@ void unitTestNet()
         myNet.sampleSet.loadSamples(inputDataConfigFilename);
         myNet.feedForward(myNet.sampleSet.samples[0]);
 
-        ASSERT_FEQ(myNet.layers[0]->neurons[0][flattenXY(0,0,2)].output, 0.125);
+        ASSERT_FEQ(myNet.layers[0]->neurons[0][flattenXY(0,0,2)].output, 0.125f);
 
         for (auto const &pLayer : myNet.layers) {
             ASSERT_EQ(pLayer->size.x, 3);
@@ -1000,74 +1001,74 @@ void unitTestNet()
 
         // Follow the top left neuron output:
         float val = 0.125;
-        ASSERT_FEQ(myNet.layers[ 0]->neurons[0][0].output, val = 0.125); // input size 3x4
-        ASSERT_FEQ(myNet.layers[ 1]->neurons[0][0].output, val = 1.0 * val + 1.0); // layer1 from input radius 0x0 tf linear
-        ASSERT_FEQ(myNet.layers[ 2]->neurons[0][0].output, val = 1.0 * val + 1.0); // layer2 size 2*3x4 from layer1 radius 0x0 tf linear
-        ASSERT_FEQ(myNet.layers[ 3]->neurons[0][0].output, val = 2.0 * val + 1.0); // layer3 size 3x4 from layer2 radius 0x0 tf linear
-        ASSERT_FEQ(myNet.layers[ 4]->neurons[0][0].output, val = 1.0 * val      ); // layer4 size 1*3x4 from layer3 convolve {1}
-        ASSERT_FEQ(myNet.layers[ 5]->neurons[0][0].output, val = 1.0 * val      ); // layer5 from layer4 convolve {1}
-        ASSERT_FEQ(myNet.layers[ 6]->neurons[0][0].output, val = 1.0 * val + 1.0); // layer6 size 3x4 from layer5 radius 0x0 tf linear
-        ASSERT_FEQ(myNet.layers[ 7]->neurons[0][0].output, val = 1.0 * val      ); // layer7 size 2*3x4 from layer6 convolve {1}
-        ASSERT_FEQ(myNet.layers[ 8]->neurons[0][0].output, val = 2.0 * val      ); // layer8 size 1*3x4 from layer7 convolve {1}
-        ASSERT_FEQ(myNet.layers[ 9]->neurons[0][0].output, val = 1.0 * val      ); // layer9 size 2*3x4 from layer8 convolve {1}
-        ASSERT_FEQ(myNet.layers[10]->neurons[0][0].output, val = 2.0 * val + 1.0); // layer10 size 3x4 from layer9 radius 0x0 tf linear
-        ASSERT_FEQ(myNet.layers[11]->neurons[0][0].output, val = 1.0 * val      ); // layer11 from layer10 convolve 1x1
-        ASSERT_FEQ(myNet.layers[12]->neurons[0][0].output, val = 1.0 * val      ); // layer12 from layer11 convolve 1x1
-        ASSERT_FEQ(myNet.layers[13]->neurons[0][0].output, val = 1.0 * val      ); // layer13 size 2*3x4 from layer12 convolve 1x1
-        ASSERT_FEQ(myNet.layers[14]->neurons[0][0].output, val = 2.0 * val      ); // layer14 size 1*3x4 from layer13 convolve 1x1
-        ASSERT_FEQ(myNet.layers[15]->neurons[0][0].output, val = 1.0 * val + 1.0); // layer15 size 3x4 from layer14 radius 0x0 tf linear
-        ASSERT_FEQ(myNet.layers[16]->neurons[0][0].output, val = 1.0 * val      ); // layer16 size 2*3x4 from layer15 convolve 1x1
-        ASSERT_FEQ(myNet.layers[17]->neurons[0][0].output, val = 1.0 * val      ); // layer17 from layer16 convolve 1x1
-        ASSERT_FEQ(myNet.layers[18]->neurons[0][0].output, val = 2.0 * val + 1.0); // layer18 size 3x4 from layer17 radius 0x0 tf linear
-        ASSERT_FEQ(myNet.layers[19]->neurons[0][0].output, val =       val      ); // layer19 size 1*3x4 from layer18 pool max 1x1
-        ASSERT_FEQ(myNet.layers[20]->neurons[0][0].output, val =       val      ); // layer20 from layer19 pool max 1x1
-        ASSERT_FEQ(myNet.layers[21]->neurons[0][0].output, val =       val      ); // layer21 size 2*3x4 from layer20 pool max 1x1
-        ASSERT_FEQ(myNet.layers[22]->neurons[0][0].output, val =       val      ); // layer22 size 1*3x4 from layer21 pool max 1x1
-        ASSERT_FEQ(myNet.layers[23]->neurons[0][0].output, val = 1.0 * val + 1.0); // layer23 size 3x4 from layer22 radius 0x0 tf linear
-        ASSERT_FEQ(myNet.layers[24]->neurons[0][0].output, val =       val      ); // layer24 size 2*3x4 from layer23 pool max 1x1
-        ASSERT_FEQ(myNet.layers[25]->neurons[0][0].output, val =       val      ); // layer25 from layer24 pool max 1x1
-        ASSERT_FEQ(myNet.layers[26]->neurons[0][0].output, val = 2.0 * val + 1.0); // layer26 size 3x4 from layer25 radius 0x0 tf linear
-        ASSERT_FEQ(myNet.layers[27]->neurons[0][0].output, val = 1.0 * val + 1.0); // layer27 size 2*3x4 from layer26 radius 0x0 tf linear
-        ASSERT_FEQ(myNet.layers[28]->neurons[0][0].output, val = 1.0 * val + 1.0); // layer28 from layer27 radius 0x0 tf linear
-        ASSERT_FEQ(myNet.layers[29]->neurons[0][0].output, val = 2.0 * val      ); // layer29 size 1*3x4 from layer28 convolve {1}
-        ASSERT_FEQ(myNet.layers[30]->neurons[0][0].output, val = 1.0 * val + 1.0); // layer30 size 2*3x4 from layer29 radius 0x0 tf linear
-        ASSERT_FEQ(myNet.layers[31]->neurons[0][0].output, val = 1.0 * val      ); // layer31 from layer30 convolve {1}
-        ASSERT_FEQ(myNet.layers[32]->neurons[0][0].output, val = 1.0 * val      ); // layer32 from layer31 convolve {1}
-        ASSERT_FEQ(myNet.layers[33]->neurons[0][0].output, val = 1.0 * val + 1.0); // layer33 from layer32 radius 0x0 tf linear
-        ASSERT_FEQ(myNet.layers[34]->neurons[0][0].output, val = 2.0 * val      ); // layer34 size 1*3x4 from layer33 convolve 1x1
-        ASSERT_FEQ(myNet.layers[35]->neurons[0][0].output, val = 1.0 * val + 1.0); // layer35 size 2*3x4 from layer34 radius 0x0 tf linear
-        ASSERT_FEQ(myNet.layers[36]->neurons[0][0].output, val = 1.0 * val      ); // layer36 from layer35 convolve 1x1
-        ASSERT_FEQ(myNet.layers[37]->neurons[0][0].output, val = 2.0 * val      ); // layer37 size 1*3x4 from layer36 convolve {1}
-        ASSERT_FEQ(myNet.layers[38]->neurons[0][0].output, val = 1.0 * val      ); // layer38 from layer37 convolve 1x1
-        ASSERT_FEQ(myNet.layers[39]->neurons[0][0].output, val = 1.0 * val      ); // layer39 from layer38 convolve {1}
-        ASSERT_FEQ(myNet.layers[40]->neurons[0][0].output, val = 1.0 * val      ); // layer40 size 2*3x4 from layer39 convolve 1x1
-        ASSERT_FEQ(myNet.layers[41]->neurons[0][0].output, val = 1.0 * val      ); // layer41 from layer40 convolve {1}
-        ASSERT_FEQ(myNet.layers[42]->neurons[0][0].output, val = 2.0 * val      ); // layer42 size 1*3x4 from layer41 convolve 1x1
-        ASSERT_FEQ(myNet.layers[43]->neurons[0][0].output, val = 1.0 * val      ); // layer43 size 2*3x4 from layer42 convolve {1}
-        ASSERT_FEQ(myNet.layers[44]->neurons[0][0].output, val =       val      ); // layer44 size 1*3x4 from layer43 pool max 1x1
-        ASSERT_FEQ(myNet.layers[45]->neurons[0][0].output, val = 1.0 * val + 1.0); // layer45 size 2*3x4 from layer44 radius 0x0 tf linear
-        ASSERT_FEQ(myNet.layers[46]->neurons[0][0].output, val =       val      ); // layer46 size 1*3x4 from layer45 pool max 1x1
-        ASSERT_FEQ(myNet.layers[47]->neurons[0][0].output, val = 1.0 * val      ); // layer47 from layer46 convolve {1}
-        ASSERT_FEQ(myNet.layers[48]->neurons[0][0].output, val =       val      ); // layer48 from layer47 pool max 1x1
-        ASSERT_FEQ(myNet.layers[49]->neurons[0][0].output, val = 1.0 * val      ); // layer49 size 2*3x4 from layer48 convolve {1}
-        ASSERT_FEQ(myNet.layers[50]->neurons[0][0].output, val = 1.0 * val      ); // layer50 from layer49 convolve 1x1
-        ASSERT_FEQ(myNet.layers[51]->neurons[0][0].output, val = 1.0 * val + 1.0); // layer51 from layer50 radius 0x0 tf linear
-        ASSERT_FEQ(myNet.layers[52]->neurons[0][0].output, val =       val      ); // layer52 from layer51 pool max 1x1
-        ASSERT_FEQ(myNet.layers[53]->neurons[0][0].output, val = 1.0 * val + 1.0); // layer53 from layer52 radius 0x0 tf linear
-        ASSERT_FEQ(myNet.layers[54]->neurons[0][0].output, val =       val      ); // layer54 from layer53 pool max 1x1
-        ASSERT_FEQ(myNet.layers[55]->neurons[0][0].output, val = 2.0 * val      ); // layer55 size 1*3x4 from layer54 convolve {1}
-        ASSERT_FEQ(myNet.layers[56]->neurons[0][0].output, val =       val      ); // layer56 size 2*3x4 from layer55 pool max 1x1
-        ASSERT_FEQ(myNet.layers[57]->neurons[0][0].output, val = 2.0 * val      ); // layer57 size 1*3x4 from layer56 convolve 1x1
-        ASSERT_FEQ(myNet.layers[58]->neurons[0][0].output, val =       val      ); // layer58 from layer57 pool max 1x1
-        ASSERT_FEQ(myNet.layers[59]->neurons[0][0].output, val = 1.0 * val      ); // layer59 from layer58 convolve 1x1
-        ASSERT_FEQ(myNet.layers[60]->neurons[0][0].output, val =       val      ); // layer60 size 2*3x4 from layer59 pool max 1x1
-        ASSERT_FEQ(myNet.layers[61]->neurons[0][0].output, val = 1.0 * val      ); // layer61 from layer60 convolve 1x1
-        ASSERT_FEQ(myNet.layers[62]->neurons[0][0].output, val =       val      ); // layer62 size 1*3x4 from layer61 pool max 1x1
-        ASSERT_FEQ(myNet.layers[63]->neurons[0][0].output, val = 1.0 * val      ); // layer63 size 2*3x4 from layer62 convolve 1x1
-        ASSERT_FEQ(myNet.layers[64]->neurons[0][0].output, val =       val      ); // layer64 from layer63 pool max 1x1
-        ASSERT_FEQ(myNet.layers[65]->neurons[0][0].output, val = 1.0 * val      ); // layer65 from layer64 convolve {1}
-        ASSERT_FEQ(myNet.layers[66]->neurons[0][0].output, val =       val      ); // layer66 from layer65 pool max 1x1
-        ASSERT_FEQ(myNet.layers[67]->neurons[0][0].output, val = 2.0 * val + 1.0); // output size 3x4 from layer66 radius 0x0 tf linear    }
+        ASSERT_FEQ(myNet.layers[ 0]->neurons[0][0].output, val = 0.125f); // input size 3x4
+        ASSERT_FEQ(myNet.layers[ 1]->neurons[0][0].output, val = 1.0f * val + 1.0f); // layer1 from input radius 0x0 tf linear
+        ASSERT_FEQ(myNet.layers[ 2]->neurons[0][0].output, val = 1.0f * val + 1.0f); // layer2 size 2*3x4 from layer1 radius 0x0 tf linear
+        ASSERT_FEQ(myNet.layers[ 3]->neurons[0][0].output, val = 2.0f * val + 1.0f); // layer3 size 3x4 from layer2 radius 0x0 tf linear
+        ASSERT_FEQ(myNet.layers[ 4]->neurons[0][0].output, val = 1.0f * val       ); // layer4 size 1*3x4 from layer3 convolve {1}
+        ASSERT_FEQ(myNet.layers[ 5]->neurons[0][0].output, val = 1.0f * val       ); // layer5 from layer4 convolve {1}
+        ASSERT_FEQ(myNet.layers[ 6]->neurons[0][0].output, val = 1.0f * val + 1.0f); // layer6 size 3x4 from layer5 radius 0x0 tf linear
+        ASSERT_FEQ(myNet.layers[ 7]->neurons[0][0].output, val = 1.0f * val       ); // layer7 size 2*3x4 from layer6 convolve {1}
+        ASSERT_FEQ(myNet.layers[ 8]->neurons[0][0].output, val = 2.0f * val       ); // layer8 size 1*3x4 from layer7 convolve {1}
+        ASSERT_FEQ(myNet.layers[ 9]->neurons[0][0].output, val = 1.0f * val       ); // layer9 size 2*3x4 from layer8 convolve {1}
+        ASSERT_FEQ(myNet.layers[10]->neurons[0][0].output, val = 2.0f * val + 1.0f); // layer10 size 3x4 from layer9 radius 0x0 tf linear
+        ASSERT_FEQ(myNet.layers[11]->neurons[0][0].output, val = 1.0f * val       ); // layer11 from layer10 convolve 1x1
+        ASSERT_FEQ(myNet.layers[12]->neurons[0][0].output, val = 1.0f * val       ); // layer12 from layer11 convolve 1x1
+        ASSERT_FEQ(myNet.layers[13]->neurons[0][0].output, val = 1.0f * val       ); // layer13 size 2*3x4 from layer12 convolve 1x1
+        ASSERT_FEQ(myNet.layers[14]->neurons[0][0].output, val = 2.0f * val       ); // layer14 size 1*3x4 from layer13 convolve 1x1
+        ASSERT_FEQ(myNet.layers[15]->neurons[0][0].output, val = 1.0f * val + 1.0f); // layer15 size 3x4 from layer14 radius 0x0 tf linear
+        ASSERT_FEQ(myNet.layers[16]->neurons[0][0].output, val = 1.0f * val       ); // layer16 size 2*3x4 from layer15 convolve 1x1
+        ASSERT_FEQ(myNet.layers[17]->neurons[0][0].output, val = 1.0f * val       ); // layer17 from layer16 convolve 1x1
+        ASSERT_FEQ(myNet.layers[18]->neurons[0][0].output, val = 2.0f * val + 1.0f); // layer18 size 3x4 from layer17 radius 0x0 tf linear
+        ASSERT_FEQ(myNet.layers[19]->neurons[0][0].output, val =        val       ); // layer19 size 1*3x4 from layer18 pool max 1x1
+        ASSERT_FEQ(myNet.layers[20]->neurons[0][0].output, val =        val       ); // layer20 from layer19 pool max 1x1
+        ASSERT_FEQ(myNet.layers[21]->neurons[0][0].output, val =        val       ); // layer21 size 2*3x4 from layer20 pool max 1x1
+        ASSERT_FEQ(myNet.layers[22]->neurons[0][0].output, val =        val       ); // layer22 size 1*3x4 from layer21 pool max 1x1
+        ASSERT_FEQ(myNet.layers[23]->neurons[0][0].output, val = 1.0f * val + 1.0f); // layer23 size 3x4 from layer22 radius 0x0 tf linear
+        ASSERT_FEQ(myNet.layers[24]->neurons[0][0].output, val =        val       ); // layer24 size 2*3x4 from layer23 pool max 1x1
+        ASSERT_FEQ(myNet.layers[25]->neurons[0][0].output, val =        val       ); // layer25 from layer24 pool max 1x1
+        ASSERT_FEQ(myNet.layers[26]->neurons[0][0].output, val = 2.0f * val + 1.0f); // layer26 size 3x4 from layer25 radius 0x0 tf linear
+        ASSERT_FEQ(myNet.layers[27]->neurons[0][0].output, val = 1.0f * val + 1.0f); // layer27 size 2*3x4 from layer26 radius 0x0 tf linear
+        ASSERT_FEQ(myNet.layers[28]->neurons[0][0].output, val = 1.0f * val + 1.0f); // layer28 from layer27 radius 0x0 tf linear
+        ASSERT_FEQ(myNet.layers[29]->neurons[0][0].output, val = 2.0f * val       ); // layer29 size 1*3x4 from layer28 convolve {1}
+        ASSERT_FEQ(myNet.layers[30]->neurons[0][0].output, val = 1.0f * val + 1.0f); // layer30 size 2*3x4 from layer29 radius 0x0 tf linear
+        ASSERT_FEQ(myNet.layers[31]->neurons[0][0].output, val = 1.0f * val       ); // layer31 from layer30 convolve {1}
+        ASSERT_FEQ(myNet.layers[32]->neurons[0][0].output, val = 1.0f * val       ); // layer32 from layer31 convolve {1}
+        ASSERT_FEQ(myNet.layers[33]->neurons[0][0].output, val = 1.0f * val + 1.0f); // layer33 from layer32 radius 0x0 tf linear
+        ASSERT_FEQ(myNet.layers[34]->neurons[0][0].output, val = 2.0f * val       ); // layer34 size 1*3x4 from layer33 convolve 1x1
+        ASSERT_FEQ(myNet.layers[35]->neurons[0][0].output, val = 1.0f * val + 1.0f); // layer35 size 2*3x4 from layer34 radius 0x0 tf linear
+        ASSERT_FEQ(myNet.layers[36]->neurons[0][0].output, val = 1.0f * val       ); // layer36 from layer35 convolve 1x1
+        ASSERT_FEQ(myNet.layers[37]->neurons[0][0].output, val = 2.0f * val       ); // layer37 size 1*3x4 from layer36 convolve {1}
+        ASSERT_FEQ(myNet.layers[38]->neurons[0][0].output, val = 1.0f * val       ); // layer38 from layer37 convolve 1x1
+        ASSERT_FEQ(myNet.layers[39]->neurons[0][0].output, val = 1.0f * val       ); // layer39 from layer38 convolve {1}
+        ASSERT_FEQ(myNet.layers[40]->neurons[0][0].output, val = 1.0f * val       ); // layer40 size 2*3x4 from layer39 convolve 1x1
+        ASSERT_FEQ(myNet.layers[41]->neurons[0][0].output, val = 1.0f * val       ); // layer41 from layer40 convolve {1}
+        ASSERT_FEQ(myNet.layers[42]->neurons[0][0].output, val = 2.0f * val       ); // layer42 size 1*3x4 from layer41 convolve 1x1
+        ASSERT_FEQ(myNet.layers[43]->neurons[0][0].output, val = 1.0f * val       ); // layer43 size 2*3x4 from layer42 convolve {1}
+        ASSERT_FEQ(myNet.layers[44]->neurons[0][0].output, val =        val       ); // layer44 size 1*3x4 from layer43 pool max 1x1
+        ASSERT_FEQ(myNet.layers[45]->neurons[0][0].output, val = 1.0f * val + 1.0f); // layer45 size 2*3x4 from layer44 radius 0x0 tf linear
+        ASSERT_FEQ(myNet.layers[46]->neurons[0][0].output, val =        val       ); // layer46 size 1*3x4 from layer45 pool max 1x1
+        ASSERT_FEQ(myNet.layers[47]->neurons[0][0].output, val = 1.0f * val       ); // layer47 from layer46 convolve {1}
+        ASSERT_FEQ(myNet.layers[48]->neurons[0][0].output, val =        val       ); // layer48 from layer47 pool max 1x1
+        ASSERT_FEQ(myNet.layers[49]->neurons[0][0].output, val = 1.0f * val       ); // layer49 size 2*3x4 from layer48 convolve {1}
+        ASSERT_FEQ(myNet.layers[50]->neurons[0][0].output, val = 1.0f * val       ); // layer50 from layer49 convolve 1x1
+        ASSERT_FEQ(myNet.layers[51]->neurons[0][0].output, val = 1.0f * val + 1.0f); // layer51 from layer50 radius 0x0 tf linear
+        ASSERT_FEQ(myNet.layers[52]->neurons[0][0].output, val =        val       ); // layer52 from layer51 pool max 1x1
+        ASSERT_FEQ(myNet.layers[53]->neurons[0][0].output, val = 1.0f * val + 1.0f); // layer53 from layer52 radius 0x0 tf linear
+        ASSERT_FEQ(myNet.layers[54]->neurons[0][0].output, val =        val       ); // layer54 from layer53 pool max 1x1
+        ASSERT_FEQ(myNet.layers[55]->neurons[0][0].output, val = 2.0f * val       ); // layer55 size 1*3x4 from layer54 convolve {1}
+        ASSERT_FEQ(myNet.layers[56]->neurons[0][0].output, val =        val       ); // layer56 size 2*3x4 from layer55 pool max 1x1
+        ASSERT_FEQ(myNet.layers[57]->neurons[0][0].output, val = 2.0f * val       ); // layer57 size 1*3x4 from layer56 convolve 1x1
+        ASSERT_FEQ(myNet.layers[58]->neurons[0][0].output, val =        val       ); // layer58 from layer57 pool max 1x1
+        ASSERT_FEQ(myNet.layers[59]->neurons[0][0].output, val = 1.0f * val       ); // layer59 from layer58 convolve 1x1
+        ASSERT_FEQ(myNet.layers[60]->neurons[0][0].output, val =        val       ); // layer60 size 2*3x4 from layer59 pool max 1x1
+        ASSERT_FEQ(myNet.layers[61]->neurons[0][0].output, val = 1.0f * val       ); // layer61 from layer60 convolve 1x1
+        ASSERT_FEQ(myNet.layers[62]->neurons[0][0].output, val =        val       ); // layer62 size 1*3x4 from layer61 pool max 1x1
+        ASSERT_FEQ(myNet.layers[63]->neurons[0][0].output, val = 1.0f * val       ); // layer63 size 2*3x4 from layer62 convolve 1x1
+        ASSERT_FEQ(myNet.layers[64]->neurons[0][0].output, val =        val       ); // layer64 from layer63 pool max 1x1
+        ASSERT_FEQ(myNet.layers[65]->neurons[0][0].output, val = 1.0f * val       ); // layer65 from layer64 convolve {1}
+        ASSERT_FEQ(myNet.layers[66]->neurons[0][0].output, val =        val       ); // layer66 from layer65 pool max 1x1
+        ASSERT_FEQ(myNet.layers[67]->neurons[0][0].output, val = 2.0f * val + 1.0f); // output size 3x4 from layer66 radius 0x0 tf linear    }
     }
 }
 
@@ -1898,6 +1899,68 @@ void unitTestImages()
         for (auto const &sample : myNet.sampleSet.samples) {
             ASSERT_EQ(sample.imageFilename, "../images/8x8-test.bmp");
         }
+    }
+
+    {
+        LOG("8x8-test.dat orientation channel R single precision");
+
+        string topologyConfig =
+            "input size 8x8 channel R\n"
+            "output from input radius 0x0\n";
+
+        string inputDataConfig =
+            "../images/8x8-test.dat\n";
+
+        std::ofstream topologyConfigFile(topologyConfigFilename);
+        topologyConfigFile << topologyConfig;
+        topologyConfigFile.close();
+
+        std::ofstream inputDataConfigFile(inputDataConfigFilename);
+        inputDataConfigFile << inputDataConfig;
+        inputDataConfigFile.close();
+
+        Net myNet(topologyConfigFilename, false);
+
+        myNet.sampleSet.loadSamples(inputDataConfigFilename);
+        myNet.feedForward(myNet.sampleSet.samples[0]);
+
+        auto const &inputs = myNet.layers[0]->neurons[0];
+        ASSERT_FEQ(inputs[flattenXY(0,0,8)].output, pixelToNetworkInputRange(10));
+        ASSERT_FEQ(inputs[flattenXY(7,0,8)].output, pixelToNetworkInputRange(20));
+        ASSERT_FEQ(inputs[flattenXY(0,7,8)].output, pixelToNetworkInputRange(30));
+        ASSERT_FEQ(inputs[flattenXY(7,7,8)].output, pixelToNetworkInputRange(40));
+        ASSERT_FEQ(inputs[flattenXY(2,4,8)].output, pixelToNetworkInputRange(101));
+    }
+
+    {
+        LOG("8x8-test.dat orientation channel G double precision");
+
+        string topologyConfig =
+            "input size 8x8 channel G\n"
+            "output from input radius 0x0\n";
+
+        string inputDataConfig =
+            "../images/8x8-test-doubleprecision.dat\n";
+
+        std::ofstream topologyConfigFile(topologyConfigFilename);
+        topologyConfigFile << topologyConfig;
+        topologyConfigFile.close();
+
+        std::ofstream inputDataConfigFile(inputDataConfigFilename);
+        inputDataConfigFile << inputDataConfig;
+        inputDataConfigFile.close();
+
+        Net myNet(topologyConfigFilename, false);
+
+        myNet.sampleSet.loadSamples(inputDataConfigFilename);
+        myNet.feedForward(myNet.sampleSet.samples[0]);
+
+        auto const &inputs = myNet.layers[0]->neurons[0];
+        ASSERT_FEQ(inputs[flattenXY(0,0,8)].output, pixelToNetworkInputRange(11));
+        ASSERT_FEQ(inputs[flattenXY(7,0,8)].output, pixelToNetworkInputRange(21));
+        ASSERT_FEQ(inputs[flattenXY(0,7,8)].output, pixelToNetworkInputRange(31));
+        ASSERT_FEQ(inputs[flattenXY(7,7,8)].output, pixelToNetworkInputRange(41));
+        ASSERT_FEQ(inputs[flattenXY(2,4,8)].output, pixelToNetworkInputRange(101));
     }
 }
 
