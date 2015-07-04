@@ -158,7 +158,7 @@ void unitTestConfigParsers()
         ASSERT_EQ(specs[0].layerName, "input");
         ASSERT_EQ(specs[0].poolSize.x, 0);
         ASSERT_EQ(specs[0].poolSize.y, 0);
-        ASSERT_EQ(specs[0].size.depth, 1);
+        ASSERT_EQ(specs[0].size.z, 1);
         ASSERT_EQ(specs[0].size.x, 2);
         ASSERT_EQ(specs[0].size.y, 2);
 
@@ -171,7 +171,7 @@ void unitTestConfigParsers()
         ASSERT_EQ(specs[1].layerName, "output");
         ASSERT_EQ(specs[1].poolSize.x, 0);
         ASSERT_EQ(specs[1].poolSize.y, 0);
-        ASSERT_EQ(specs[1].size.depth, 1);
+        ASSERT_EQ(specs[1].size.z, 1);
         ASSERT_EQ(specs[1].size.x, 1);
         ASSERT_EQ(specs[1].size.y, 1);
         ASSERT_EQ(specs[1].transferFunctionName.size(), sizeof "tanh" - 1);
@@ -209,7 +209,7 @@ void unitTestConfigParsers()
     }
 
     {
-        LOG("Test dxySize: only X given");
+        LOG("Test Utils::Vector3u32: only X given");
 
         string config =
             "input size 3\n"
@@ -217,13 +217,13 @@ void unitTestConfigParsers()
 
         istringstream ss(config);
         auto specs = myNet.parseTopologyConfig(ss);
-        ASSERT_EQ(specs[0].size.depth, 1);
+        ASSERT_EQ(specs[0].size.z, 1);
         ASSERT_EQ(specs[0].size.x, 3);
         ASSERT_EQ(specs[0].size.y, 1);
     }
 
     {
-        LOG("Test dxySize(): depth and X given");
+        LOG("Test Utils::Vector3u32(): depth and X given");
 
         string config =
             "input size 1\n"
@@ -232,13 +232,13 @@ void unitTestConfigParsers()
 
         istringstream ss(config);
         auto specs = myNet.parseTopologyConfig(ss);
-        ASSERT_EQ(specs[1].size.depth, 4);
+        ASSERT_EQ(specs[1].size.z, 4);
         ASSERT_EQ(specs[1].size.x, 3);
         ASSERT_EQ(specs[1].size.y, 1);
     }
 
     {
-        LOG("Test dxySize: depth, X, and Y given");
+        LOG("Test Utils::Vector3u32: depth, X, and Y given");
 
         string config =
             "input size 1\n"
@@ -247,7 +247,7 @@ void unitTestConfigParsers()
 
         istringstream ss(config);
         auto specs = myNet.parseTopologyConfig(ss);
-        ASSERT_EQ(specs[1].size.depth, 4);
+        ASSERT_EQ(specs[1].size.z, 4);
         ASSERT_EQ(specs[1].size.x, 3);
         ASSERT_EQ(specs[1].size.y, 5);
     }
@@ -308,7 +308,7 @@ void unitTestConfigParsers()
         ASSERT_EQ(spec->layerName, "input");
         ASSERT_EQ(spec->poolSize.x, 0);
         ASSERT_EQ(spec->poolSize.y, 0);
-        ASSERT_EQ(spec->size.depth, 1);
+        ASSERT_EQ(spec->size.z, 1);
         ASSERT_EQ(spec->size.x, 1);
         ASSERT_EQ(spec->size.y, 1);
 
@@ -323,7 +323,7 @@ void unitTestConfigParsers()
         ASSERT_EQ(spec->layerName, "layer1");
         ASSERT_EQ(spec->poolSize.x, 0);
         ASSERT_EQ(spec->poolSize.y, 0);
-        ASSERT_EQ(spec->size.depth, 1);
+        ASSERT_EQ(spec->size.z, 1);
         ASSERT_EQ(spec->size.x, 1);
         ASSERT_EQ(spec->size.y, 1);
         ASSERT_EQ(spec->transferFunctionName.size(), sizeof "tanh" - 1);
@@ -339,7 +339,7 @@ void unitTestConfigParsers()
         ASSERT_EQ(spec->layerName, "layer2");
         ASSERT_EQ(spec->poolSize.x, 0);
         ASSERT_EQ(spec->poolSize.y, 0);
-        ASSERT_EQ(spec->size.depth, 1);
+        ASSERT_EQ(spec->size.z, 1);
         ASSERT_EQ(spec->size.x, 2);
         ASSERT_EQ(spec->size.y, 2);
         ASSERT_EQ(spec->transferFunctionName.size(), sizeof "tanh" - 1);
@@ -355,7 +355,7 @@ void unitTestConfigParsers()
         ASSERT_EQ(spec->layerName, "layer3");
         ASSERT_EQ(spec->poolSize.x, 0);
         ASSERT_EQ(spec->poolSize.y, 0);
-        ASSERT_EQ(spec->size.depth, 1);
+        ASSERT_EQ(spec->size.z, 1);
         ASSERT_EQ(spec->size.x, 7);
         ASSERT_EQ(spec->size.y, 8);
         ASSERT_EQ(spec->transferFunctionName.size(), sizeof "tanh" - 1);
@@ -371,7 +371,7 @@ void unitTestConfigParsers()
         ASSERT_EQ(spec->layerName, "layer4");
         ASSERT_EQ(spec->poolSize.x, 0);
         ASSERT_EQ(spec->poolSize.y, 0);
-        ASSERT_EQ(spec->size.depth, 1);
+        ASSERT_EQ(spec->size.z, 1);
         ASSERT_EQ(spec->size.x, 2);
         ASSERT_EQ(spec->size.y, 2);
         ASSERT_EQ(spec->transferFunctionName.size(), sizeof "tanh" - 1);
@@ -446,21 +446,21 @@ void unitTestConfigParsers()
         auto specs = myNet.parseTopologyConfig(ss);
 
         auto const *spec = specNamed(specs, "layer1");
-        ASSERT_EQ(spec->size.depth, 1);
+        ASSERT_EQ(spec->size.z, 1);
         ASSERT_EQ(spec->size.x, 2);
         ASSERT_EQ(spec->size.y, 3);
 
         spec = specNamed(specs, "layer3");
-        ASSERT_EQ(spec->size.depth, 1);
+        ASSERT_EQ(spec->size.z, 1);
         ASSERT_EQ(spec->size.x, 4);
         ASSERT_EQ(spec->size.y, 5);
 
         spec = specNamed(specs, "layer5");
-        ASSERT_EQ(spec->size.depth, 2);
+        ASSERT_EQ(spec->size.z, 2);
         ASSERT_EQ(spec->size.x, 3);
         ASSERT_EQ(spec->size.y, 4);
 
-        ASSERT_EQ(specs.back().size.depth, 1);
+        ASSERT_EQ(specs.back().size.z, 1);
         ASSERT_EQ(specs.back().size.x, 1);
         ASSERT_EQ(specs.back().size.y, 1);
     }
@@ -476,7 +476,7 @@ void unitTestConfigParsers()
         auto specs = myNet.parseTopologyConfig(ss);
 
         auto *spec = &specs[1];
-        ASSERT_EQ(spec->size.depth, 1);
+        ASSERT_EQ(spec->size.z, 1);
         ASSERT_EQ(spec->size.x, 1);
         ASSERT_EQ(spec->size.y, 1);
     }
@@ -580,7 +580,7 @@ void unitTestConfigParsers()
         auto specs = myNet.parseTopologyConfig(ss);
 
         auto *spec = &specs[1];
-        ASSERT_EQ(spec->size.depth, 10);
+        ASSERT_EQ(spec->size.z, 10);
         ASSERT_EQ(spec->size.x, 16);
         ASSERT_EQ(spec->size.y, 16);
         ASSERT_EQ(spec->kernelSize.x, 3);
@@ -620,7 +620,7 @@ void unitTestConfigParsers()
         auto specs = myNet.parseTopologyConfig(ss);
 
         auto *spec = &specs[1];
-        ASSERT_EQ(spec->size.depth, 10);
+        ASSERT_EQ(spec->size.z, 10);
         ASSERT_EQ(spec->poolMethod, POOL_MAX);
         ASSERT_EQ(spec->poolSize.x, 2);
         ASSERT_EQ(spec->poolSize.y, 3);
@@ -641,7 +641,7 @@ void unitTestConfigParsers()
         auto *spec = &specs[1];
         ASSERT_EQ(spec->kernelSize.x, 3);
         ASSERT_EQ(spec->kernelSize.y, 5);
-        ASSERT_EQ(spec->size.depth, 10);
+        ASSERT_EQ(spec->size.z, 10);
 
         ASSERT_EQ(spec->flatConvolveMatrix.size(), 10);
         ASSERT_EQ(spec->flatConvolveMatrix[0].size(), 3*5);
@@ -772,11 +772,11 @@ void unitTestNet()
         ASSERT_EQ(myNet.layers[1]->isConvolutionNetworkLayer, false);
         ASSERT_EQ(myNet.layers[1]->isPoolingLayer, false);
 
-        ASSERT_EQ(myNet.layers[0]->size.depth, 1);
+        ASSERT_EQ(myNet.layers[0]->size.z, 1);
         ASSERT_EQ(myNet.layers[0]->size.x, 1);
         ASSERT_EQ(myNet.layers[0]->size.y, 1);
 
-        ASSERT_EQ(myNet.layers[1]->size.depth, 1);
+        ASSERT_EQ(myNet.layers[1]->size.z, 1);
         ASSERT_EQ(myNet.layers[1]->size.x, 1);
         ASSERT_EQ(myNet.layers[1]->size.y, 1);
 
@@ -829,11 +829,11 @@ void unitTestNet()
         ASSERT_EQ(myNet.layers[1]->isConvolutionNetworkLayer, false);
         ASSERT_EQ(myNet.layers[1]->isPoolingLayer, false);
 
-        ASSERT_EQ(myNet.layers[0]->size.depth, 1);
+        ASSERT_EQ(myNet.layers[0]->size.z, 1);
         ASSERT_EQ(myNet.layers[0]->size.x, 8);
         ASSERT_EQ(myNet.layers[0]->size.y, 8);
 
-        ASSERT_EQ(myNet.layers[1]->size.depth, 1);
+        ASSERT_EQ(myNet.layers[1]->size.z, 1);
         ASSERT_EQ(myNet.layers[1]->size.x, 8);
         ASSERT_EQ(myNet.layers[1]->size.y, 8);
     }
@@ -1396,7 +1396,7 @@ void unitTestConvolutionNetworking()
         ASSERT_EQ(myNet.layers[2]->neurons[0].size(), 1);
 
         auto const &hl = *myNet.layers[1]; // Hidden layer (the convolution network layer)
-        ASSERT_EQ(hl.size.depth, 2);
+        ASSERT_EQ(hl.size.z, 2);
         ASSERT_EQ(hl.size.x, 1);
         ASSERT_EQ(hl.size.y, 1);
 
@@ -1468,7 +1468,7 @@ void unitTestConvolutionNetworking()
         ASSERT_EQ(myNet.layers[2]->neurons[0].size(), 1);
 
         auto const &hl = *myNet.layers[1]; // Hidden layer (the convolution network layer)
-        ASSERT_EQ(hl.size.depth, 2);
+        ASSERT_EQ(hl.size.z, 2);
         ASSERT_EQ(hl.size.x, 8);
         ASSERT_EQ(hl.size.y, 8);
 
@@ -1670,7 +1670,7 @@ void unitTestConvolutionNetworking()
         ASSERT_EQ(myNet1.layers[0]->neurons[0].size(), 32*32);
 
         auto const &input = *myNet1.layers[0];
-        ASSERT_EQ(input.size.depth, 1);
+        ASSERT_EQ(input.size.z, 1);
         ASSERT_EQ(input.neurons.size(), 1);
         ASSERT_EQ(input.neurons[0].size(), 32*32);
         ASSERT_EQ(input.neurons[0][0].backConnectionsIndices.size(), 0);
@@ -1679,20 +1679,20 @@ void unitTestConvolutionNetworking()
 
         // layerMix2 combines two source layers:
         auto const &layerMix2 = *layerNamed(myNet1, "layerMix2"); // size 4x4 from layerMix1 plus from layerGauss
-        ASSERT_EQ(layerMix2.size.depth, 1);
+        ASSERT_EQ(layerMix2.size.z, 1);
         ASSERT_EQ(layerMix2.neurons.size(), 1);
         ASSERT_EQ(layerMix2.neurons[0].size(), 4*4);
         ASSERT_EQ(layerMix2.neurons[0][flattenXY(2,2,4)].backConnectionsIndices.size(),
                   8*8 + 8*8 + 1); // two source layers plus a bias
 
         auto const &layerConv = *layerNamed(myNet1, "layerConv"); // size 10*32x32 from input convolve 7x7
-        ASSERT_EQ(layerConv.size.depth, 10);
+        ASSERT_EQ(layerConv.size.z, 10);
         ASSERT_EQ(layerConv.neurons.size(), 10);
         ASSERT_EQ(layerConv.neurons[0].size(), 32*32);
         ASSERT_EQ(layerConv.neurons[0][16*32+16].backConnectionsIndices.size(), 7*7);
 
         auto const &output = *myNet1.layers.back();
-        ASSERT_EQ(output.size.depth, 1);
+        ASSERT_EQ(output.size.z, 1);
         ASSERT_EQ(output.neurons.size(), 1);
         ASSERT_EQ(output.neurons[0].size(), 10);
         ASSERT_EQ(output.neurons[0][0].backConnectionsIndices.size(), 4*4 + 1);
@@ -2004,7 +2004,7 @@ void unitTestPooling()
         ASSERT_EQ(pl.poolMethod, NNet::POOL_MAX);
         ASSERT_EQ(pl.poolSize.x, 1);
         ASSERT_EQ(pl.poolSize.y, 1);
-        ASSERT_EQ(pl.size.depth, 1);
+        ASSERT_EQ(pl.size.z, 1);
         ASSERT_EQ(pl.size.x, 1);
         ASSERT_EQ(pl.size.y, 1);
 
@@ -2294,8 +2294,8 @@ void unitTestMisc()
         ASSERT_EQ(flattenXY(0, 1, 8), 1);
         ASSERT_EQ(flattenXY(1, 0, 8), 8);
 
-        dxySize dxySz;
-        dxySz.depth = 0;
+        Utils::Vector3u32 dxySz;
+        dxySz.z = 0;
         dxySz.x = 4;
         dxySz.y = 8;
         ASSERT_EQ(flattenXY(2, 3, dxySz), 2*8 + 3);

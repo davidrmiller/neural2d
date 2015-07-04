@@ -92,7 +92,7 @@ See https://github.com/davidrmiller/neural2d for more information.
 #define ENABLE_WEBSERVER
 
 
-// ISO-standard C++ headers:
+// C++ includes:
 
 #include <algorithm>
 #include <cassert>
@@ -107,6 +107,9 @@ See https://github.com/davidrmiller/neural2d for more information.
 #include <sstream>
 #include <string>
 #include <vector>
+
+// neural2d includes:
+#include "utils.h"
 
 #if defined(ENABLE_WEBSERVER) && !defined(DISABLE_WEBSERVER)
     #include <condition_variable> // For mutex
@@ -176,21 +179,6 @@ class exceptionInputSamplesFile : public std::exception { };
 class exceptionWeightsFile      : public std::exception { };
 class exceptionRuntime          : public std::exception { };
 
-
-// Little structure to hold a value consisting of a depth and X and Y:
-struct dxySize {
-    uint32_t depth;  // Only convolution network layers have nonzero depth
-    uint32_t x;
-    uint32_t y;
-};
-
-// Little structure to hold various radii in units of neurons:
-struct xySize {
-    uint32_t x;
-    uint32_t y;
-};
-
-
 enum ColorChannel_t { COLOR_NONE, R, G, B, BW };
 enum poolMethod_t { POOL_NONE, POOL_MAX, POOL_AVG };
 
@@ -208,27 +196,30 @@ float pixelToNetworkInputRange(unsigned val);  // Converts uint8_t to float
 //
 class ImageReader
 {
-public:
-    virtual xySize
-    getData(string const &filename, vector<float> &dataContainer, ColorChannel_t channel = NNet::R) = 0;
+ public:
+  virtual Utils::Vector2u32 data(std::string const &filename,
+                                 std::vector<float> &data_container,
+                                 ColorChannel_t channel = NNet::R) = 0;
 };
 
 class ImageReaderBMP : public ImageReader
 {
-public:
-    xySize getData(string const &filename, vector<float> &dataContainer, ColorChannel_t channel) override;
+ public:
+    Utils::Vector2u32 data(std::string const &filename, std::vector<float> &data_container,                           ColorChannel_t channel) override;
 };
 
 class ImageReaderDat : public ImageReader
 {
-public:
-    xySize getData(string const &filename, vector<float> &dataContainer, ColorChannel_t channel) override;
+ public:
+  Utils::Vector2u32 data(std::string const &filename, std::vector<float> &data_container,
+                         ColorChannel_t channel) override;
 };
 
-
-// One Sample holds one set of neural net input values, and the expected output
-// values (if known in advance).
-//
+/**
+ * Sample
+ * One Sample holds one set of neural net input values, and the expected output
+ * values (if known in advance).
+ */
 class Sample
 {
 public:
@@ -239,7 +230,7 @@ public:
     void clearImageCache(void);
 
     string imageFilename; // Ignored for explicit data
-    xySize size;  // X, Y image dimensions, nonzero if valid
+    Utils::Vector2u32 size;  // X, Y image dimensions, nonzero if valid
 
     // Data caches:
     vector<float> targetVals;
@@ -292,22 +283,22 @@ struct topologyConfigSpec_t {
     bool isConvolutionFilterLayer;     // Equivalent to (convolveMatrix.size() == 1)
     bool isConvolutionNetworkLayer;    // Equivalent to (convolveMatrix.size() > 1)
     bool isPoolingLayer;               // Equivalent to (poolSize.x != 0)
-    dxySize size;                      // layer depth, X, Y dimensions
+    Utils::Vector3u32 size;                      // layer depth, X, Y dimensions
     ColorChannel_t channel;            // Applies only to the input layer
-    xySize radius;                     // Always used, so set high to fully connect layers
+    Utils::Vector2u32 radius;                     // Always used, so set high to fully connect layers
     string transferFunctionName;
 
     // The rest of the members below are used by convolution and pooling layers only:
 
     enum poolMethod_t poolMethod;      // Used only for pooling layers
-    xySize poolSize;
+    Utils::Vector2u32 poolSize;
 
     // In the flatConvolveMatrix container, the size of the outer container equals
     // the layer depth, and the inner container contains the convolution kernel
     // flattened into a 1D array:
 
     vector<vector<float>> flatConvolveMatrix;  // Inner index = x*szY + y
-    xySize kernelSize;                 // Used only for convolution layers
+    Utils::Vector2u32 kernelSize;                 // Used only for convolution layers
 };
 
 
@@ -322,13 +313,13 @@ public: // New
     Layer(const topologyConfigSpec_t &params);
     vector<vector<Neuron>> neurons;    // neurons[depth][i], where i = flattened 2D index
     string layerName;                  // Can be input, output, or layer*
-    dxySize size;                      // layer depth, X, Y dimensions (number of neurons)
+    Utils::Vector3u32 size;                      // layer depth, X, Y dimensions (number of neurons)
     bool isRegularLayer;
     bool isConvolutionFilterLayer;     // Equivalent to (convolveMatrix.size() == 1)
     bool isConvolutionNetworkLayer;    // Equivalent to (convolveMatrix.size() > 1)
     bool isPoolingLayer;               // Equivalent to (poolSize.x != 0)
     ColorChannel_t channel;            // Applies only to the input layer
-    xySize radius;                     // Always used in regular layers, so set high to fully connect layers
+    Utils::Vector2u32 radius;                     // Always used in regular layers, so set high to fully connect layers
     transferFunction_t tf;             // Ignored by convolution filter layers
     transferFunction_t tfDerivative;   // Ignored by convolution filter layers
     vector<Connection> *pConnections;  // Pointer to the container of all Connection records
@@ -340,12 +331,12 @@ public: // New
     vector<vector<float>> flatConvolveMatrix;  // Inner index = x*szY + y
     vector<vector<float>> flatConvolveGradients;
     vector<vector<float>> flatDeltaWeights;
-    xySize kernelSize;                 // Used only for convolution layers
+    Utils::Vector2u32 kernelSize;                 // Used only for convolution layers
 
     enum poolMethod_t poolMethod;      // Used only for pooling layers
-    xySize poolSize;                   // Used only for pooling layers
+    Utils::Vector2u32 poolSize;                   // Used only for pooling layers
 
-    static void clipToBounds(int32_t &xmin, int32_t &xmax, int32_t &ymin, int32_t &ymax, dxySize &size);
+    static void clipToBounds(int32_t &xmin, int32_t &xmax, int32_t &ymin, int32_t &ymax, Utils::Vector3u32 &size);
     virtual void saveWeights(std::ofstream &);
     virtual void loadWeights(std::ifstream &);
     void connectLayers(Layer &layerFrom);
@@ -603,7 +594,7 @@ private:
 };
 
 extern uint32_t flattenXY(uint32_t x, uint32_t y, uint32_t ySize);
-extern uint32_t flattenXY(uint32_t x, uint32_t y, dxySize size);
+extern uint32_t flattenXY(uint32_t x, uint32_t y, Utils::Vector3u32 size);
 
 } // end namespace NNet
 

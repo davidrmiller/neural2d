@@ -45,7 +45,7 @@ float randomFloat(void)
 }
 
 
-// Given a (depth, x, y) coordinate, return a flattened index.
+// Given a (x, y, z) coordinate, return a flattened index.
 // There's nothing magic here; we use a function to do this so that we
 // always flatten it the same way each time:
 //
@@ -54,7 +54,7 @@ uint32_t flattenXY(uint32_t x, uint32_t y, uint32_t ySize)
     return x * ySize + y;
 }
 
-uint32_t flattenXY(uint32_t x, uint32_t y, dxySize size)
+uint32_t flattenXY(uint32_t x, uint32_t y, Utils::Vector3u32 size)
 {
     return flattenXY(x, y, size.y);
 }
@@ -185,7 +185,7 @@ vector<float> const &Sample::getData(ColorChannel_t channel)
    if (data.size() == 0 && imageFilename != "") {
        // Try all the image readers until we find one that succeeds:
        for (auto imageReader : SampleSet::imageReaders) {
-           size = imageReader->getData(imageFilename, data, channel);
+           size = imageReader->data(imageFilename, data, channel);
            if (size.x != 0) {
                break;
            }
@@ -388,7 +388,7 @@ void Layer::resolveTransferFunctionName(string const &transferFunctionName)
     }
 }
 
-void Layer::clipToBounds(int32_t &xmin, int32_t &xmax, int32_t &ymin, int32_t &ymax, dxySize &size)
+void Layer::clipToBounds(int32_t &xmin, int32_t &xmax, int32_t &ymin, int32_t &ymax, Utils::Vector3u32 &size)
 {
     if (xmin < 0) xmin = 0;
     if (xmin >= (int32_t)size.x) xmin = size.x - 1;
@@ -431,7 +431,7 @@ void Layer::updateWeights(float eta, float alpha)
 
 void Layer::connectLayers(Layer &layerFrom)
 {
-    for (uint32_t destDepth = 0; destDepth < size.depth; ++destDepth) {
+    for (uint32_t destDepth = 0; destDepth < size.z; ++destDepth) {
         for (uint32_t destX = 0; destX < size.x; ++destX) {
             for (uint32_t destY = 0; destY < size.y; ++destY) {
                 auto &toNeuron = neurons[destDepth][flattenXY(destX, destY, size)];
@@ -531,11 +531,11 @@ void Layer::connectOneNeuronAllDepths(Layer &fromLayer, Neuron &toNeuron,
     uint32_t sourceDepthMin = 0;
     uint32_t sourceDepthMax = 0;
 
-    if (fromLayer.size.depth == layerTo.size.depth) {
+    if (fromLayer.size.z == layerTo.size.z) {
         sourceDepthMin = sourceDepthMax = destDepth;
     } else {
         sourceDepthMin = 0;
-        sourceDepthMax = fromLayer.size.depth - 1;
+        sourceDepthMax = fromLayer.size.z - 1;
     }
 
     for (int32_t srcX = xmin; srcX <= xmax; ++srcX) {
@@ -602,14 +602,14 @@ LayerConvolution::LayerConvolution(const topologyConfigSpec_t &params) : Layer(p
     flatConvolveMatrix.clear();
     flatConvolveMatrix = params.flatConvolveMatrix;
     flatConvolveGradients.clear();
-    flatConvolveGradients.assign(size.depth, vector<float>(kernelSize.x * kernelSize.y));
+    flatConvolveGradients.assign(size.z, vector<float>(kernelSize.x * kernelSize.y));
     flatDeltaWeights.clear();
-    flatDeltaWeights.assign(size.depth, vector<float>(kernelSize.x * kernelSize.y));
+    flatDeltaWeights.assign(size.z, vector<float>(kernelSize.x * kernelSize.y));
 }
 
 void LayerConvolution::feedForward()
 {
-    for (uint32_t depthIdx = 0; depthIdx < size.depth; ++depthIdx) {
+    for (uint32_t depthIdx = 0; depthIdx < size.z; ++depthIdx) {
         for (uint32_t x = 0; x < size.x; ++x) {
             for (uint32_t y = 0; y < size.y; ++y) {
                 auto &neuron = neurons[depthIdx][flattenXY(x, y, size)];
@@ -644,7 +644,7 @@ void LayerConvolutionNetwork::calcGradients(const vector<float> &targetVals)
 
     assert(flatConvolveGradients[0][0] == 0.0);
 
-    for (uint32_t depth = 0; depth < size.depth; ++depth) {
+    for (uint32_t depth = 0; depth < size.z; ++depth) {
         for (auto &neuron : neurons[depth]) {
             neuron.calcHiddenGradientsConvolution(depth, *this);
         }
@@ -653,7 +653,7 @@ void LayerConvolutionNetwork::calcGradients(const vector<float> &targetVals)
 
 void LayerConvolutionNetwork::updateWeights(float eta, float alpha)
 {
-    for (uint32_t depth = 0; depth < size.depth; ++depth) {
+    for (uint32_t depth = 0; depth < size.z; ++depth) {
         auto &plane = neurons[depth];
         for (auto &neuron : plane) {
             neuron.updateInputWeightsConvolution(depth, eta, alpha, *this);
@@ -690,7 +690,7 @@ void LayerConvolutionNetwork::loadWeights(std::ifstream &file)
 
 void LayerConvolutionNetwork::debugShow(bool)
 {
-    info << layerName << ": " << size.depth << "*" << size.x << "x" << size.y
+    info << layerName << ": " << size.z << "*" << size.x << "x" << size.y
          << " = " << neurons.size() * neurons[0].size() << " neurons, convolution network "
          << kernelSize.x << "x" << kernelSize.y << " kernels" << endl;
 }
@@ -718,7 +718,7 @@ void LayerPooling::updateWeights(float, float)
 
 void LayerPooling::debugShow(bool)
 {
-    info << layerName << ": " << size.depth << "*" << size.x << "x" << size.y
+    info << layerName << ": " << size.z << "*" << size.x << "x" << size.y
          << " = " << neurons.size() * neurons[0].size() << " neurons, pool "
          << (poolMethod == POOL_MAX ? "max" : "avg")
          << " " << kernelSize.x << "x" << kernelSize.y << endl;
@@ -771,7 +771,7 @@ void LayerRegular::loadWeights(std::ifstream &file)
 
 void LayerRegular::updateWeights(float eta, float alpha)
 {
-    assert(size.depth == 1);
+    assert(size.z == 1);
     for (auto &neuron : neurons[0]) {
         neuron.updateInputWeights(eta, alpha, pConnections);
     }
@@ -785,12 +785,12 @@ void LayerRegular::debugShow(bool details)
 
 //    info << "Layer '" << l.layerName << "' has " << l.neurons.size() * l.neurons[0].size()
 //         << " neurons arranged in " << l.size.x << "x" << l.size.y
-//         << " depth " << l.size.depth << ":" << endl;
+//         << " depth " << l.size.z << ":" << endl;
 
-    info << l.layerName << ": " << l.size.depth << "*" << l.size.x << "x" << l.size.y
+    info << l.layerName << ": " << l.size.z << "*" << l.size.x << "x" << l.size.y
          << " = " << l.neurons.size() * l.neurons[0].size() << " neurons";
 
-    for (size_t depth = 0; depth < l.size.depth; ++depth) {
+    for (size_t depth = 0; depth < l.size.z; ++depth) {
         numFwdConnections = 0;
         numBackConnections = 0;
 
@@ -1280,7 +1280,7 @@ void Net::backProp(const Sample &sample)
 
     // Verify that we have the right number of target output values:
     auto const &outputSize = layers.back()->size;
-    if (sample.targetVals.size() != outputSize.depth * outputSize.x * outputSize.y) {
+    if (sample.targetVals.size() != outputSize.z * outputSize.x * outputSize.y) {
         err << "Error: wrong number of target output values in the input data config file" << endl;
         throw exceptionConfigFile();
     }
@@ -1483,7 +1483,7 @@ void Net::configureNetwork(vector<topologyConfigSpec_t> allLayerSpecs, const str
 
             // Pre-allocate all the neurons in the layer so that we can form
             // stable references to individual neurons:
-            newLayer.neurons.assign(newLayer.size.depth, vector<Neuron>(newLayer.size.x * newLayer.size.y));
+            newLayer.neurons.assign(newLayer.size.z, vector<Neuron>(newLayer.size.x * newLayer.size.y));
             numNeurons += newLayer.size.x * newLayer.size.y;
 
             // Connect them:

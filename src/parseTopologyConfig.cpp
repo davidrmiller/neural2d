@@ -25,7 +25,7 @@ topologyConfigSpec_t::topologyConfigSpec_t(void)
     radiusSpecified = false;
     tfSpecified = false;
 
-    size.depth = size.x = size.y = 0;
+    size.z = size.x = size.y = 0;
     channel = NNet::BW;
     radius.x = radius.y = 0;
     transferFunctionName.clear();
@@ -175,18 +175,18 @@ void extractConvolveFilterMatrix(topologyConfigSpec_t &params, std::istringstrea
 // Depth, if omitted, defaults to zero.
 // Y, if omitted, defaults to zero.
 //
-dxySize extractDxySize(std::istringstream &ss)
+Utils::Vector3u32 extractDxySize(std::istringstream &ss)
 {
     char ch;
-    dxySize size;
-    size.depth = 1;  // Default is 1 unless otherwise specified
+    Utils::Vector3u32 size;
+    size.z = 1;  // Default is 1 unless otherwise specified
 
     ss >> size.x;   // This may actually be the depth, we'll see
     auto pos = ss.tellg();
     ss >> ch;       // Test the next non-space char
     if (ch == '*') {
         // Depth dimension
-        size.depth = size.x; // That was the depth we read, not X
+        size.z = size.x; // That was the depth we read, not X
         size.x = 0;
         ss >> size.x;
         pos = ss.tellg();
@@ -206,10 +206,10 @@ dxySize extractDxySize(std::istringstream &ss)
 // format: X [x Y]
 // Y, if omitted, defaults to zero.
 //
-xySize extractXySize(std::istringstream &ss)
+Utils::Vector2u32 extractXySize(std::istringstream &ss)
 {
     char ch;
-    xySize size;
+    Utils::Vector2u32 size;
 
     ss >> size.x;
     auto pos = ss.tellg();
@@ -433,7 +433,7 @@ void consistency(vector<topologyConfigSpec_t> &params)
         // the previous spec:
         for (auto itp = it - 1; itp != params.begin(); --itp) {
             if (itp->layerName == spec.layerName) {
-                if (itp->size.depth != spec.size.depth
+                if (itp->size.z != spec.size.z
                         || itp->size.x != spec.size.x
                         || itp->size.y != spec.size.y) {
                     err << "Repeated layer spec for \"" << spec.layerName
@@ -462,7 +462,7 @@ void consistency(vector<topologyConfigSpec_t> &params)
             // of the matrix was already saved in spec. If this layer has depth > 1, we'll
             // replicate the matrix depth-1 more times:
 
-            for (uint32_t depth = 1; depth < spec.size.depth; ++depth) {
+            for (uint32_t depth = 1; depth < spec.size.z; ++depth) {
                 spec.flatConvolveMatrix.push_back(spec.flatConvolveMatrix[0]);
             }
         }
@@ -475,7 +475,7 @@ void consistency(vector<topologyConfigSpec_t> &params)
             std::for_each(flatMatrix.begin(), flatMatrix.end(), [](float &w) {
                 w = randomFloat() / 100.0f; // Do something more intelligent here
             });
-            spec.flatConvolveMatrix.assign(spec.size.depth, flatMatrix);
+            spec.flatConvolveMatrix.assign(spec.size.z, flatMatrix);
         }
     }
 
@@ -485,7 +485,7 @@ void consistency(vector<topologyConfigSpec_t> &params)
         throw exceptionConfigFile();
     }
 
-    if (params.back().isConvolutionNetworkLayer || params.back().size.depth > 1) {
+    if (params.back().isConvolutionNetworkLayer || params.back().size.z > 1) {
         err << "Output layer cannot be a convolution network layer" << endl;
         throw exceptionConfigFile();
     }

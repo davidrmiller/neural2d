@@ -13,7 +13,9 @@ namespace NNet {
 // Extract the input data from the specified file and save the data in the data container.
 // Returns the nonzero image size if successful, else returns 0,0.
 //
-xySize ImageReaderBMP::getData(std::string const &filename, std::vector<float> &dataContainer, ColorChannel_t colorChannel)
+Utils::Vector2u32 ImageReaderBMP::data(std::string const &filename,
+                                std::vector<float> &data_container,
+                                ColorChannel_t channel)
 {
     FILE* f = fopen(filename.c_str(), "rb");
 
@@ -72,8 +74,8 @@ xySize ImageReaderBMP::getData(std::string const &filename, std::vector<float> &
     uint32_t rowLen_padded = (width*3 + 3) & (~3);
     std::unique_ptr<unsigned char[]> imageData {new unsigned char[rowLen_padded]};
 
-    dataContainer.clear();
-    dataContainer.assign(width * height, 0); // Pre-allocate to make random access easy
+    data_container.clear();
+    data_container.assign(width * height, 0); // Pre-allocate to make random access easy
 
     // Fill the data container with 8-bit data taken from the image data:
 
@@ -88,13 +90,13 @@ xySize ImageReaderBMP::getData(std::string const &filename, std::vector<float> &
         unsigned val = 0;
 
         for (uint32_t x = 0; x < width; ++x) {
-            if (colorChannel == NNet::R) {
+            if (channel == NNet::R) {
                 val = imageData[x * 3 + 2]; // Red
-            } else if (colorChannel == NNet::G) {
+            } else if (channel == NNet::G) {
                 val = imageData[x * 3 + 1]; // Green
-            } else if (colorChannel == NNet::B) {
+            } else if (channel == NNet::B) {
                 val = imageData[x * 3 + 0]; // Blue
-            } else if (colorChannel == NNet::BW) {
+            } else if (channel == NNet::BW) {
                 // Rounds down:
                 val = (unsigned)(0.3 * imageData[x*3 + 2] +   // Red
                                  0.6 * imageData[x*3 + 1] +   // Green
@@ -108,7 +110,7 @@ xySize ImageReaderBMP::getData(std::string const &filename, std::vector<float> &
             // range that we can input into the neural net:
             // Also we'll invert the rows so that the origin is the upper left at 0,0:
 
-            dataContainer[flattenXY(x, (height - y) - 1, height)] = pixelToNetworkInputRange(val);
+            data_container[flattenXY(x, (height - y) - 1, height)] = pixelToNetworkInputRange(val);
         }
     }
 

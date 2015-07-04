@@ -43,8 +43,9 @@ struct datHeader
 // Extract the input data from the specified file and save the data in the data container.
 // Returns the nonzero image size if successful, else returns 0,0.
 //
-xySize ImageReaderDat::getData(std::string const &filename,
-            std::vector<float> &dataContainer, ColorChannel_t colorChannel)
+Utils::Vector2u32 ImageReaderDat::data(std::string const &filename,
+                                std::vector<float> &data_container,
+                                ColorChannel_t channel)
 {
     datHeader hdr;
 
@@ -71,7 +72,7 @@ xySize ImageReaderDat::getData(std::string const &filename,
 
     // Map the color channel enumeration to a channel index:
     uint32_t colorChannelNumber;
-    switch (colorChannel) {
+    switch (channel) {
     case NNet::R: colorChannelNumber = 0; break;
     case NNet::G: colorChannelNumber = 1; break;
     case NNet::B: colorChannelNumber = 2; break;
@@ -91,8 +92,8 @@ xySize ImageReaderDat::getData(std::string const &filename,
     f.seekg(hdr.offsetToData + colorChannelNumber * hdr.bytesPerElement * hdr.width * hdr.height);
 
     // Clear dataContainer and reserve enough space:
-    dataContainer.clear();
-    dataContainer.assign(hdr.width * hdr.height, 0.0);
+    data_container.clear();
+    data_container.assign(hdr.width * hdr.height, 0.0);
 
     if (hdr.bytesPerElement == sizeof(float)) {
         for (uint32_t y = 0; y < hdr.height; ++y) {
@@ -100,7 +101,7 @@ xySize ImageReaderDat::getData(std::string const &filename,
                 float n;
                 f.read((char *)&n, sizeof n);
                 fixEndianness(&n);
-                dataContainer[flattenXY(x, y, hdr.height)] = n;
+                data_container[flattenXY(x, y, hdr.height)] = n;
             }
         }
     } else if (hdr.bytesPerElement == sizeof(double)) {
@@ -109,7 +110,7 @@ xySize ImageReaderDat::getData(std::string const &filename,
                 double n;
                 f.read((char *)&n, sizeof n);
                 fixEndianness(&n);
-                dataContainer[flattenXY(x, y, hdr.height)] = (float)n;
+                data_container[flattenXY(x, y, hdr.height)] = (float)n;
             }
         }
     } else {
