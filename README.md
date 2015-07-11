@@ -67,8 +67,10 @@ Document Contents
 Requirements<a name="Requirements"></a>
 ------------
 
-* C++-11 compiler (e.g., g++ on Linux)
-* POSIX sockets (e.g., Cygwin on Windows) (only needed for the optional GUI)
+* C++-11 compiler
+  * e.g., g++ 4.7 on Linux or Cygwin, Visual Studio 2013 on Windows
+* POSIX sockets (only needed if compiling the optional GUI)
+  * e.g., Cygwin on Windows
 * CMake 2.8.12 or later
 * Compiles and runs on Linux, Windows, and probably Mac
 
@@ -109,7 +111,7 @@ build directory. On Linux and Cygwin, CMake generates a Makefile that you can us
 compile neural2d. You can specify a different CMake generator with the -G option,
 for example:
 
-     cmake -G "Visual Studio 11 2012" ..
+     cmake -G "Visual Studio 14 2015" ..
 
 To get a list of available CMake generators:
 
