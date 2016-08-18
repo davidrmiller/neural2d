@@ -7,7 +7,7 @@ User Manual
 Ver. 1.0  
 =======
 
-Updated 18-Aug-2015
+Updated 18-Aug-2016
 
 Intro video (11 min): 
 [https://www.youtube.com/watch?v=yB43jj-wv8Q](https://www.youtube.com/watch?v=yB43jj-wv8Q)
@@ -737,7 +737,7 @@ For binary input data, create your own directory of BMP image
 files or .dat binary files, and an input data config file
 (inputData.txt) that follows the same format as shown in the
 [examples elsewhere](#YourOwnData). Then define a [topology config
-file](topology.txt) with the appropriate number of network inputs and
+file](#topologyconfig) with the appropriate number of network inputs and
 outputs, then run the neural2d program.
 
 Or if you don't want to use .bmp image files or .dat binary files for
@@ -847,7 +847,7 @@ filter applied to the source layer.  The syntax is of the form:
 
 Also [see above for more information](#ConvolutionFiltering).
 
-See [here](http://neural2d.net/?p=40) for the difference between 
+See [this article](http://neural2d.net/?p=40) for the difference between 
 *convolution filter* and *convolution networking*.
 
 
@@ -923,7 +923,7 @@ notes.](#https://github.com/davidrmiller/neural2d/issues/21)
 
 Here is a little map of the important files:
 
-![](https://raw.github.com/davidrmiller/neural2d/master/files-relationships.png)
+![](https://raw.github.com/davidrmiller/neural2d/master/file-relationships.png)
 
 Also see the class relationship diagram in the project root directory.
 
