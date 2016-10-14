@@ -1,0 +1,3 @@
+input size 10x10
+layer1 size 10x10 from input
+output size 1x1 from layer1
