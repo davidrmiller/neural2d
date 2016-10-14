@@ -44,7 +44,6 @@ int main(int argc, char **argv)
                     printUsage();
                 } else if (std::string(argv[i]) == "--p") {
                     paused = true;
-                    std::cout << "Paused." << std::endl;
                 } else if (std::string(argv[i]) == "--weights") {
                     weightsFilename = argv[++i];
                 } else {
@@ -65,6 +64,7 @@ int main(int argc, char **argv)
     myNet.sampleSet.loadSamples(inputDataFilename);
     if(paused){
         myNet.isRunning = false;
+        std::cout << "Paused." << std::endl;
     }
 
     switch(mode){
