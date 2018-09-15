@@ -1,18 +1,14 @@
-Neural2d - Neural Net Simulator
-================================
+This repository and the associated neural2d.net website are no longer supported and will be going away soon. Neural2d started as a fun weekend project, then gained some momentum from excellent code contributions from a number of programmers. But I’m at a place in my life where I need to turn my attention elsewhere. I would refer users and educators to the many excellent neural net resources that are more pedagogically effective and more technologically current than this project.
 
-User Manual
-===========
+The most recent neural2d user manual is shown below for historical reference.
 
-Ver. 1.0  
-=======
+A sincere thank-you to everyone who particpiated in neural2d, and best wishes in your neural-netting.
 
-Updated 18-Aug-2016
+— Dave
 
-Intro video (11 min): 
-[https://www.youtube.com/watch?v=yB43jj-wv8Q](https://www.youtube.com/watch?v=yB43jj-wv8Q)
 
-Blog: [neural2d.net](http://neural2d.net)
+Neural2d - Neural Net Simulator User Manual
+===========================================
 
 Features
 --------
